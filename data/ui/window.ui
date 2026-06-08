@@ -17,7 +17,6 @@
     <property name="default-width">720</property>
     <property name="default-height">640</property>
     <property name="resizable">True</property>
-
     <child>
       <object class="AdwToolbarView">
         <child type="top">
@@ -33,9 +32,79 @@
           </object>
         </child>
         <property name="content">
-          <object class="AdwStatusPage">
-            <property name="title">Dashboard</property>
-            <property name="description">YAY!</property>
+          <object class="GtkScrolledWindow">
+            <property name="hscrollbar-policy">never</property>
+            <property name="vexpand">true</property>
+            <child>
+              <object class="AdwClamp">
+                <property name="maximum-size">840</property>
+                <property name="tightening-threshold">600</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">16</property>
+                    <property name="margin-top">16</property>
+                    <property name="margin-bottom">16</property>
+                    <property name="margin-start">16</property>
+                    <property name="margin-end">16</property>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="orientation">horizontal</property>
+                        <property name="spacing">16</property>
+                        <property name="homogeneous">True</property>
+                        <property name="valign">start</property>
+                        <child>
+                          <object class="GtkBox" id="aux_card">
+                            <style><class name="card"/></style>
+                            <property name="orientation">vertical</property>
+                            <child>
+                              <object class="GtkBox">
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">12</property>
+                                <property name="margin-top">16</property>
+                                <property name="margin-bottom">16</property>
+                                <property name="margin-start">16</property>
+                                <property name="margin-end">16</property>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <style><class name="heading"/></style>
+                                    <property name="label">Aux</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox" id="main_card">
+                            <style><class name="card"/></style>
+                            <property name="orientation">vertical</property>
+                            <child>
+                              <object class="GtkBox">
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">12</property>
+                                <property name="margin-top">16</property>
+                                <property name="margin-bottom">16</property>
+                                <property name="margin-start">16</property>
+                                <property name="margin-end">16</property>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <style><class name="heading"/></style>
+                                    <property name="label">Main</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
           </object>
         </property>
       </object>
