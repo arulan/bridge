@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="io.github.arulan.Dashboard" path="/io/github/arulan/Dashboard/">
+    <key name="aux-channels" type="i">
+      <default>2</default>
+      <summary>Aux sink channel count</summary>
+    </key>
+    <key name="main-channels" type="i">
+      <default>2</default>
+      <summary>Main sink channel count</summary>
+    </key>
+    <key name="aux-channel-positions" type="s">
+      <default>"FL,FR"</default>
+      <summary>Aux sink channel positions</summary>
+    </key>
+    <key name="main-channel-positions" type="s">
+      <default>"FL,FR"</default>
+      <summary>Main sink channel positions</summary>
+    </key>
+    <key name="aux-hw-name" type="s">
+      <default>""</default>
+      <summary>Aux sink hardware output node.name</summary>
+    </key>
+    <key name="main-hw-name" type="s">
+      <default>""</default>
+      <summary>Main sink hardware output node.name</summary>
+    </key>
+    <key name="aux-display-name" type="s">
+      <default>""</default>
+      <summary>Aux sink display name</summary>
+    </key>
+    <key name="main-display-name" type="s">
+      <default>""</default>
+      <summary>Main sink display name</summary>
+    </key>
+  </schema>
+</schemalist>

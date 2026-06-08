@@ -15,15 +15,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
-mod application;
-mod config;
-mod window;
+use std::process::Command;
 
-use adw::prelude::*;
-use application::{register_actions, DashboardApplication};
+fn main() {
+    // GSETTINGS_SCHEMA_DIR=$PWD/data cargo run
+    let status = Command::new("glib-compile-schemas")
+        .arg("data")
+        .status()
+        .expect("failed to run glib-compile-schemas");
+    assert!(status.success(), "glib-compile-schemas failed");
 
-fn main() -> glib::ExitCode {
-    let app = DashboardApplication::new();
-    register_actions(&app);
-    app.run()
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=data/io.github.arulan.Dashboard.gschema.xml");
 }
