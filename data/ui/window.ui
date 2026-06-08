@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.4"/>
+
+  <template class="DashboardWindow" parent="AdwApplicationWindow">
+    <property name="title">Dashboard</property>
+    <property name="default-width">720</property>
+    <property name="default-height">640</property>
+    <property name="resizable">True</property>
+
+    <child>
+      <object class="AdwToolbarView">
+        <child type="top">
+          <object class="AdwHeaderBar"/>
+        </child>
+        <property name="content">
+          <object class="AdwStatusPage">
+            <property name="title">Dashboard</property>
+            <property name="description">YAY!</property>
+          </object>
+        </property>
+      </object>
+    </child>
+  </template>
+</interface>
