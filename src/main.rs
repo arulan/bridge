@@ -19,9 +19,10 @@ mod application;
 mod window;
 
 use adw::prelude::*;
-use application::DashboardApplication;
+use application::{register_actions, DashboardApplication};
 
 fn main() -> glib::ExitCode {
     let app = DashboardApplication::new();
+    register_actions(&app);
     app.run()
 }

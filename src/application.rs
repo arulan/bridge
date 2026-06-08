@@ -58,6 +58,23 @@ impl ApplicationImpl for DashboardApplicationImp {
 impl GtkApplicationImpl for DashboardApplicationImp {}
 impl AdwApplicationImpl for DashboardApplicationImp {}
 
+impl DashboardApplicationImp {
+    fn show_about_dialog(&self) {
+        let about = adw::AboutDialog::builder()
+            .application_name("Dashboard")
+            .version(env!("CARGO_PKG_VERSION"))
+            .developer_name("arulan")
+            .developers(["arulan"])
+            .copyright("© 2026 arulan")
+            .license_type(gtk::License::Gpl30)
+            .website("https://github.com/arulan/dashboard")
+            .issue_url("https://github.com/arulan/dashboard/issues")
+            .build();
+        let parent = self.window.borrow().clone();
+        about.present(parent.as_ref().map(|w| w.upcast_ref::<gtk::Widget>()));
+    }
+}
+
 // cannot be dereferenced?
 glib::wrapper! {
     pub struct DashboardApplication(ObjectSubclass<DashboardApplicationImp>)
@@ -72,4 +89,11 @@ impl DashboardApplication {
             .property("flags", gio::ApplicationFlags::empty())
             .build()
     }
+}
+
+pub fn register_actions(app: &DashboardApplication) {
+    let about = gio::SimpleAction::new("about", None);
+    let app_c = app.clone();
+    about.connect_activate(move |_, _| app_c.imp().show_about_dialog());
+    app.add_action(&about);
 }
