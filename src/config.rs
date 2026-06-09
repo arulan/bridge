@@ -27,12 +27,12 @@ const SCHEMA_ID: &str = "io.github.arulan.Dashboard";
 pub struct SinkConfig {
     pub aux_channels:  u32,
     pub main_channels: u32,
-    pub aux_channel_positions:  String,
-    pub main_channel_positions: String,
-    pub aux_hw:        String,
-    pub main_hw:       String,
-    pub aux_display:   String,
-    pub main_display:  String,
+    pub aux_position:  String,
+    pub main_position: String,
+    pub aux_hw_name:      String,
+    pub main_hw_name:     String,
+    pub aux_display_name:  String,
+    pub main_display_name: String,
 }
 
 fn settings() -> gio::Settings {
@@ -44,12 +44,12 @@ pub fn load() -> SinkConfig {
     SinkConfig {
         aux_channels:  s.int("aux-channels") as u32,
         main_channels: s.int("main-channels") as u32,
-        aux_channel_positions:  s.string("aux-channel-positions").into(),
-        main_channel_positions: s.string("main-channel-positions").into(),
-        aux_hw:        s.string("aux-hw-name").into(),
-        main_hw:       s.string("main-hw-name").into(),
-        aux_display:   s.string("aux-display-name").into(),
-        main_display:  s.string("main-display-name").into(),
+        aux_position:  s.string("aux-position").into(),
+        main_position: s.string("main-position").into(),
+        aux_hw_name:      s.string("aux-hw-name").into(),
+        main_hw_name:     s.string("main-hw-name").into(),
+        aux_display_name:  s.string("aux-display-name").into(),
+        main_display_name: s.string("main-display-name").into(),
     }
 }
 
@@ -58,10 +58,10 @@ pub fn store(cfg: &SinkConfig) {
     let s = settings();
     let _ = s.set_int("aux-channels", cfg.aux_channels as i32);
     let _ = s.set_int("main-channels", cfg.main_channels as i32);
-    let _ = s.set_string("aux-channel-positions", &cfg.aux_channel_positions);
-    let _ = s.set_string("main-channel-positions", &cfg.main_channel_positions);
-    let _ = s.set_string("aux-hw-name", &cfg.aux_hw);
-    let _ = s.set_string("main-hw-name", &cfg.main_hw);
-    let _ = s.set_string("aux-display-name", &cfg.aux_display);
-    let _ = s.set_string("main-display-name", &cfg.main_display);
+    let _ = s.set_string("aux-position", &cfg.aux_position);
+    let _ = s.set_string("main-position", &cfg.main_position);
+    let _ = s.set_string("aux-hw-name", &cfg.aux_hw_name);
+    let _ = s.set_string("main-hw-name", &cfg.main_hw_name);
+    let _ = s.set_string("aux-display-name", &cfg.aux_display_name);
+    let _ = s.set_string("main-display-name", &cfg.main_display_name);
 }

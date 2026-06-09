@@ -9,11 +9,11 @@
       <default>2</default>
       <summary>Main sink channel count</summary>
     </key>
-    <key name="aux-channel-positions" type="s">
+    <key name="aux-position" type="s">
       <default>"FL,FR"</default>
       <summary>Aux sink channel positions</summary>
     </key>
-    <key name="main-channel-positions" type="s">
+    <key name="main-position" type="s">
       <default>"FL,FR"</default>
       <summary>Main sink channel positions</summary>
     </key>

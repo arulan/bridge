@@ -20,7 +20,7 @@ use gtk4::{self as gtk, CompositeTemplate};
 use glib::subclass::InitializingObject;
 
 #[derive(CompositeTemplate, Default)]
-#[template(file = "../../data/ui/window.ui")]
+#[template(file = "../data/ui/window.ui")]
 pub struct DashboardWindowImp {}
 
 #[glib::object_subclass]

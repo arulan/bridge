@@ -6,6 +6,12 @@
   <menu id="primary_menu">
     <section>
       <item>
+        <attribute name="label" translatable="yes">_Set Up…</attribute>
+        <attribute name="action">app.setup</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
         <attribute name="label" translatable="yes">_About Dashboard</attribute>
         <attribute name="action">app.about</attribute>
       </item>

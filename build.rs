@@ -18,6 +18,10 @@
 use std::process::Command;
 
 fn main() {
+    // Link the pw & wp client libs
+    pkg_config::probe_library("wireplumber-0.5").expect("wireplumber-0.5 not found");
+    pkg_config::probe_library("libpipewire-0.3").expect("libpipewire-0.3 not found");
+
     // GSETTINGS_SCHEMA_DIR=$PWD/data cargo run
     let status = Command::new("glib-compile-schemas")
         .arg("data")

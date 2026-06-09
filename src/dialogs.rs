@@ -15,18 +15,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
-mod application;
-mod audio;
-mod config;
-mod dialogs;
-mod window;
-mod wp;
-
-use adw::prelude::*;
-use application::{register_actions, DashboardApplication};
-
-fn main() -> glib::ExitCode {
-    let app = DashboardApplication::new();
-    register_actions(&app);
-    app.run()
-}
+pub mod setup;
