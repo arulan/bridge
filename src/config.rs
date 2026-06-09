@@ -41,27 +41,30 @@ fn settings() -> gio::Settings {
 
 pub fn load() -> SinkConfig {
     let s = settings();
+    let aux  = s.child("aux");
+    let main = s.child("main");
     SinkConfig {
-        aux_channels:  s.int("aux-channels") as u32,
-        main_channels: s.int("main-channels") as u32,
-        aux_position:  s.string("aux-position").into(),
-        main_position: s.string("main-position").into(),
-        aux_hw_name:      s.string("aux-hw-name").into(),
-        main_hw_name:     s.string("main-hw-name").into(),
-        aux_display_name:  s.string("aux-display-name").into(),
-        main_display_name: s.string("main-display-name").into(),
+        aux_channels:  aux.int("channels") as u32,
+        main_channels: main.int("channels") as u32,
+        aux_position:  aux.string("position").into(),
+        main_position: main.string("position").into(),
+        aux_hw_name:      aux.string("hw-name").into(),
+        main_hw_name:     main.string("hw-name").into(),
+        aux_display_name:  aux.string("display-name").into(),
+        main_display_name: main.string("display-name").into(),
     }
 }
 
 
 pub fn store(cfg: &SinkConfig) {
     let s = settings();
-    let _ = s.set_int("aux-channels", cfg.aux_channels as i32);
-    let _ = s.set_int("main-channels", cfg.main_channels as i32);
-    let _ = s.set_string("aux-position", &cfg.aux_position);
-    let _ = s.set_string("main-position", &cfg.main_position);
-    let _ = s.set_string("aux-hw-name", &cfg.aux_hw_name);
-    let _ = s.set_string("main-hw-name", &cfg.main_hw_name);
-    let _ = s.set_string("aux-display-name", &cfg.aux_display_name);
-    let _ = s.set_string("main-display-name", &cfg.main_display_name);
+    store_sink(&s.child("aux"), cfg.aux_channels, &cfg.aux_position, &cfg.aux_hw_name, &cfg.aux_display_name);
+    store_sink(&s.child("main"), cfg.main_channels, &cfg.main_position, &cfg.main_hw_name, &cfg.main_display_name);
+}
+
+fn store_sink(s: &gio::Settings, channels: u32, position: &str, hw_name: &str, display_name: &str) {
+    let _ = s.set_int("channels", channels as i32);
+    let _ = s.set_string("position", position);
+    let _ = s.set_string("hw-name", hw_name);
+    let _ = s.set_string("display-name", display_name);
 }

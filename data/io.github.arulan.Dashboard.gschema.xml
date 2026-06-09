@@ -1,37 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
+  <!-- One sink definition, mounted at /aux/ and /main/ -->
+  <schema id="io.github.arulan.Dashboard.sink">
+    <key name="channels" type="i">
+      <default>2</default>
+      <summary>Channel count</summary>
+    </key>
+    <key name="position" type="s">
+      <default>"FL,FR"</default>
+      <summary>Channel positions</summary>
+    </key>
+    <key name="hw-name" type="s">
+      <default>""</default>
+      <summary>Hardware output node.name</summary>
+    </key>
+    <key name="display-name" type="s">
+      <default>""</default>
+      <summary>Hardware output display name</summary>
+    </key>
+  </schema>
+
   <schema id="io.github.arulan.Dashboard" path="/io/github/arulan/Dashboard/">
-    <key name="aux-channels" type="i">
-      <default>2</default>
-      <summary>Aux sink channel count</summary>
-    </key>
-    <key name="main-channels" type="i">
-      <default>2</default>
-      <summary>Main sink channel count</summary>
-    </key>
-    <key name="aux-position" type="s">
-      <default>"FL,FR"</default>
-      <summary>Aux sink channel positions</summary>
-    </key>
-    <key name="main-position" type="s">
-      <default>"FL,FR"</default>
-      <summary>Main sink channel positions</summary>
-    </key>
-    <key name="aux-hw-name" type="s">
-      <default>""</default>
-      <summary>Aux sink hardware output node.name</summary>
-    </key>
-    <key name="main-hw-name" type="s">
-      <default>""</default>
-      <summary>Main sink hardware output node.name</summary>
-    </key>
-    <key name="aux-display-name" type="s">
-      <default>""</default>
-      <summary>Aux sink display name</summary>
-    </key>
-    <key name="main-display-name" type="s">
-      <default>""</default>
-      <summary>Main sink display name</summary>
-    </key>
+    <child name="aux"  schema="io.github.arulan.Dashboard.sink"/>
+    <child name="main" schema="io.github.arulan.Dashboard.sink"/>
   </schema>
 </schemalist>
