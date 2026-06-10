@@ -19,6 +19,7 @@ mod application;
 mod audio;
 mod config;
 mod dialogs;
+mod util;
 mod window;
 mod wp;
 

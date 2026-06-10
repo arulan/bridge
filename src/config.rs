@@ -15,56 +15,95 @@
 // You should have received a copy of the GNU General Public License
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
-// Not used yet. For the Setup...
-#![allow(dead_code)]
-
 use gio::prelude::*;
+
+use crate::audio::hw_sink::HwSink;
 
 const SCHEMA_ID: &str = "io.github.arulan.Dashboard";
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Side {
+    Aux,
+    Main,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct SinkDef {
+    pub channels:     u32,
+    pub position:     String,
+    pub hw_name:      String,
+    pub display_name: String,
+}
 
 #[derive(Clone, Debug)]
 pub struct SinkConfig {
-    pub aux_channels:  u32,
-    pub main_channels: u32,
-    pub aux_position:  String,
-    pub main_position: String,
-    pub aux_hw_name:      String,
-    pub main_hw_name:     String,
-    pub aux_display_name:  String,
-    pub main_display_name: String,
+    pub aux:  SinkDef,
+    pub main: SinkDef,
+}
+
+impl SinkConfig {
+    pub fn side(&self, side: Side) -> &SinkDef {
+        match side {
+            Side::Aux  => &self.aux,
+            Side::Main => &self.main,
+        }
+    }
+
+    pub fn side_mut(&mut self, side: Side) -> &mut SinkDef {
+        match side {
+            Side::Aux  => &mut self.aux,
+            Side::Main => &mut self.main,
+        }
+    }
+}
+
+impl From<HwSink> for SinkDef {
+    fn from(sink: HwSink) -> Self {
+        SinkDef {
+            channels:     sink.channels,
+            position:     sink.position,
+            hw_name:      sink.name,
+            display_name: sink.display_name,
+        }
+    }
 }
 
 fn settings() -> gio::Settings {
     gio::Settings::new(SCHEMA_ID)
 }
 
+// true after first-run setup
+pub fn is_configured() -> bool {
+    let s = settings();
+    !s.child("aux").string("hw-name").is_empty() && !s.child("main").string("hw-name").is_empty()
+}
+
 pub fn load() -> SinkConfig {
     let s = settings();
-    let aux  = s.child("aux");
-    let main = s.child("main");
     SinkConfig {
-        aux_channels:  aux.int("channels") as u32,
-        main_channels: main.int("channels") as u32,
-        aux_position:  aux.string("position").into(),
-        main_position: main.string("position").into(),
-        aux_hw_name:      aux.string("hw-name").into(),
-        main_hw_name:     main.string("hw-name").into(),
-        aux_display_name:  aux.string("display-name").into(),
-        main_display_name: main.string("display-name").into(),
+        aux:  load_sink(&s.child("aux")),
+        main: load_sink(&s.child("main")),
     }
 }
 
+fn load_sink(s: &gio::Settings) -> SinkDef {
+    SinkDef {
+        channels:     s.int("channels") as u32,
+        position:     s.string("position").into(),
+        hw_name:      s.string("hw-name").into(),
+        display_name: s.string("display-name").into(),
+    }
+}
 
 pub fn store(cfg: &SinkConfig) {
     let s = settings();
-    store_sink(&s.child("aux"), cfg.aux_channels, &cfg.aux_position, &cfg.aux_hw_name, &cfg.aux_display_name);
-    store_sink(&s.child("main"), cfg.main_channels, &cfg.main_position, &cfg.main_hw_name, &cfg.main_display_name);
+    store_sink(&s.child("aux"), &cfg.aux);
+    store_sink(&s.child("main"), &cfg.main);
 }
 
-fn store_sink(s: &gio::Settings, channels: u32, position: &str, hw_name: &str, display_name: &str) {
-    let _ = s.set_int("channels", channels as i32);
-    let _ = s.set_string("position", position);
-    let _ = s.set_string("hw-name", hw_name);
-    let _ = s.set_string("display-name", display_name);
+fn store_sink(s: &gio::Settings, def: &SinkDef) {
+    let _ = s.set_int("channels", def.channels as i32);
+    let _ = s.set_string("position", &def.position);
+    let _ = s.set_string("hw-name", &def.hw_name);
+    let _ = s.set_string("display-name", &def.display_name);
 }

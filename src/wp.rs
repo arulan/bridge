@@ -165,4 +165,12 @@ impl ObjectManager {
             None
         });
     }
+
+    // Fires once the initial set of matched objects have settled
+    pub fn connect_installed<F: Fn() + 'static>(&self, f: F) {
+        self.obj.connect_local("installed", false, move |_args| {
+            f();
+            None
+        });
+    }
 }

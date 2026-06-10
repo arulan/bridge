@@ -23,7 +23,8 @@ use gtk4::{self as gtk};
 
 use crate::audio::hw_sink::HwSink;
 use crate::audio::pw_config;
-use crate::config::SinkConfig;
+use crate::config::{Side, SinkConfig};
+use crate::util::ellipsize_string_factory;
 
 #[derive(Default)]
 pub struct SetupDialogImp {
@@ -102,29 +103,19 @@ impl SetupDialog {
 
     /// The selected sink layout
     pub fn sink_config(&self) -> SinkConfig {
-        let aux  = self.selected_aux_sink();
-        let main = self.selected_main_sink();
         SinkConfig {
-            aux_channels:      aux.channels,
-            main_channels:     main.channels,
-            aux_position:      aux.position,
-            main_position:     main.position,
-            aux_hw_name:       aux.name,
-            main_hw_name:      main.name,
-            aux_display_name:  aux.display_name,
-            main_display_name: main.display_name,
+            aux:  self.selected_sink(Side::Aux).into(),
+            main: self.selected_sink(Side::Main).into(),
         }
     }
 
-    fn selected_aux_sink(&self) -> HwSink {
+    fn selected_sink(&self, side: Side) -> HwSink {
         let imp = self.imp();
-        let idx = imp.aux_dropdown.borrow().as_ref().map(|d| d.selected()).unwrap_or(0) as usize;
-        imp.hw_sinks.borrow()[idx].clone()
-    }
-
-    fn selected_main_sink(&self) -> HwSink {
-        let imp = self.imp();
-        let idx = imp.main_dropdown.borrow().as_ref().map(|d| d.selected()).unwrap_or(0) as usize;
+        let dropdown = match side {
+            Side::Aux  => imp.aux_dropdown.borrow(),
+            Side::Main => imp.main_dropdown.borrow(),
+        };
+        let idx = dropdown.as_ref().map(|d| d.selected()).unwrap_or(0) as usize;
         imp.hw_sinks.borrow()[idx].clone()
     }
 
@@ -235,14 +226,14 @@ impl SetupDialog {
                 .selected(aux_idx)
                 .hexpand(true)
                 .build();
-            aux_dd.set_factory(Some(&make_string_factory()));
+            aux_dd.set_factory(Some(&ellipsize_string_factory()));
     
             let main_dd = gtk::DropDown::builder()
                 .model(&model)
                 .selected(main_idx)
                 .hexpand(true)
                 .build();
-            main_dd.set_factory(Some(&make_string_factory()));
+            main_dd.set_factory(Some(&ellipsize_string_factory()));
 
             body.append(&make_device_row("Aux output", &aux_dd));
             body.append(&make_device_row("Main output", &main_dd));
@@ -280,26 +271,6 @@ impl SetupDialog {
         toolbar.set_content(Some(&outer_scroll));
         self.set_content(Some(&toolbar));
     }
-}
-
-fn make_string_factory() -> gtk::SignalListItemFactory {
-    let factory = gtk::SignalListItemFactory::new();
-    factory.connect_setup(|_, obj| {
-        let item = obj.downcast_ref::<gtk::ListItem>().unwrap();
-        let label = gtk::Label::builder()
-            .ellipsize(gtk::pango::EllipsizeMode::End)
-            .xalign(0.0)
-            .build();
-        item.set_child(Some(&label));
-    });
-    factory.connect_bind(|_, obj| {
-        let item = obj.downcast_ref::<gtk::ListItem>().unwrap();
-        let label = item.child().unwrap().downcast::<gtk::Label>().unwrap();
-        if let Some(s) = item.item().and_downcast::<gtk::StringObject>() {
-            label.set_label(&s.string());
-        }
-    });
-    factory
 }
 
 fn make_device_row(label_text: &str, dropdown: &gtk::DropDown) -> gtk::Box {

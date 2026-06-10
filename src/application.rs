@@ -16,13 +16,12 @@
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
 use std::cell::RefCell;
-use std::rc::Rc;
 
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk4::{self as gtk};
 
-use crate::audio::backend::{self, PipeWireBackend};
+use crate::audio::backend::PipeWireBackend;
 use crate::audio::pw_config;
 use crate::config;
 use crate::dialogs::setup::SetupDialog;
@@ -33,7 +32,7 @@ pub const APP_ID: &str = "io.github.arulan.Dashboard";
 #[derive(Default)]
 pub struct DashboardApplicationImp {
     window:  RefCell<Option<DashboardWindow>>,
-    backend: RefCell<Option<Rc<RefCell<PipeWireBackend>>>>,
+    backend: RefCell<Option<PipeWireBackend>>,
 }
 
 #[glib::object_subclass]
@@ -57,17 +56,28 @@ impl ApplicationImpl for DashboardApplicationImp {
         let app = self.obj();
 
         let be = PipeWireBackend::new();
-        backend::start(&be);
-        *self.backend.borrow_mut() = Some(be);
+        be.start();
+        *self.backend.borrow_mut() = Some(be.clone());
 
         let window = DashboardWindow::new(app.upcast_ref::<adw::Application>());
-        window.present();
-        *self.window.borrow_mut() = Some(window);
+        window.setup(&be);
+        *self.window.borrow_mut() = Some(window.clone());
+
+        if config::is_configured() {
+            window.present();
+            window.reveal_persist_banner();
+        } else {
+            // Setup on first-run/!is_configured state; Do not show main window until after setup
+            let app_c = app.clone();
+            be.connect_sinks_ready(move |_| {
+                app_c.imp().show_setup_dialog(true);
+            });
+        }
     }
 
     fn shutdown(&self) {
         if let Some(be) = self.backend.borrow().as_ref() {
-            backend::stop(be);
+            be.stop();
         }
         self.parent_shutdown();
     }
@@ -77,21 +87,37 @@ impl GtkApplicationImpl for DashboardApplicationImp {}
 impl AdwApplicationImpl for DashboardApplicationImp {}
 
 impl DashboardApplicationImp {
-    fn show_setup_dialog(&self) {
-        let Some(be) = self.backend.borrow().as_ref().map(Rc::clone) else { return };
+    fn show_setup_dialog(&self, first_run: bool) {
+        let Some(be) = self.backend.borrow().clone() else { return };
 
         let win = self.window.borrow().clone();
-        let hw_sinks = be.borrow().hw_sinks();
+        let hw_sinks = be.hw_sinks();
         let dialog = SetupDialog::new(hw_sinks, None, None, win.as_ref());
 
+        let win_c = win.clone();
         dialog.connect_closure("approved", false, glib::closure_local!(
             move |d: SetupDialog| {
                 let cfg = d.sink_config();
                 config::store(&cfg);
                 pw_config::write_config(&cfg);
+                if let Some(w) = &win_c {
+                    w.populate_dropdowns();
+                    w.reveal_persist_banner();
+                    w.present();
+                }
             }
         ));
-        
+
+        // Quit app if first-run setup is cancelled
+        if first_run {
+            let app = self.obj().clone();
+            dialog.connect_closure("declined", false, glib::closure_local!(
+                move |_d: SetupDialog| {
+                    app.quit();
+                }
+            ));
+        }
+
         dialog.present();
     }
 
@@ -130,7 +156,7 @@ impl DashboardApplication {
 pub fn register_actions(app: &DashboardApplication) {
     let setup = gio::SimpleAction::new("setup", None);
     let app_c = app.clone();
-    setup.connect_activate(move |_, _| app_c.imp().show_setup_dialog());
+    setup.connect_activate(move |_, _| app_c.imp().show_setup_dialog(false));
     app.add_action(&setup);
 
     let about = gio::SimpleAction::new("about", None);

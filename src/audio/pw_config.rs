@@ -19,11 +19,9 @@ use std::path::PathBuf;
 
 use crate::config::SinkConfig;
 
-// TODO: Check what I need for flatpak permissions
+// Flatpak will need --firesystem=xdg-config/pipewire:create
 pub fn config_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/tmp"))
-        .join(".config/pipewire/pipewire.conf.d")
+    glib::home_dir().join(".config/pipewire/pipewire.conf.d")
 }
 
 pub fn config_file() -> PathBuf {
@@ -32,12 +30,12 @@ pub fn config_file() -> PathBuf {
 
 /// Our main & aux loopback sinks; Routes to target hardware output or PW defeault
 pub fn build_pw_config(cfg: &SinkConfig) -> String {
-    let aux_channels  = cfg.aux_channels;
-    let main_channels = cfg.main_channels;
-    let aux_position  = cfg.aux_position.replace(',', " ");
-    let main_position = cfg.main_position.replace(',', " ");
-    let aux_target  = target_fragment(&cfg.aux_hw_name);
-    let main_target = target_fragment(&cfg.main_hw_name);
+    let aux_channels  = cfg.aux.channels;
+    let main_channels = cfg.main.channels;
+    let aux_position  = cfg.aux.position.replace(',', " ");
+    let main_position = cfg.main.position.replace(',', " ");
+    let aux_target  = target_fragment(&cfg.aux.hw_name);
+    let main_target = target_fragment(&cfg.main.hw_name);
 
     // Important: node.dont-fallback + node.linger are necessary to change WP's
     // policy on fallback routing when the target.object disappears and preventing

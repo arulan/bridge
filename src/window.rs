@@ -15,13 +15,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
+use std::cell::{Cell, RefCell};
+
 use adw::subclass::prelude::*;
 use gtk4::{self as gtk, CompositeTemplate};
 use glib::subclass::InitializingObject;
 
+use crate::audio::backend::PipeWireBackend;
+use crate::audio::hw_sink::HwSink;
+use crate::audio::pw_config;
+use crate::config::{self, Side};
+use crate::util::ellipsize_string_factory;
+
 #[derive(CompositeTemplate, Default)]
 #[template(file = "../data/ui/window.ui")]
-pub struct DashboardWindowImp {}
+pub struct DashboardWindowImp {
+    #[template_child] pub persist_banner: TemplateChild<adw::Banner>,
+    #[template_child] pub aux_hw_dropdown:  TemplateChild<gtk::DropDown>,
+    #[template_child] pub main_hw_dropdown: TemplateChild<gtk::DropDown>,
+
+    backend:        RefCell<Option<PipeWireBackend>>,
+    hw_sinks:       RefCell<Vec<HwSink>>,
+    suppress_selected: Cell<bool>,
+}
 
 #[glib::object_subclass]
 impl ObjectSubclass for DashboardWindowImp {
@@ -59,5 +75,82 @@ impl DashboardWindow {
         glib::Object::builder()
             .property("application", app)
             .build()
+    }
+
+    pub fn setup(&self, backend: &PipeWireBackend) {
+        let imp = self.imp();
+
+        imp.aux_hw_dropdown.set_factory(Some(&ellipsize_string_factory()));
+        imp.main_hw_dropdown.set_factory(Some(&ellipsize_string_factory()));
+
+        imp.aux_hw_dropdown.connect_selected_notify(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_| w.on_hw_selected(Side::Aux)
+        ));
+        imp.main_hw_dropdown.connect_selected_notify(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_| w.on_hw_selected(Side::Main)
+        ));
+
+        imp.persist_banner.connect_button_clicked(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_| w.imp().persist_banner.set_revealed(false)
+        ));
+
+        backend.connect_sinks_ready(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_| w.populate_dropdowns()
+        ));
+        *imp.backend.borrow_mut() = Some(backend.clone());
+    }
+
+    pub fn populate_dropdowns(&self) {
+        let imp = self.imp();
+        let Some(backend) = imp.backend.borrow().clone() else { return };
+
+        let sinks = backend.hw_sinks();
+        let cfg = config::load();
+
+        let labels: Vec<&str> = sinks.iter().map(|s| s.display_name.as_str()).collect();
+        let model = gtk::StringList::new(&labels);
+
+        // guard against set_model & set_selected firing notify::selected
+        // when user hasn't changed hw_dropdown
+        imp.suppress_selected.set(true);
+        for (dropdown, hw_name) in [
+            (&*imp.aux_hw_dropdown,  &cfg.aux.hw_name),
+            (&*imp.main_hw_dropdown, &cfg.main.hw_name),
+        ] {
+            dropdown.set_model(Some(&model));
+            let idx = sinks.iter().position(|s| &s.name == hw_name).unwrap_or(0) as u32;
+            dropdown.set_selected(idx);
+        }
+        imp.suppress_selected.set(false);
+
+        *imp.hw_sinks.borrow_mut() = sinks;
+    }
+
+    pub fn reveal_persist_banner(&self) {
+        self.imp().persist_banner.set_revealed(true);
+    }
+
+    fn on_hw_selected(&self, side: Side) {
+        let imp = self.imp();
+        if imp.suppress_selected.get() { return }
+
+        let dropdown = match side {
+            Side::Aux  => &*imp.aux_hw_dropdown,
+            Side::Main => &*imp.main_hw_dropdown,
+        };
+        let idx = dropdown.selected();
+        if idx == gtk::INVALID_LIST_POSITION { return }
+        let Some(sink) = imp.hw_sinks.borrow().get(idx as usize).cloned() else { return };
+
+        let mut cfg = config::load();
+        *cfg.side_mut(side) = sink.into();
+        config::store(&cfg);
+        pw_config::write_config(&cfg);
+
+        self.reveal_persist_banner();
     }
 }
