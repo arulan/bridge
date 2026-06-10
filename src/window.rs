@@ -22,10 +22,9 @@ use gtk4::{self as gtk, CompositeTemplate};
 use glib::subclass::InitializingObject;
 
 use crate::audio::backend::PipeWireBackend;
-use crate::audio::hw_sink::HwSink;
 use crate::audio::pw_config;
 use crate::config::{self, Side};
-use crate::util::ellipsize_string_factory;
+use crate::util::{hw_sink_factory, hw_sink_model, selected_hw_sink};
 
 #[derive(CompositeTemplate, Default)]
 #[template(file = "../data/ui/window.ui")]
@@ -35,7 +34,6 @@ pub struct DashboardWindowImp {
     #[template_child] pub main_hw_dropdown: TemplateChild<gtk::DropDown>,
 
     backend:        RefCell<Option<PipeWireBackend>>,
-    hw_sinks:       RefCell<Vec<HwSink>>,
     suppress_selected: Cell<bool>,
 }
 
@@ -80,8 +78,8 @@ impl DashboardWindow {
     pub fn setup(&self, backend: &PipeWireBackend) {
         let imp = self.imp();
 
-        imp.aux_hw_dropdown.set_factory(Some(&ellipsize_string_factory()));
-        imp.main_hw_dropdown.set_factory(Some(&ellipsize_string_factory()));
+        imp.aux_hw_dropdown.set_factory(Some(&hw_sink_factory()));
+        imp.main_hw_dropdown.set_factory(Some(&hw_sink_factory()));
 
         imp.aux_hw_dropdown.connect_selected_notify(glib::clone!(
             #[weak(rename_to = w)] self,
@@ -110,11 +108,9 @@ impl DashboardWindow {
 
         let sinks = backend.hw_sinks();
         let cfg = config::load();
+        let model = hw_sink_model(&sinks);
 
-        let labels: Vec<&str> = sinks.iter().map(|s| s.display_name.as_str()).collect();
-        let model = gtk::StringList::new(&labels);
-
-        // guard against set_model & set_selected firing notify::selected
+        // guard against set_model & set_selected firing notify::selected 
         // when user hasn't changed hw_dropdown
         imp.suppress_selected.set(true);
         for (dropdown, hw_name) in [
@@ -126,8 +122,6 @@ impl DashboardWindow {
             dropdown.set_selected(idx);
         }
         imp.suppress_selected.set(false);
-
-        *imp.hw_sinks.borrow_mut() = sinks;
     }
 
     pub fn reveal_persist_banner(&self) {
@@ -142,9 +136,7 @@ impl DashboardWindow {
             Side::Aux  => &*imp.aux_hw_dropdown,
             Side::Main => &*imp.main_hw_dropdown,
         };
-        let idx = dropdown.selected();
-        if idx == gtk::INVALID_LIST_POSITION { return }
-        let Some(sink) = imp.hw_sinks.borrow().get(idx as usize).cloned() else { return };
+        let Some(sink) = selected_hw_sink(dropdown) else { return };
 
         let mut cfg = config::load();
         *cfg.side_mut(side) = sink.into();

@@ -18,7 +18,27 @@
 use gtk4::{self as gtk};
 use gtk::prelude::*;
 
-pub fn ellipsize_string_factory() -> gtk::SignalListItemFactory {
+use crate::audio::hw_sink::HwSink;
+
+/// ListStore of HwSinks
+pub fn hw_sink_model(sinks: &[HwSink]) -> gio::ListStore {
+    let store = gio::ListStore::new::<glib::BoxedAnyObject>();
+    for sink in sinks {
+        store.append(&glib::BoxedAnyObject::new(sink.clone()));
+    }
+    store
+}
+
+pub fn selected_hw_sink(dropdown: &gtk::DropDown) -> Option<HwSink> {
+    dropdown
+        .selected_item()
+        .and_downcast::<glib::BoxedAnyObject>()
+        .map(|boxed| boxed.borrow::<HwSink>().clone())
+}
+
+/// Dropdown entries show device display name;
+/// ellipsized to avoid stretching the dropdown
+pub fn hw_sink_factory() -> gtk::SignalListItemFactory {
     let factory = gtk::SignalListItemFactory::new();
 
     factory.connect_setup(|_, obj| {
@@ -33,8 +53,8 @@ pub fn ellipsize_string_factory() -> gtk::SignalListItemFactory {
     factory.connect_bind(|_, obj| {
         let item = obj.downcast_ref::<gtk::ListItem>().unwrap();
         let label = item.child().unwrap().downcast::<gtk::Label>().unwrap();
-        if let Some(s) = item.item().and_downcast::<gtk::StringObject>() {
-            label.set_label(&s.string());
+        if let Some(boxed) = item.item().and_downcast::<glib::BoxedAnyObject>() {
+            label.set_label(&boxed.borrow::<HwSink>().display_name);
         }
     });
     factory

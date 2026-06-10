@@ -24,11 +24,10 @@ use gtk4::{self as gtk};
 use crate::audio::hw_sink::HwSink;
 use crate::audio::pw_config;
 use crate::config::{Side, SinkConfig};
-use crate::util::ellipsize_string_factory;
+use crate::util::{hw_sink_factory, hw_sink_model, selected_hw_sink};
 
 #[derive(Default)]
 pub struct SetupDialogImp {
-    hw_sinks:        RefCell<Vec<HwSink>>,
     aux_dropdown:    RefCell<Option<gtk::DropDown>>,
     main_dropdown:   RefCell<Option<gtk::DropDown>>,
     files_container: RefCell<Option<gtk::Box>>,
@@ -96,7 +95,6 @@ impl SetupDialog {
             obj.set_transient_for(Some(parent));
         }
 
-        *obj.imp().hw_sinks.borrow_mut() = hw_sinks.clone();
         obj.build_ui(&hw_sinks, aux_default_id, main_default_id);
         obj
     }
@@ -115,8 +113,9 @@ impl SetupDialog {
             Side::Aux  => imp.aux_dropdown.borrow(),
             Side::Main => imp.main_dropdown.borrow(),
         };
-        let idx = dropdown.as_ref().map(|d| d.selected()).unwrap_or(0) as usize;
-        imp.hw_sinks.borrow()[idx].clone()
+        dropdown.as_ref()
+            .and_then(selected_hw_sink)
+            .expect("selected_sink called with no device selected")
     }
 
 
@@ -138,7 +137,7 @@ impl SetupDialog {
         while let Some(child) = container.first_child() {
             container.remove(&child);
         }
-        if imp.hw_sinks.borrow().is_empty() { return; }
+        if imp.aux_dropdown.borrow().is_none() { return; }
         for (path, content) in pw_config::preview_files(&self.sink_config()) {
             container.append(&make_file_row(&path, &content));
         }
@@ -210,8 +209,7 @@ impl SetupDialog {
         body.append(&devices_heading);
 
         if !hw_sinks.is_empty() {
-            let labels: Vec<&str> = hw_sinks.iter().map(|s| s.display_name.as_str()).collect();
-            let model = gtk::StringList::new(&labels);
+            let model = hw_sink_model(hw_sinks);
 
             let aux_idx = aux_default_id
                 .and_then(|id| hw_sinks.iter().position(|s| s.node_id == id))
@@ -226,14 +224,14 @@ impl SetupDialog {
                 .selected(aux_idx)
                 .hexpand(true)
                 .build();
-            aux_dd.set_factory(Some(&ellipsize_string_factory()));
-    
+            aux_dd.set_factory(Some(&hw_sink_factory()));
+
             let main_dd = gtk::DropDown::builder()
                 .model(&model)
                 .selected(main_idx)
                 .hexpand(true)
                 .build();
-            main_dd.set_factory(Some(&ellipsize_string_factory()));
+            main_dd.set_factory(Some(&hw_sink_factory()));
 
             body.append(&make_device_row("Aux output", &aux_dd));
             body.append(&make_device_row("Main output", &main_dd));
