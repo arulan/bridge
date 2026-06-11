@@ -20,6 +20,7 @@ mod audio;
 mod config;
 mod dialogs;
 mod util;
+mod volume;
 mod window;
 mod wp;
 

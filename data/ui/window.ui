@@ -9,6 +9,10 @@
         <attribute name="label" translatable="yes">_Set Up…</attribute>
         <attribute name="action">app.setup</attribute>
       </item>
+      <item>
+        <attribute name="label" translatable="yes">_Preferences</attribute>
+        <attribute name="action">app.preferences</attribute>
+      </item>
     </section>
     <section>
       <item>
@@ -175,12 +179,34 @@
                     </child>
                     <child>
                       <object class="GtkBox">
-                        <property name="orientation">horizontal</property>
-                        <property name="spacing">12</property>
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">0</property>
                         <child>
-                          <object class="GtkLabel">
-                            <style><class name="dim-label"/></style>
-                            <property name="label">Aux</property>
+                          <object class="GtkBox">
+                            <property name="orientation">horizontal</property>
+                            <child>
+                              <object class="GtkLabel" id="aux_side_label">
+                                <property name="label">Aux</property>
+                                <property name="hexpand">True</property>
+                                <property name="xalign">0</property>
+                                <style>
+                                  <class name="caption"/>
+                                  <class name="dim-label"/>
+                                  <class name="numeric"/>
+                                </style>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="main_side_label">
+                                <property name="label">Main</property>
+                                <property name="xalign">1</property>
+                                <style>
+                                  <class name="caption"/>
+                                  <class name="dim-label"/>
+                                  <class name="numeric"/>
+                                </style>
+                              </object>
+                            </child>
                           </object>
                         </child>
                         <child>
@@ -201,12 +227,6 @@
                             <marks>
                               <mark value="0" position="bottom"/>
                             </marks>
-                          </object>
-                        </child>
-                        <child>
-                          <object class="GtkLabel">
-                            <style><class name="dim-label"/></style>
-                            <property name="label">Main</property>
                           </object>
                         </child>
                       </object>

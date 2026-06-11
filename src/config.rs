@@ -17,9 +17,8 @@
 
 use gio::prelude::*;
 
+use crate::application::settings;
 use crate::audio::hw_sink::HwSink;
-
-const SCHEMA_ID: &str = "io.github.arulan.Dashboard";
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Side {
@@ -77,10 +76,6 @@ impl From<HwSink> for SinkDef {
             display_name: sink.display_name,
         }
     }
-}
-
-fn settings() -> gio::Settings {
-    gio::Settings::new(SCHEMA_ID)
 }
 
 // true after first-run setup

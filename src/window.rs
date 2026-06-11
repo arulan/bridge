@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, OnceCell, RefCell};
 
 use adw::subclass::prelude::*;
 use gtk4::{self as gtk, prelude::*, CompositeTemplate};
@@ -25,6 +25,7 @@ use crate::audio::backend::PipeWireBackend;
 use crate::audio::{mixer, pw_config};
 use crate::config::{self, Side};
 use crate::util::{hw_sink_factory, hw_sink_model, selected_hw_sink};
+use crate::volume::VolumeDisplay;
 
 #[derive(CompositeTemplate, Default)]
 #[template(file = "../data/ui/window.ui")]
@@ -33,11 +34,16 @@ pub struct DashboardWindowImp {
     #[template_child] pub aux_hw_dropdown:  TemplateChild<gtk::DropDown>,
     #[template_child] pub main_hw_dropdown: TemplateChild<gtk::DropDown>,
     #[template_child] pub mix_scale: TemplateChild<gtk::Scale>,
+    #[template_child] pub aux_side_label:  TemplateChild<gtk::Label>,
+    #[template_child] pub main_side_label: TemplateChild<gtk::Label>,
     #[template_child] pub main_default_banner: TemplateChild<gtk::Box>,
     #[template_child] pub main_default_button: TemplateChild<gtk::Button>,
 
     backend:        RefCell<Option<PipeWireBackend>>,
     suppress_selected: Cell<bool>,
+
+    volume_display: Cell<VolumeDisplay>,
+    settings:       OnceCell<gio::Settings>,
 }
 
 #[glib::object_subclass]
@@ -106,6 +112,18 @@ impl DashboardWindow {
             move |_| w.apply_mix()
         ));
 
+        imp.volume_display.set(VolumeDisplay::load());
+        let settings = crate::application::settings();
+        settings.connect_changed(Some("volume-display"), glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_, _| {
+                w.imp().volume_display.set(VolumeDisplay::load());
+                w.update_readout_labels();
+            }
+        ));
+        let _ = imp.settings.set(settings);
+        self.update_readout_labels();
+
         imp.main_default_button.connect_clicked(glib::clone!(
             #[weak(rename_to = w)] self,
             move |_| {
@@ -168,6 +186,16 @@ impl DashboardWindow {
 
         backend.set_volume(Side::Aux, aux);
         backend.set_volume(Side::Main, main);
+
+        self.update_readout_labels();
+    }
+
+    fn update_readout_labels(&self) {
+        let imp = self.imp();
+        let (aux, main) = mixer::calculate_multipliers(imp.mix_scale.value());
+        let mode = imp.volume_display.get();
+        imp.aux_side_label.set_text(&format!("Aux {}", mode.format(aux)));
+        imp.main_side_label.set_text(&format!("{} Main", mode.format(main)));
     }
 
     fn refresh_default_banner(&self) {

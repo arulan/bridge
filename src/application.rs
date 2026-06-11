@@ -24,10 +24,16 @@ use gtk4::{self as gtk};
 use crate::audio::backend::PipeWireBackend;
 use crate::audio::pw_config;
 use crate::config;
+use crate::dialogs::preferences;
 use crate::dialogs::setup::SetupDialog;
 use crate::window::DashboardWindow;
 
 pub const APP_ID: &str = "io.github.arulan.Dashboard";
+
+// The GSettings SCHEMA_ID == APP_ID
+pub fn settings() -> gio::Settings {
+    gio::Settings::new(APP_ID)
+}
 
 #[derive(Default)]
 pub struct DashboardApplicationImp {
@@ -121,6 +127,11 @@ impl DashboardApplicationImp {
         dialog.present();
     }
 
+    fn show_preferences_dialog(&self) {
+        let parent = self.window.borrow().clone();
+        preferences::show(parent.as_ref());
+    }
+
     fn show_about_dialog(&self) {
         let about = adw::AboutDialog::builder()
             .application_name("Dashboard")
@@ -158,6 +169,12 @@ pub fn register_actions(app: &DashboardApplication) {
     let app_c = app.clone();
     setup.connect_activate(move |_, _| app_c.imp().show_setup_dialog(false));
     app.add_action(&setup);
+
+    let preferences = gio::SimpleAction::new("preferences", None);
+    let app_c = app.clone();
+    preferences.connect_activate(move |_, _| app_c.imp().show_preferences_dialog());
+    app.add_action(&preferences);
+    app.set_accels_for_action("app.preferences", &["<Ctrl>comma"]);
 
     let about = gio::SimpleAction::new("about", None);
     let app_c = app.clone();

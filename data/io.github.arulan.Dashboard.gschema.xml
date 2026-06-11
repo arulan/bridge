@@ -23,5 +23,14 @@
   <schema id="io.github.arulan.Dashboard" path="/io/github/arulan/Dashboard/">
     <child name="aux"  schema="io.github.arulan.Dashboard.sink"/>
     <child name="main" schema="io.github.arulan.Dashboard.sink"/>
+
+    <key name="volume-display" type="s">
+      <choices>
+        <choice value="db"/>
+        <choice value="percent"/>
+      </choices>
+      <default>'db'</default>
+      <summary>Volume display format</summary>
+    </key>
   </schema>
 </schemalist>
