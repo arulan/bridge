@@ -202,7 +202,16 @@ impl Node {
     }
 
     pub fn set_volume(&self, volume: f32) {
-        let pod = unsafe { build_volume_pod(volume, self.channels) };
+        let pod = unsafe { build_props_pod(Some(volume), self.channels, None) };
+        self.set_props(pod);
+    }
+
+    pub fn set_mute(&self, muted: bool) {
+        let pod = unsafe { build_props_pod(None, 0, Some(muted)) };
+        self.set_props(pod);
+    }
+
+    fn set_props(&self, pod: *mut ffi::WpSpaPod) {
         if pod.is_null() { return; }
         let id = CString::new("Props").unwrap();
         unsafe {
@@ -302,10 +311,14 @@ unsafe extern "C" fn activate_data_ready(source: *mut c_void, res: *mut c_void, 
 }
 
 // caller takes ownership of the pod
-// sets channelVolumes
-// We have to build the array manually vs. using wp_spa_pod_new_object
-// The channel count is only known at runtime
-unsafe fn build_volume_pod(volume: f32, channels: u32) -> *mut ffi::WpSpaPod {
+// sets channelVolumes or mutes
+// We have to build the channelVolumes array manually vs. using
+// wp_spa_pod_new_object since the channel count is only known at runtime.
+unsafe fn build_props_pod(
+    volume:   Option<f32>,
+    channels: u32,
+    mute:     Option<bool>,
+) -> *mut ffi::WpSpaPod {
     let type_name = CString::new("Spa:Pod:Object:Param:Props").unwrap();
     let id_name = CString::new("Props").unwrap();
     let builder = ffi::wp_spa_pod_builder_new_object(
@@ -317,29 +330,37 @@ unsafe fn build_volume_pod(volume: f32, channels: u32) -> *mut ffi::WpSpaPod {
         return std::ptr::null_mut();
     }
 
-    let key = CString::new("channelVolumes").unwrap();
-    ffi::wp_spa_pod_builder_add_property(builder, key.as_ptr());
+    if let Some(volume) = volume {
+        let key = CString::new("channelVolumes").unwrap();
+        ffi::wp_spa_pod_builder_add_property(builder, key.as_ptr());
 
-    let arr = ffi::wp_spa_pod_builder_new_array();
+        let arr = ffi::wp_spa_pod_builder_new_array();
 
-    if arr.is_null() {
-        ffi::wp_spa_pod_builder_unref(builder);
-        return std::ptr::null_mut();
+        if arr.is_null() {
+            ffi::wp_spa_pod_builder_unref(builder);
+            return std::ptr::null_mut();
+        }
+
+        for _ in 0..channels.max(1) {
+            ffi::wp_spa_pod_builder_add_float(arr, volume);
+        }
+
+        let arr_pod = ffi::wp_spa_pod_builder_end(arr);
+
+        if arr_pod.is_null() {
+            ffi::wp_spa_pod_builder_unref(builder);
+            return std::ptr::null_mut();
+        }
+
+        ffi::wp_spa_pod_builder_add_pod(builder, arr_pod);
+        ffi::wp_spa_pod_unref(arr_pod);
     }
 
-    for _ in 0..channels.max(1) {
-        ffi::wp_spa_pod_builder_add_float(arr, volume);
+    if let Some(muted) = mute {
+        let key = CString::new("mute").unwrap();
+        ffi::wp_spa_pod_builder_add_property(builder, key.as_ptr());
+        ffi::wp_spa_pod_builder_add_boolean(builder, muted as glib::ffi::gboolean);
     }
-
-    let arr_pod = ffi::wp_spa_pod_builder_end(arr);
-
-    if arr_pod.is_null() {
-        ffi::wp_spa_pod_builder_unref(builder);
-        return std::ptr::null_mut();
-    }
-
-    ffi::wp_spa_pod_builder_add_pod(builder, arr_pod);
-    ffi::wp_spa_pod_unref(arr_pod);
 
     ffi::wp_spa_pod_builder_end(builder)
 }

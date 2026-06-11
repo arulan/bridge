@@ -140,6 +140,11 @@ extern "C" {
         value: f32,
     );
 
+    pub fn wp_spa_pod_builder_add_boolean(
+        self_: *mut WpSpaPodBuilder,
+        value: gboolean,
+    );
+
     pub fn wp_spa_pod_builder_add_pod(
         self_: *mut WpSpaPodBuilder,
         pod:   *mut WpSpaPod,

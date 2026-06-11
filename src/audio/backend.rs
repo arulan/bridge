@@ -136,6 +136,13 @@ impl PipeWireBackend {
         }
     }
 
+    /// Mutes or unmutes one of our sinks
+    pub fn set_mute(&self, side: Side, muted: bool) {
+        if let Some(owned) = self.imp().owned.borrow().get(&side) {
+            owned.node.set_mute(muted);
+        }
+    }
+
     pub fn set_main_default(&self) {
         if let Some(meta) = self.imp().default_metadata.borrow().as_ref() {
             meta.set_default_sink(pw_config::MAIN_SINK);

@@ -33,6 +33,10 @@ pub struct DashboardWindowImp {
     #[template_child] pub persist_banner: TemplateChild<adw::Banner>,
     #[template_child] pub aux_hw_dropdown:  TemplateChild<gtk::DropDown>,
     #[template_child] pub main_hw_dropdown: TemplateChild<gtk::DropDown>,
+    #[template_child] pub aux_mute_button:  TemplateChild<gtk::ToggleButton>,
+    #[template_child] pub main_mute_button: TemplateChild<gtk::ToggleButton>,
+    #[template_child] pub aux_mute_image:   TemplateChild<gtk::Image>,
+    #[template_child] pub main_mute_image:  TemplateChild<gtk::Image>,
     #[template_child] pub mix_scale: TemplateChild<gtk::Scale>,
     #[template_child] pub aux_side_label:  TemplateChild<gtk::Label>,
     #[template_child] pub main_side_label: TemplateChild<gtk::Label>,
@@ -112,6 +116,15 @@ impl DashboardWindow {
             move |_| w.apply_mix()
         ));
 
+        imp.aux_mute_button.connect_toggled(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |b| w.on_mute_toggled(Side::Aux, b.is_active())
+        ));
+        imp.main_mute_button.connect_toggled(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |b| w.on_mute_toggled(Side::Main, b.is_active())
+        ));
+
         imp.volume_display.set(VolumeDisplay::load());
         let settings = crate::application::settings();
         settings.connect_changed(Some("volume-display"), glib::clone!(
@@ -165,9 +178,11 @@ impl DashboardWindow {
         }
         imp.suppress_selected.set(false);
 
-        // crossfader is disabled until our virtual sinks exist
+        // crossfader and mute are disabled until our virtual sinks exist
         let present = backend.owned_sinks_present();
         imp.mix_scale.set_sensitive(present);
+        imp.aux_mute_button.set_sensitive(present);
+        imp.main_mute_button.set_sensitive(present);
 
         if present {
             self.apply_mix();
@@ -188,6 +203,21 @@ impl DashboardWindow {
         backend.set_volume(Side::Main, main);
 
         self.update_readout_labels();
+    }
+
+    fn on_mute_toggled(&self, side: Side, muted: bool) {
+        let imp = self.imp();
+
+        let (img, btn) = match side {
+            Side::Aux  => (&*imp.aux_mute_image,  &*imp.aux_mute_button),
+            Side::Main => (&*imp.main_mute_image, &*imp.main_mute_button),
+        };
+        img.set_icon_name(Some(if muted { "audio-volume-muted-symbolic" } else { "audio-volume-high-symbolic" }));
+        btn.set_tooltip_text(Some(if muted { "Unmute this output" } else { "Mute this output" }));
+
+        if let Some(backend) = imp.backend.borrow().clone() {
+            backend.set_mute(side, muted);
+        }
     }
 
     fn update_readout_labels(&self) {

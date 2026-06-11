@@ -1,4 +1,18 @@
-/* A (Aux/Main) card banner to display warnings, 
+button.compact-icon-button { min-width: 0; min-height: 0; padding: 2px 6px; }
+
+/* Card-header inline subtitle separator */
+.card-sep {
+  color: alpha(@theme_fg_color, 0.45);
+  font-size: 0.55em;
+  margin: 0 4px;
+}
+
+.card-subtitle {
+  font-size: 0.75em;
+  opacity: 0.6;
+}
+
+/* A (Aux/Main) card banner to display warnings,
   errors, information for a specific side */
 .inline-banner {
   background-color: alpha(@warning_bg_color, 0.15);

@@ -63,6 +63,7 @@
                   <object class="GtkBox">
                     <property name="orientation">vertical</property>
                     <property name="spacing">16</property>
+                    <property name="valign">start</property>
                     <property name="margin-top">16</property>
                     <property name="margin-bottom">16</property>
                     <property name="margin-start">16</property>
@@ -85,18 +86,71 @@
                                 <property name="margin-bottom">16</property>
                                 <property name="margin-start">16</property>
                                 <property name="margin-end">16</property>
+                                <!-- Heading row: title + sink-name subtitle + mute -->
                                 <child>
-                                  <object class="GtkLabel">
-                                    <style><class name="heading"/></style>
-                                    <property name="label">Aux</property>
-                                    <property name="xalign">0</property>
+                                  <object class="GtkBox">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">6</property>
+                                    <child>
+                                      <object class="GtkBox">
+                                        <property name="orientation">horizontal</property>
+                                        <property name="spacing">6</property>
+                                        <property name="hexpand">True</property>
+                                        <property name="valign">center</property>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <style><class name="heading"/></style>
+                                            <property name="label">Aux</property>
+                                            <property name="xalign">0</property>
+                                            <property name="valign">baseline</property>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="use-markup">True</property>
+                                            <property name="label">&lt;span rise="1400"&gt;|&lt;/span&gt;</property>
+                                            <property name="valign">baseline</property>
+                                            <style><class name="card-sep"/></style>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="label">Dashboard - Aux</property>
+                                            <property name="xalign">0</property>
+                                            <property name="hexpand">True</property>
+                                            <property name="valign">baseline</property>
+                                            <property name="ellipsize">end</property>
+                                            <style><class name="card-subtitle"/></style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkToggleButton" id="aux_mute_button">
+                                        <property name="tooltip-text">Mute this output</property>
+                                        <property name="valign">center</property>
+                                        <style><class name="flat"/></style>
+                                        <style><class name="compact-icon-button"/></style>
+                                        <child>
+                                          <object class="GtkImage" id="aux_mute_image">
+                                            <property name="icon-name">audio-volume-high-symbolic</property>
+                                            <property name="pixel-size">14</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
                                   </object>
                                 </child>
+                                <!-- Hint -->
                                 <child>
                                   <object class="GtkLabel">
-                                    <style><class name="dim-label"/><class name="caption"/></style>
-                                    <property name="label">Dashboard - Aux</property>
+                                    <property name="label">Route apps (e.g. chat, music) to this separate output to include them in the crossfader mix. Requires manually setting the in-app output.</property>
                                     <property name="xalign">0</property>
+                                    <property name="yalign">0</property>
+                                    <property name="wrap">True</property>
+                                    <property name="vexpand">True</property>
+                                    <style><class name="caption"/></style>
+                                    <style><class name="dim-label"/></style>
                                   </object>
                                 </child>
                                 <child>
@@ -120,18 +174,71 @@
                                 <property name="margin-bottom">16</property>
                                 <property name="margin-start">16</property>
                                 <property name="margin-end">16</property>
+                                <!-- Heading row: title + sink-name subtitle + mute -->
                                 <child>
-                                  <object class="GtkLabel">
-                                    <style><class name="heading"/></style>
-                                    <property name="label">Main</property>
-                                    <property name="xalign">0</property>
+                                  <object class="GtkBox">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">6</property>
+                                    <child>
+                                      <object class="GtkBox">
+                                        <property name="orientation">horizontal</property>
+                                        <property name="spacing">6</property>
+                                        <property name="hexpand">True</property>
+                                        <property name="valign">center</property>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <style><class name="heading"/></style>
+                                            <property name="label">Main</property>
+                                            <property name="xalign">0</property>
+                                            <property name="valign">baseline</property>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="use-markup">True</property>
+                                            <property name="label">&lt;span rise="1400"&gt;|&lt;/span&gt;</property>
+                                            <property name="valign">baseline</property>
+                                            <style><class name="card-sep"/></style>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="label">Dashboard - Main</property>
+                                            <property name="xalign">0</property>
+                                            <property name="hexpand">True</property>
+                                            <property name="valign">baseline</property>
+                                            <property name="ellipsize">end</property>
+                                            <style><class name="card-subtitle"/></style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkToggleButton" id="main_mute_button">
+                                        <property name="tooltip-text">Mute this output</property>
+                                        <property name="valign">center</property>
+                                        <style><class name="flat"/></style>
+                                        <style><class name="compact-icon-button"/></style>
+                                        <child>
+                                          <object class="GtkImage" id="main_mute_image">
+                                            <property name="icon-name">audio-volume-high-symbolic</property>
+                                            <property name="pixel-size">14</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
                                   </object>
                                 </child>
+                                <!-- Hint -->
                                 <child>
                                   <object class="GtkLabel">
-                                    <style><class name="dim-label"/><class name="caption"/></style>
-                                    <property name="label">Dashboard - Main</property>
+                                    <property name="label">When set as the system default, apps (e.g. games, browser) will naturally route to this output.</property>
                                     <property name="xalign">0</property>
+                                    <property name="yalign">0</property>
+                                    <property name="wrap">True</property>
+                                    <property name="vexpand">True</property>
+                                    <style><class name="caption"/></style>
+                                    <style><class name="dim-label"/></style>
                                   </object>
                                 </child>
                                 <child>
