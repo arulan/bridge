@@ -141,6 +141,44 @@
                         </child>
                       </object>
                     </child>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="orientation">horizontal</property>
+                        <property name="spacing">12</property>
+                        <child>
+                          <object class="GtkLabel">
+                            <style><class name="dim-label"/></style>
+                            <property name="label">Aux</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkScale" id="mix_scale">
+                            <property name="orientation">horizontal</property>
+                            <property name="draw-value">False</property>
+                            <property name="hexpand">True</property>
+                            <property name="sensitive">False</property>
+                            <property name="adjustment">
+                              <object class="GtkAdjustment">
+                                <property name="lower">-1.0</property>
+                                <property name="upper">1.0</property>
+                                <property name="value">0.0</property>
+                                <property name="step-increment">0.1</property>
+                                <property name="page-increment">0.25</property>
+                              </object>
+                            </property>
+                            <marks>
+                              <mark value="0" position="bottom"/>
+                            </marks>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <style><class name="dim-label"/></style>
+                            <property name="label">Main</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>

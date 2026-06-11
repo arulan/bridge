@@ -23,15 +23,21 @@ use glib::prelude::*;
 use glib::subclass::prelude::*;
 use glib::subclass::Signal;
 
+use crate::config::Side;
 use crate::wp;
 use super::hw_sink::{HwSink, hw_sink_from_node};
+
+struct OwnedNode {
+    id:   u32,
+    node: wp::Node,
+}
 
 #[derive(Default)]
 pub struct PipeWireBackendImp {
     sinks: RefCell<HashMap<u32, HwSink>>,
 
-    // Our own loopback capture nodes
-    owned_roles: RefCell<HashMap<u32, String>>,
+    // Our own loopback capture nodes, keyed by Side
+    owned: RefCell<HashMap<Side, OwnedNode>>,
 
     // Order is important: om before core
     om:    RefCell<Option<wp::ObjectManager>>,
@@ -102,7 +108,7 @@ impl PipeWireBackend {
         imp.core.replace(None);
     }
 
-    /// sorted hardware sinks
+    /// Sorted hardware sinks
     pub fn hw_sinks(&self) -> Vec<HwSink> {
         let mut sinks: Vec<HwSink> = self.imp().sinks.borrow().values().cloned().collect();
         sinks.sort_by_key(|s| s.display_name.to_lowercase());
@@ -110,8 +116,15 @@ impl PipeWireBackend {
     }
 
     pub fn owned_sinks_present(&self) -> bool {
-        let roles = self.imp().owned_roles.borrow();
-        ["aux", "main"].iter().all(|want| roles.values().any(|have| have == want))
+        let owned = self.imp().owned.borrow();
+        [Side::Aux, Side::Main].iter().all(|side| owned.contains_key(side))
+    }
+
+    /// Sets the volume on one of our sinks
+    pub fn set_volume(&self, side: Side, volume: f64) {
+        if let Some(owned) = self.imp().owned.borrow().get(&side) {
+            owned.node.set_volume(volume as f32);
+        }
     }
 
     pub fn connect_sinks_ready<F: Fn(&Self) + 'static>(&self, f: F) {
@@ -123,8 +136,13 @@ impl PipeWireBackend {
     }
 
     fn on_object_added(&self, obj: glib::Object) {
-        if let Some(role) = wp::node_prop(&obj, "dashboard.role") {
-            self.imp().owned_roles.borrow_mut().insert(wp::bound_id(&obj), role);
+        // role is only in the full info props
+        if let Some(role) = wp::node_pw_prop(&obj, "dashboard.role") {
+            if let Some(side) = Side::from_wire(&role) {
+                let id = wp::bound_id(&obj);
+                let node = wp::Node::from_object(obj);
+                self.imp().owned.borrow_mut().insert(side, OwnedNode { id, node });
+            }
             return;
         }
         if let Some(sink) = hw_sink_from_node(&obj) {
@@ -135,6 +153,6 @@ impl PipeWireBackend {
     fn on_object_removed(&self, obj: glib::Object) {
         let id = wp::bound_id(&obj);
         self.imp().sinks.borrow_mut().remove(&id);
-        self.imp().owned_roles.borrow_mut().remove(&id);
+        self.imp().owned.borrow_mut().retain(|_, owned| owned.id != id);
     }
 }

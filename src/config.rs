@@ -21,10 +21,21 @@ use crate::audio::hw_sink::HwSink;
 
 const SCHEMA_ID: &str = "io.github.arulan.Dashboard";
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Side {
     Aux,
     Main,
+}
+
+impl Side {
+    /// Parse dashboard.role from the loopback conf
+    pub fn from_wire(s: &str) -> Option<Side> {
+        match s {
+            "aux"  => Some(Side::Aux),
+            "main" => Some(Side::Main),
+            _      => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]

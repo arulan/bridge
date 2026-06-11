@@ -35,7 +35,7 @@ pub fn hw_sink_from_node(node: &glib::Object) -> Option<HwSink> {
     }
 
     // Filter out app loopbacks from hw list using role prop or name as fallback
-    if wp::node_prop(node, "dashboard.role").is_some() {
+    if wp::node_pw_prop(node, "dashboard.role").is_some() {
         return None;
     }
     let node_name = wp::node_prop(node, "node.name").unwrap_or_default();
@@ -46,13 +46,35 @@ pub fn hw_sink_from_node(node: &glib::Object) -> Option<HwSink> {
     // Builds our HwSink
     let node_id = wp::bound_id(node);
     let display_name = wp::node_prop(node, "node.description")
-        .or_else(|| wp::node_prop(node, "device.name"))
+        .or_else(|| wp::node_pw_prop(node, "device.name"))
         .unwrap_or_else(|| node_name.clone());
-    let device_api = wp::node_prop(node, "device.api").unwrap_or_default();
-    let channels = wp::node_prop(node, "audio.channels")
+    let device_api = wp::node_pw_prop(node, "device.api").unwrap_or_default();
+    let channels = wp::node_pw_prop(node, "audio.channels")
         .and_then(|s| s.parse().ok())
         .unwrap_or(2);
-    let position = wp::node_prop(node, "audio.position").unwrap_or_else(|| "FL,FR".to_owned());
+    let position = wp::node_pw_prop(node, "audio.position")
+        .map(|s| normalize_position(&s))
+        .unwrap_or_else(|| "FL,FR".to_owned());
 
     Some(HwSink { node_id, name: node_name, display_name, device_api, channels, position })
+}
+
+// SPA uses space separated channels, such as "[ FL FR ]"; our is comma separated
+fn normalize_position(raw: &str) -> String {
+    raw.split(|c: char| c == ',' || c == '[' || c == ']' || c.is_whitespace())
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn position_formats() {
+        assert_eq!(normalize_position("[ FL FR ]"), "FL,FR");
+        assert_eq!(normalize_position("FL,FR"), "FL,FR");
+        assert_eq!(normalize_position("[ FL, FR, LFE ]"), "FL,FR,LFE");
+    }
 }

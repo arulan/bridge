@@ -55,6 +55,22 @@ pub fn node_prop(node: &glib::Object, key: &str) -> Option<String> {
     }
 }
 
+/// Reads property from the node's full PipeWire object info; fallback to global props
+pub fn node_pw_prop(node: &glib::Object, key: &str) -> Option<String> {
+    let k = CString::new(key).unwrap();
+    unsafe {
+        let val = ffi::wp_pipewire_object_get_property(
+            node.as_ptr() as *mut ffi::WpPipewireObject,
+            k.as_ptr(),
+        );
+        
+        if !val.is_null() {
+            return Some(CStr::from_ptr(val).to_string_lossy().into_owned());
+        }
+    }
+    node_prop(node, key)
+}
+
 pub fn bound_id(obj: &glib::Object) -> u32 {
     unsafe { ffi::wp_proxy_get_bound_id(obj.as_ptr() as *mut ffi::WpProxy) }
 }
@@ -173,4 +189,75 @@ impl ObjectManager {
             None
         });
     }
+}
+
+// Node proxy from the OM
+pub struct Node {
+    obj:      glib::Object,
+    channels: u32,
+}
+
+impl Node {
+    pub fn from_object(obj: glib::Object) -> Self {
+        let channels = node_pw_prop(&obj, "audio.channels")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(2);
+        Node { obj, channels }
+    }
+
+    pub fn set_volume(&self, volume: f32) {
+        let pod = unsafe { build_volume_pod(volume, self.channels) };
+        if pod.is_null() { return; }
+        let id = CString::new("Props").unwrap();
+        unsafe {
+            // set_param takes ownership of the pod
+            ffi::wp_pipewire_object_set_param(
+                self.obj.as_ptr() as *mut ffi::WpPipewireObject,
+                id.as_ptr(),
+                0,
+                pod,
+            );
+        }
+    }
+}
+
+// caller takes ownership of the pod
+// sets channelVolumes
+unsafe fn build_volume_pod(volume: f32, channels: u32) -> *mut ffi::WpSpaPod {
+    let type_name = CString::new("Spa:Pod:Object:Param:Props").unwrap();
+    let id_name = CString::new("Props").unwrap();
+    let builder = ffi::wp_spa_pod_builder_new_object(
+        type_name.as_ptr(),
+        id_name.as_ptr(),
+    );
+
+    if builder.is_null() {
+        return std::ptr::null_mut();
+    }
+
+    let key = CString::new("channelVolumes").unwrap();
+    ffi::wp_spa_pod_builder_add_property(builder, key.as_ptr());
+
+    let arr = ffi::wp_spa_pod_builder_new_array();
+
+    if arr.is_null() {
+        ffi::wp_spa_pod_builder_unref(builder);
+        return std::ptr::null_mut();
+    }
+
+    for _ in 0..channels.max(1) {
+        ffi::wp_spa_pod_builder_add_float(arr, volume);
+    }
+
+    let arr_pod = ffi::wp_spa_pod_builder_end(arr);
+
+    if arr_pod.is_null() {
+        ffi::wp_spa_pod_builder_unref(builder);
+        return std::ptr::null_mut();
+    }
+
+    ffi::wp_spa_pod_builder_add_pod(builder, arr_pod);
+    ffi::wp_spa_pod_unref(arr_pod);
+
+    ffi::wp_spa_pod_builder_end(builder)
 }

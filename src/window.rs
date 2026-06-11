@@ -18,11 +18,11 @@
 use std::cell::{Cell, RefCell};
 
 use adw::subclass::prelude::*;
-use gtk4::{self as gtk, CompositeTemplate};
+use gtk4::{self as gtk, prelude::*, CompositeTemplate};
 use glib::subclass::InitializingObject;
 
 use crate::audio::backend::PipeWireBackend;
-use crate::audio::pw_config;
+use crate::audio::{mixer, pw_config};
 use crate::config::{self, Side};
 use crate::util::{hw_sink_factory, hw_sink_model, selected_hw_sink};
 
@@ -32,6 +32,7 @@ pub struct DashboardWindowImp {
     #[template_child] pub persist_banner: TemplateChild<adw::Banner>,
     #[template_child] pub aux_hw_dropdown:  TemplateChild<gtk::DropDown>,
     #[template_child] pub main_hw_dropdown: TemplateChild<gtk::DropDown>,
+    #[template_child] pub mix_scale: TemplateChild<gtk::Scale>,
 
     backend:        RefCell<Option<PipeWireBackend>>,
     suppress_selected: Cell<bool>,
@@ -95,6 +96,11 @@ impl DashboardWindow {
             move |_| w.imp().persist_banner.set_revealed(false)
         ));
 
+        imp.mix_scale.connect_value_changed(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_| w.apply_mix()
+        ));
+
         backend.connect_sinks_ready(glib::clone!(
             #[weak(rename_to = w)] self,
             move |_| w.populate_dropdowns()
@@ -122,10 +128,28 @@ impl DashboardWindow {
             dropdown.set_selected(idx);
         }
         imp.suppress_selected.set(false);
+
+        // crossfader is disabled until our virtual sinks exist
+        let present = backend.owned_sinks_present();
+        imp.mix_scale.set_sensitive(present);
+
+        if present {
+            self.apply_mix();
+        }
     }
 
     pub fn reveal_persist_banner(&self) {
         self.imp().persist_banner.set_revealed(true);
+    }
+
+    fn apply_mix(&self) {
+        let imp = self.imp();
+        let Some(backend) = imp.backend.borrow().clone() else { return };
+
+        let (aux, main) = mixer::calculate_multipliers(imp.mix_scale.value());
+        
+        backend.set_volume(Side::Aux, aux);
+        backend.set_volume(Side::Main, main);
     }
 
     fn on_hw_selected(&self, side: Side) {

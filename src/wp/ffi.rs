@@ -38,6 +38,9 @@ pub type GType = usize;
 #[repr(C)] pub struct WpProperties(u8);
 #[repr(C)] pub struct WpProxy(u8);
 #[repr(C)] pub struct WpGlobalProxy(u8);
+#[repr(C)] pub struct WpPipewireObject(u8);
+#[repr(C)] pub struct WpSpaPod(u8);
+#[repr(C)] pub struct WpSpaPodBuilder(u8);
 
 pub const WP_INIT_ALL: u32 = 15;
 pub const WP_PIPEWIRE_OBJECT_FEATURE_INFO: u32 = 16;
@@ -85,6 +88,48 @@ extern "C" {
     pub fn wp_properties_get(self_: *const WpProperties, key: *const c_char) -> *const c_char;
 
     pub fn wp_node_get_type() -> GType;
+
+    // Requires WP_PIPEWIRE_OBJECT_FEATURE_INFO
+    pub fn wp_pipewire_object_get_property(
+        self_: *mut WpPipewireObject,
+        key:   *const c_char,
+    ) -> *const c_char;
+
+    pub fn wp_pipewire_object_set_param(
+        self_: *mut WpPipewireObject,
+        id:    *const c_char,
+        flags: u32,
+        param: *mut WpSpaPod,
+    ) -> gboolean;
+
+    pub fn wp_spa_pod_builder_new_object(
+        type_name: *const c_char,
+        id_name:   *const c_char,
+    ) -> *mut WpSpaPodBuilder;
+
+    pub fn wp_spa_pod_builder_new_array() -> *mut WpSpaPodBuilder;
+
+    pub fn wp_spa_pod_builder_add_property(
+        self_: *mut WpSpaPodBuilder,
+        key:   *const c_char,
+    );
+
+    pub fn wp_spa_pod_builder_add_float(
+        self_: *mut WpSpaPodBuilder,
+        value: f32,
+    );
+
+    pub fn wp_spa_pod_builder_add_pod(
+        self_: *mut WpSpaPodBuilder,
+        pod:   *mut WpSpaPod,
+    );
+
+    pub fn wp_spa_pod_builder_end(
+        self_: *mut WpSpaPodBuilder,
+    ) -> *mut WpSpaPod;
+    
+    pub fn wp_spa_pod_builder_unref(self_: *mut WpSpaPodBuilder);
+    pub fn wp_spa_pod_unref(self_: *mut WpSpaPod);
 }
 
 #[link(name = "pipewire-0.3")]
