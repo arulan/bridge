@@ -132,6 +132,20 @@ impl DashboardApplicationImp {
         preferences::show(parent.as_ref());
     }
 
+    fn show_shortcuts_dialog(&self) {
+        let dialog = adw::ShortcutsDialog::new();
+
+        let builder = gtk::Builder::from_string(include_str!("../data/ui/shortcuts.ui"));
+        for id in ["section_crossfader", "section_application"] {
+            if let Some(section) = builder.object::<adw::ShortcutsSection>(id) {
+                dialog.add(section);
+            }
+        }
+
+        let parent = self.window.borrow().clone();
+        dialog.present(parent.as_ref().map(|w| w.upcast_ref::<gtk::Widget>()));
+    }
+
     fn show_about_dialog(&self) {
         let about = adw::AboutDialog::builder()
             .application_name("Dashboard")
@@ -175,6 +189,12 @@ pub fn register_actions(app: &DashboardApplication) {
     preferences.connect_activate(move |_, _| app_c.imp().show_preferences_dialog());
     app.add_action(&preferences);
     app.set_accels_for_action("app.preferences", &["<Ctrl>comma"]);
+
+    let shortcuts = gio::SimpleAction::new("show-help-overlay", None);
+    let app_c = app.clone();
+    shortcuts.connect_activate(move |_, _| app_c.imp().show_shortcuts_dialog());
+    app.add_action(&shortcuts);
+    app.set_accels_for_action("app.show-help-overlay", &["<Primary>question"]);
 
     let about = gio::SimpleAction::new("about", None);
     let app_c = app.clone();

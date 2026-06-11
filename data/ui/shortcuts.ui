@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.8"/>
+  <object class="AdwShortcutsSection" id="section_crossfader">
+    <property name="title">Crossfader</property>
+    <child>
+      <object class="AdwShortcutsItem">
+        <property name="title">Step Towards Aux</property>
+        <property name="accelerator">Left</property>
+      </object>
+    </child>
+    <child>
+      <object class="AdwShortcutsItem">
+        <property name="title">Step Towards Main</property>
+        <property name="accelerator">Right</property>
+      </object>
+    </child>
+    <child>
+      <object class="AdwShortcutsItem">
+        <property name="title">Jump Towards Aux</property>
+        <property name="accelerator">Page_Up</property>
+      </object>
+    </child>
+    <child>
+      <object class="AdwShortcutsItem">
+        <property name="title">Jump Towards Main</property>
+        <property name="accelerator">Page_Down</property>
+      </object>
+    </child>
+    <child>
+      <object class="AdwShortcutsItem">
+        <property name="title">Full Aux</property>
+        <property name="accelerator">Home</property>
+      </object>
+    </child>
+    <child>
+      <object class="AdwShortcutsItem">
+        <property name="title">Full Main</property>
+        <property name="accelerator">End</property>
+      </object>
+    </child>
+  </object>
+  <object class="AdwShortcutsSection" id="section_application">
+    <property name="title">Application</property>
+    <child>
+      <object class="AdwShortcutsItem">
+        <property name="title">Preferences</property>
+        <property name="accelerator">&lt;Primary&gt;comma</property>
+      </object>
+    </child>
+    <child>
+      <object class="AdwShortcutsItem">
+        <property name="title">Show keyboard shortcuts</property>
+        <property name="accelerator">&lt;Primary&gt;question</property>
+      </object>
+    </child>
+  </object>
+</interface>
