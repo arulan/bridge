@@ -26,6 +26,7 @@ use glib::subclass::Signal;
 use crate::config::Side;
 use crate::wp;
 use super::hw_sink::{HwSink, hw_sink_from_node};
+use super::pw_config;
 
 struct OwnedNode {
     id:   u32,
@@ -38,6 +39,8 @@ pub struct PipeWireBackendImp {
 
     // Our own loopback capture nodes, keyed by Side
     owned: RefCell<HashMap<Side, OwnedNode>>,
+
+    default_metadata: RefCell<Option<wp::Metadata>>,
 
     // Order is important: om before core
     om:    RefCell<Option<wp::ObjectManager>>,
@@ -54,7 +57,10 @@ impl ObjectImpl for PipeWireBackendImp {
     fn signals() -> &'static [Signal] {
         static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
         SIGNALS.get_or_init(|| {
-            vec![Signal::builder("sinks-ready").build()]
+            vec![
+                Signal::builder("sinks-ready").build(),
+                Signal::builder("default-changed").build(),
+            ]
         })
     }
 }
@@ -90,6 +96,9 @@ impl PipeWireBackend {
 
         om.add_interest_for_type(wp::node_type());
         om.request_object_features(wp::node_type(), wp::WP_PIPEWIRE_OBJECT_FEATURE_INFO);
+   
+        om.add_interest_for_type(wp::metadata_type());
+        om.request_object_features(wp::metadata_type(), wp::WP_PROXY_FEATURE_BOUND);
         core.install_object_manager(&om);
         core.connect();
 
@@ -127,6 +136,23 @@ impl PipeWireBackend {
         }
     }
 
+    pub fn set_main_default(&self) {
+        if let Some(meta) = self.imp().default_metadata.borrow().as_ref() {
+            meta.set_default_sink(pw_config::MAIN_SINK);
+        }
+    }
+
+    /// node.name of the current system default sink
+    pub fn default_sink_name(&self) -> Option<String> {
+        self.imp().default_metadata.borrow().as_ref()
+            .and_then(|meta| meta.find(0, "default.audio.sink"))
+            .and_then(|v| crate::util::parse_default_name(&v))
+    }
+
+    pub fn main_is_default(&self) -> Option<bool> {
+        self.default_sink_name().map(|name| name == pw_config::MAIN_SINK)
+    }
+
     pub fn connect_sinks_ready<F: Fn(&Self) + 'static>(&self, f: F) {
         self.connect_local("sinks-ready", false, move |args| {
             let be = args[0].get::<PipeWireBackend>().unwrap();
@@ -135,7 +161,42 @@ impl PipeWireBackend {
         });
     }
 
+    pub fn connect_default_changed<F: Fn(&Self) + 'static>(&self, f: F) {
+        self.connect_local("default-changed", false, move |args| {
+            let be = args[0].get::<PipeWireBackend>().unwrap();
+            f(&be);
+            None
+        });
+    }
+    
+
     fn on_object_added(&self, obj: glib::Object) {
+  
+        // We're only concerned with the default metadata obj
+        if let Some(meta_name) = wp::node_prop(&obj, "metadata.name") {
+            if meta_name == "default" {
+                let meta = wp::Metadata::from_object(obj);
+
+                // Emit when default changes externally
+                meta.connect_changed(glib::clone!(
+                    #[weak(rename_to = be)] self,
+                    move |subject, key, _value| {
+                        if subject == 0 && key.as_deref() == Some("default.audio.sink") {
+                            be.emit_by_name::<()>("default-changed", &[]);
+                        }
+                    }
+                ));
+
+                meta.activate_data(glib::clone!(
+                    #[weak(rename_to = be)] self,
+                    move |_ok| be.emit_by_name::<()>("default-changed", &[])
+                ));
+
+                self.imp().default_metadata.borrow_mut().replace(meta);
+            }
+            return;
+        }
+
         // role is only in the full info props
         if let Some(role) = wp::node_pw_prop(&obj, "dashboard.role") {
             if let Some(side) = Side::from_wire(&role) {

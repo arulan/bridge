@@ -33,6 +33,8 @@ pub struct DashboardWindowImp {
     #[template_child] pub aux_hw_dropdown:  TemplateChild<gtk::DropDown>,
     #[template_child] pub main_hw_dropdown: TemplateChild<gtk::DropDown>,
     #[template_child] pub mix_scale: TemplateChild<gtk::Scale>,
+    #[template_child] pub main_default_banner: TemplateChild<gtk::Box>,
+    #[template_child] pub main_default_button: TemplateChild<gtk::Button>,
 
     backend:        RefCell<Option<PipeWireBackend>>,
     suppress_selected: Cell<bool>,
@@ -79,6 +81,9 @@ impl DashboardWindow {
     pub fn setup(&self, backend: &PipeWireBackend) {
         let imp = self.imp();
 
+        // TODO: Look into GResource later
+        add_css();
+
         imp.aux_hw_dropdown.set_factory(Some(&hw_sink_factory()));
         imp.main_hw_dropdown.set_factory(Some(&hw_sink_factory()));
 
@@ -101,9 +106,22 @@ impl DashboardWindow {
             move |_| w.apply_mix()
         ));
 
+        imp.main_default_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_| {
+                let Some(backend) = w.imp().backend.borrow().clone() else { return };
+                backend.set_main_default();
+            }
+        ));
+
         backend.connect_sinks_ready(glib::clone!(
             #[weak(rename_to = w)] self,
             move |_| w.populate_dropdowns()
+        ));
+
+        backend.connect_default_changed(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_| w.refresh_default_banner()
         ));
         *imp.backend.borrow_mut() = Some(backend.clone());
     }
@@ -147,9 +165,17 @@ impl DashboardWindow {
         let Some(backend) = imp.backend.borrow().clone() else { return };
 
         let (aux, main) = mixer::calculate_multipliers(imp.mix_scale.value());
-        
+
         backend.set_volume(Side::Aux, aux);
         backend.set_volume(Side::Main, main);
+    }
+
+    fn refresh_default_banner(&self) {
+        let imp = self.imp();
+        let Some(backend) = imp.backend.borrow().clone() else { return };
+
+        // only when Main isn't default sink
+        imp.main_default_banner.set_visible(backend.main_is_default() == Some(false));
     }
 
     fn on_hw_selected(&self, side: Side) {
@@ -169,4 +195,15 @@ impl DashboardWindow {
 
         self.reveal_persist_banner();
     }
+}
+
+fn add_css() {
+    let Some(display) = gtk::gdk::Display::default() else { return };
+    let provider = gtk::CssProvider::new();
+    provider.load_from_string(include_str!("../data/style.css"));
+    gtk::style_context_add_provider_for_display(
+        &display,
+        &provider,
+        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
 }

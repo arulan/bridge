@@ -17,13 +17,13 @@
 
 pub mod ffi;
 
-use std::ffi::{CStr, CString};
+use std::ffi::{c_void, CStr, CString};
 use glib::prelude::*;
 use glib::gobject_ffi::GObject;
 use glib::translate::FromGlibPtrFull;
 use ffi::GType;
 
-pub use ffi::{WP_INIT_ALL, WP_PIPEWIRE_OBJECT_FEATURE_INFO};
+pub use ffi::{WP_INIT_ALL, WP_PIPEWIRE_OBJECT_FEATURE_INFO, WP_PROXY_FEATURE_BOUND};
 
 unsafe fn to_gobj_full<T>(ptr: *mut T) -> glib::Object {
     glib::Object::from_glib_full(ptr as *mut GObject)
@@ -79,6 +79,10 @@ pub fn node_type() -> GType {
     unsafe { ffi::wp_node_get_type() }
 }
 
+pub fn metadata_type() -> GType {
+    unsafe { ffi::wp_metadata_get_type() }
+}
+
 pub struct Core {
     obj: glib::Object,
 }
@@ -86,25 +90,17 @@ pub struct Core {
 impl Core {
     pub fn new() -> Self {
         unsafe {
+    
 
-            // Avoiding wp_conf_open
-            let name = CString::new("dashboard").unwrap();
-            let conf = ffi::wp_conf_new(name.as_ptr(), std::ptr::null_mut());
-            assert!(!conf.is_null(), "wp_conf_new returned NULL");
-            
-            let _conf_guard = glib::Object::from_glib_full(conf as *mut GObject);
-
-            let ptr = ffi::wp_core_new(std::ptr::null_mut(), conf, std::ptr::null_mut());
-            assert!(!ptr.is_null(), "wp_core_new returned NULL");
-
-            let pw_ctx = ffi::wp_core_get_pw_context(ptr);
-            assert!(!pw_ctx.is_null(), "wp_core_get_pw_context returned NULL");
-
-            let module = CString::new("libpipewire-module-protocol-native").unwrap();
-            let m = ffi::pw_context_load_module(
-                pw_ctx, module.as_ptr(), std::ptr::null(), std::ptr::null_mut(),
+            // It looks like we can pass a NULL conf so that pw_context loads the
+            // Pipewire client.conf. This pulls in the modules we need. 
+            // TODO: After flatpak packaging check this assumption again
+            let ptr = ffi::wp_core_new(
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
             );
-            assert!(!m.is_null(), "failed to load protcol-native");
+            assert!(!ptr.is_null(), "wp_core_new returned NULL");
 
             // No connection yet, just client build + transport
             Core { obj: to_gobj_full(ptr) }
@@ -221,8 +217,94 @@ impl Node {
     }
 }
 
+// Wrapper over WpMetadata
+pub struct Metadata {
+    obj: glib::Object,
+}
+
+impl Metadata {
+    pub fn from_object(obj: glib::Object) -> Self {
+        Metadata { obj }
+    }
+
+    // Set the user configured default sink by node.name. We write the
+    // configured key; WP resolves it to the effective default.audio.sink.
+    pub fn set_default_sink(&self, name: &str) {
+        let key   = CString::new("default.configured.audio.sink").unwrap();
+        let type_ = CString::new("Spa:String:JSON").unwrap();
+        let value = CString::new(format!("{{\"name\":\"{name}\"}}")).unwrap();
+
+        unsafe {
+            ffi::wp_metadata_set(
+                self.obj.as_ptr() as *mut ffi::WpMetadata,
+                0,
+                key.as_ptr(),
+                type_.as_ptr(),
+                value.as_ptr(),
+            );
+        }
+    }
+
+    // Read a value from the local cache
+    pub fn find(&self, subject: u32, key: &str) -> Option<String> {
+        let key_c = CString::new(key).ok()?;
+        unsafe {
+            let val = ffi::wp_metadata_find(
+                self.obj.as_ptr() as *mut ffi::WpMetadata,
+                subject,
+                key_c.as_ptr(),
+                std::ptr::null_mut(),
+            );
+            if val.is_null() {
+                None
+            } else {
+                CStr::from_ptr(val).to_str().ok().map(str::to_owned)
+            }
+        }
+    }
+
+    pub fn activate_data<F: FnOnce(bool) + 'static>(&self, on_ready: F) {
+        let boxed: Box<Box<dyn FnOnce(bool)>> = Box::new(Box::new(on_ready));
+        let data = Box::into_raw(boxed) as *mut c_void;
+        unsafe {
+            ffi::wp_object_activate(
+                self.obj.as_ptr() as *mut ffi::WpObject,
+                ffi::WP_METADATA_FEATURE_DATA,
+                std::ptr::null_mut(),
+                Some(activate_data_ready),
+                data,
+            );
+        }
+    }
+
+    // changed(subject, key, type, value); key/value are None when an entry clears
+    pub fn connect_changed<F: Fn(u32, Option<String>, Option<String>) + 'static>(&self, f: F) {
+        self.obj.connect_local("changed", false, move |args| {
+            let subject = args.get(1).and_then(|v| v.get::<u32>().ok()).unwrap_or(0);
+            let key   = args.get(2).and_then(|v| v.get::<Option<String>>().ok()).flatten();
+            // args.get(3) isn't needed
+            let value = args.get(4).and_then(|v| v.get::<Option<String>>().ok()).flatten();
+            f(subject, key, value);
+            None
+        });
+    }
+}
+
+// Async; finishes activation and returns success flag to boxed FnOnce
+unsafe extern "C" fn activate_data_ready(source: *mut c_void, res: *mut c_void, data: *mut c_void) {
+    let mut err: *mut c_void = std::ptr::null_mut();
+    let ok = ffi::wp_object_activate_finish(source as *mut ffi::WpObject, res, &mut err);
+    if !err.is_null() {
+        glib::ffi::g_error_free(err as *mut glib::ffi::GError);
+    }
+    let cb: Box<Box<dyn FnOnce(bool)>> = Box::from_raw(data as *mut Box<dyn FnOnce(bool)>);
+    cb(ok != 0);
+}
+
 // caller takes ownership of the pod
 // sets channelVolumes
+// We have to build the array manually vs. using wp_spa_pod_new_object
+// The channel count is only known at runtime
 unsafe fn build_volume_pod(volume: f32, channels: u32) -> *mut ffi::WpSpaPod {
     let type_name = CString::new("Spa:Pod:Object:Param:Props").unwrap();
     let id_name = CString::new("Props").unwrap();

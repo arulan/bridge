@@ -1,0 +1,34 @@
+/* A (Aux/Main) card banner to display warnings, 
+  errors, information for a specific side */
+.inline-banner {
+  background-color: alpha(@warning_bg_color, 0.15);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.inline-banner > image { color: @warning_bg_color; }
+
+.inline-banner > label {
+  color: @warning_color;
+  font-size: 0.66em;
+}
+
+.inline-banner > button.inline-banner-action {
+  background: @warning_bg_color;
+  color: white;
+  min-height: 0;
+  padding: 1px 6px;
+  font-size: 0.66em;
+  border-radius: 5px;
+  border: none;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.inline-banner > button.inline-banner-action:hover {
+  background: mix(@warning_bg_color, white, 0.10);
+}
+
+.inline-banner > button.inline-banner-action:active {
+  background: mix(@warning_bg_color, black, 0.10);
+}
