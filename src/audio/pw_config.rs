@@ -22,7 +22,7 @@ use crate::config::SinkConfig;
 pub const AUX_SINK:  &str = "dashboard_aux";
 pub const MAIN_SINK: &str = "dashboard_main";
 
-// Flatpak will need --firesystem=xdg-config/pipewire:create
+// Flatpak will need --filesystem=xdg-config/pipewire:create
 pub fn config_dir() -> PathBuf {
     glib::home_dir().join(".config/pipewire/pipewire.conf.d")
 }
@@ -100,9 +100,14 @@ pub fn build_pw_config(cfg: &SinkConfig) -> String {
 pub fn write_config(cfg: &SinkConfig) {
     let file = config_file();
     if let Some(dir) = file.parent() {
-        let _ = std::fs::create_dir_all(dir);
+        if let Err(e) = std::fs::create_dir_all(dir) {
+            eprintln!("pw_config: failed to create {}: {e}", dir.display());
+            return;
+        }
     }
-    let _ = std::fs::write(&file, build_pw_config(cfg));
+    if let Err(e) = std::fs::write(&file, build_pw_config(cfg)) {
+        eprintln!("pw_config: failed to write {}: {e}", file.display());
+    }
 }
 
 /// Previews the conf files created in setup

@@ -202,6 +202,9 @@ impl DashboardWindow {
             backend.set_mute(Side::Aux, imp.aux_mute_button.is_active());
             backend.set_mute(Side::Main, imp.main_mute_button.is_active());
         }
+
+        // only display when persistent virtual sinks aren't live yet
+        imp.persist_banner.set_revealed(!present);
     }
 
     pub fn reveal_persist_banner(&self) {

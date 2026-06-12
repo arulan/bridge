@@ -71,7 +71,6 @@ impl ApplicationImpl for DashboardApplicationImp {
 
         if config::is_configured() {
             window.present();
-            window.reveal_persist_banner();
         } else {
             // Setup on first-run/!is_configured state; Do not show main window until after setup
             let app_c = app.clone();
@@ -113,7 +112,6 @@ impl DashboardApplicationImp {
                 pw_config::write_config(&cfg);
                 if let Some(w) = &win_c {
                     w.populate_dropdowns();
-                    w.reveal_persist_banner();
                     w.present();
                 }
             }
