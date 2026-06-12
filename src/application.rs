@@ -98,7 +98,12 @@ impl DashboardApplicationImp {
 
         let win = self.window.borrow().clone();
         let hw_sinks = be.hw_sinks();
-        let dialog = SetupDialog::new(hw_sinks, None, None, win.as_ref());
+        let cfg = config::load();
+        let (aux_id, main_id) = {
+            let find_id = |name: &str| hw_sinks.iter().find(|s| s.name == name).map(|s| s.node_id);
+            (find_id(&cfg.aux.hw_name), find_id(&cfg.main.hw_name))
+        };
+        let dialog = SetupDialog::new(hw_sinks, aux_id, main_id, win.as_ref());
 
         let win_c = win.clone();
         dialog.connect_closure("approved", false, glib::closure_local!(

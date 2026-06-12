@@ -199,6 +199,8 @@ impl DashboardWindow {
 
         if present {
             self.apply_mix();
+            backend.set_mute(Side::Aux, imp.aux_mute_button.is_active());
+            backend.set_mute(Side::Main, imp.main_mute_button.is_active());
         }
     }
 

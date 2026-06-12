@@ -110,6 +110,13 @@ impl PipeWireBackend {
 
     pub fn stop(&self) {
         let imp = self.imp();
+
+        // return sinks to 100% volume and unmuted when closing Dashboard
+        // TODO: Revisit design choice & possible preferences setting
+        for owned in imp.owned.borrow().values() {
+            owned.node.set_mute(false);
+            owned.node.set_volume(1.0);
+        }
         if let Some(core) = imp.core.borrow().as_ref() {
             core.disconnect();
         }
