@@ -29,6 +29,7 @@ const LFE_FREQ_HZ:      f64 = 60.0;
 const AMPLITUDE:        f64 = 0.2;
 const TONE_DURATION_S:  f64 = 0.5;
 const PAUSE_DURATION_S: f64 = 0.2;
+const WATCHDOG_MARGIN_S: f64 = 2.0; // slack over the sweep duration; fallback
 const TWO_PI:           f64 = std::f64::consts::PI * 2.0;
 const SAMPLE_SIZE:      usize = std::mem::size_of::<i16>();
 
@@ -100,8 +101,10 @@ fn run(sink_name: &str, n_channels: u32, positions: Vec<u32>, sweep_order: Vec<u
    
     // pattern is tone -> pause for each channel
     let total_steps   = sweep_order.len() * 2;
+    let sweep_secs    = sweep_order.len() as f64 * (TONE_DURATION_S + PAUSE_DURATION_S);
 
     let mainloop_quit = mainloop.clone();
+    let state_quit    = mainloop.clone();
 
     // State: (step index, samples emitted in step, phase accumulator)
     let state = (0usize, 0u32, 0.0f64);
@@ -110,6 +113,13 @@ fn run(sink_name: &str, n_channels: u32, positions: Vec<u32>, sweep_order: Vec<u
 
     let _listener = stream
         .add_local_listener_with_user_data(state)
+        .state_changed(move |_stream, _ud, _old, new| {
+            // WP refused or dropped the link
+            if let pw::stream::StreamState::Error(err) = new {
+                eprintln!("test_tone: stream error: {err}");
+                state_quit.quit();
+            }
+        })
         .process(move |stream, (step, step_samples, phase)| {
             let mut buffer = match stream.dequeue_buffer() {
                 Some(b) => b,
@@ -199,6 +209,16 @@ fn run(sink_name: &str, n_channels: u32, positions: Vec<u32>, sweep_order: Vec<u
             | pw::stream::StreamFlags::RT_PROCESS,
         &mut params,
     )?;
+
+
+    // Fallback exit in case the stream doesn't close normally or error
+    // Quits the stream after sweep duration + WATCHDOG_MARGIN_S
+    let watchdog_loop = mainloop.clone();
+    let watchdog = mainloop.loop_().add_timer(move |_| watchdog_loop.quit());
+    let _ = watchdog.update_timer(
+        Some(std::time::Duration::from_secs_f64(sweep_secs + WATCHDOG_MARGIN_S)),
+        None,
+    );
 
     mainloop.run();
     Ok(())
