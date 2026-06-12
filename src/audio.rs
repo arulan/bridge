@@ -19,3 +19,4 @@ pub mod backend;
 pub mod hw_sink;
 pub mod mixer;
 pub mod pw_config;
+pub mod test_tone;

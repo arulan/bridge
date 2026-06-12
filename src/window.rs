@@ -37,6 +37,8 @@ pub struct DashboardWindowImp {
     #[template_child] pub main_mute_button: TemplateChild<gtk::ToggleButton>,
     #[template_child] pub aux_mute_image:   TemplateChild<gtk::Image>,
     #[template_child] pub main_mute_image:  TemplateChild<gtk::Image>,
+    #[template_child] pub aux_test_tone_button:  TemplateChild<gtk::Button>,
+    #[template_child] pub main_test_tone_button: TemplateChild<gtk::Button>,
     #[template_child] pub mix_scale: TemplateChild<gtk::Scale>,
     #[template_child] pub aux_side_label:  TemplateChild<gtk::Label>,
     #[template_child] pub main_side_label: TemplateChild<gtk::Label>,
@@ -125,6 +127,15 @@ impl DashboardWindow {
             move |b| w.on_mute_toggled(Side::Main, b.is_active())
         ));
 
+        imp.aux_test_tone_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_| w.on_test_clicked(Side::Aux)
+        ));
+        imp.main_test_tone_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_| w.on_test_clicked(Side::Main)
+        ));
+
         imp.volume_display.set(VolumeDisplay::load());
         let settings = crate::application::settings();
         settings.connect_changed(Some("volume-display"), glib::clone!(
@@ -183,6 +194,8 @@ impl DashboardWindow {
         imp.mix_scale.set_sensitive(present);
         imp.aux_mute_button.set_sensitive(present);
         imp.main_mute_button.set_sensitive(present);
+        imp.aux_test_tone_button.set_sensitive(present);
+        imp.main_test_tone_button.set_sensitive(present);
 
         if present {
             self.apply_mix();
@@ -218,6 +231,25 @@ impl DashboardWindow {
         if let Some(backend) = imp.backend.borrow().clone() {
             backend.set_mute(side, muted);
         }
+    }
+
+    fn on_test_clicked(&self, side: Side) {
+        let imp = self.imp();
+        let Some(backend) = imp.backend.borrow().clone() else { return };
+
+        let btn = match side {
+            Side::Aux  => &*imp.aux_test_tone_button,
+            Side::Main => &*imp.main_test_tone_button,
+        };
+        btn.set_sensitive(false);
+
+        // re-enable once the sweep finishes
+        let btn_send = glib::SendWeakRef::from(btn.downgrade());
+        backend.play_test_tone(side, move || {
+            if let Some(b) = btn_send.upgrade() {
+                b.set_sensitive(true);
+            }
+        });
     }
 
     fn update_readout_labels(&self) {

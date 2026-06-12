@@ -130,6 +130,20 @@
                                       </object>
                                     </child>
                                     <child>
+                                      <object class="GtkButton" id="aux_test_tone_button">
+                                        <property name="tooltip-text">Play a test tone through this output</property>
+                                        <property name="valign">center</property>
+                                        <style><class name="flat"/></style>
+                                        <style><class name="compact-icon-button"/></style>
+                                        <child>
+                                          <object class="GtkImage">
+                                            <property name="icon-name">audio-x-generic-symbolic</property>
+                                            <property name="pixel-size">14</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
                                       <object class="GtkToggleButton" id="aux_mute_button">
                                         <property name="tooltip-text">Mute this output</property>
                                         <property name="valign">center</property>
@@ -213,6 +227,20 @@
                                             <property name="valign">baseline</property>
                                             <property name="ellipsize">end</property>
                                             <style><class name="card-subtitle"/></style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkButton" id="main_test_tone_button">
+                                        <property name="tooltip-text">Play a test tone through this output</property>
+                                        <property name="valign">center</property>
+                                        <style><class name="flat"/></style>
+                                        <style><class name="compact-icon-button"/></style>
+                                        <child>
+                                          <object class="GtkImage">
+                                            <property name="icon-name">audio-x-generic-symbolic</property>
+                                            <property name="pixel-size">14</property>
                                           </object>
                                         </child>
                                       </object>

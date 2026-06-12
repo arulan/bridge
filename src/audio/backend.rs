@@ -27,6 +27,7 @@ use crate::config::Side;
 use crate::wp;
 use super::hw_sink::{HwSink, hw_sink_from_node};
 use super::pw_config;
+use super::test_tone;
 
 struct OwnedNode {
     id:   u32,
@@ -141,6 +142,23 @@ impl PipeWireBackend {
         if let Some(owned) = self.imp().owned.borrow().get(&side) {
             owned.node.set_mute(muted);
         }
+    }
+
+    /// Play per-channel test tone through our virtual sinks. The layout comes
+    /// from the saved config.
+    pub fn play_test_tone(&self, side: Side, on_done: impl FnOnce() + Send + 'static) {
+        let sink_name = match side {
+            Side::Aux  => pw_config::AUX_SINK,
+            Side::Main => pw_config::MAIN_SINK,
+        };
+
+        let def = crate::config::load();
+        let def = def.side(side);
+        let n_channels = def.channels.max(2);
+        let positions  = test_tone::pos_str_to_spa_ids(&def.position, n_channels);
+        let sweep      = (0..positions.len()).collect();
+
+        test_tone::play_through_sink(sink_name, n_channels, positions, sweep, on_done);
     }
 
     pub fn set_main_default(&self) {
