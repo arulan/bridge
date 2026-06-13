@@ -16,6 +16,7 @@
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
 use std::cell::{Cell, OnceCell, RefCell};
+use std::time::Duration;
 
 use adw::subclass::prelude::*;
 use gtk4::{self as gtk, prelude::*, CompositeTemplate};
@@ -39,6 +40,8 @@ pub struct DashboardWindowImp {
     #[template_child] pub main_mute_image:  TemplateChild<gtk::Image>,
     #[template_child] pub aux_test_tone_button:  TemplateChild<gtk::Button>,
     #[template_child] pub main_test_tone_button: TemplateChild<gtk::Button>,
+    #[template_child] pub aux_level_bar:  TemplateChild<gtk::LevelBar>,
+    #[template_child] pub main_level_bar: TemplateChild<gtk::LevelBar>,
     #[template_child] pub mix_scale: TemplateChild<gtk::Scale>,
     #[template_child] pub aux_side_label:  TemplateChild<gtk::Label>,
     #[template_child] pub main_side_label: TemplateChild<gtk::Label>,
@@ -50,6 +53,8 @@ pub struct DashboardWindowImp {
 
     volume_display: Cell<VolumeDisplay>,
     settings:       OnceCell<gio::Settings>,
+
+    activity_tick_id: RefCell<Option<glib::SourceId>>,
 }
 
 #[glib::object_subclass]
@@ -95,6 +100,14 @@ impl DashboardWindow {
 
         // TODO: Look into GResource later
         add_css();
+
+        // meter stays uniform color
+        for bar in [imp.aux_level_bar.get(), imp.main_level_bar.get()] {
+            bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_LOW));
+            bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_HIGH));
+            bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_FULL));
+            bar.add_css_class("level-meter");
+        }
 
         imp.aux_hw_dropdown.set_factory(Some(&hw_sink_factory()));
         imp.main_hw_dropdown.set_factory(Some(&hw_sink_factory()));
@@ -171,6 +184,41 @@ impl DashboardWindow {
             move |_| w.sync_controls()
         ));
         *imp.backend.borrow_mut() = Some(backend.clone());
+
+        self.start_activity_ticker();
+    }
+
+    // Target ~40ms to avoid running into the PW quantum, causing ghosting/flickering
+    // TODO: Should we calculate the quantum for low-latency users and increase our tick?
+    fn start_activity_ticker(&self) {
+        let id = glib::timeout_add_local(Duration::from_millis(40), glib::clone!(
+            #[weak(rename_to = w)] self,
+            #[upgrade_or] glib::ControlFlow::Break,
+            move || {
+                w.on_activity_tick();
+                glib::ControlFlow::Continue
+            }
+        ));
+        *self.imp().activity_tick_id.borrow_mut() = Some(id);
+    }
+
+    fn on_activity_tick(&self) {
+        const SMOOTHING: f64 = 0.3;
+        let imp = self.imp();
+        let Some(backend) = imp.backend.borrow().clone() else { return };
+
+        for (side, bar, mute_btn) in [
+            (Side::Aux,  &*imp.aux_level_bar,  &*imp.aux_mute_button),
+            (Side::Main, &*imp.main_level_bar, &*imp.main_mute_button),
+        ] {
+            let val = if mute_btn.is_active() {
+                0.0
+            } else {
+                let peak = backend.peak(side) as f64;
+                (peak * SMOOTHING + bar.value() * (1.0 - SMOOTHING)).clamp(0.0, 1.0)
+            };
+            bar.set_value(val);
+        }
     }
 
     pub fn populate_dropdowns(&self) {

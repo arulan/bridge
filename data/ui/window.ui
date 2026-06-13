@@ -176,6 +176,14 @@
                                     <property name="hexpand">True</property>
                                   </object>
                                 </child>
+                                <child>
+                                  <object class="GtkLevelBar" id="aux_level_bar">
+                                    <property name="hexpand">True</property>
+                                    <property name="mode">continuous</property>
+                                    <property name="min-value">0</property>
+                                    <property name="max-value">1</property>
+                                  </object>
+                                </child>
                               </object>
                             </child>
                           </object>
@@ -276,6 +284,14 @@
                                 <child>
                                   <object class="GtkDropDown" id="main_hw_dropdown">
                                     <property name="hexpand">True</property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkLevelBar" id="main_level_bar">
+                                    <property name="hexpand">True</property>
+                                    <property name="mode">continuous</property>
+                                    <property name="min-value">0</property>
+                                    <property name="max-value">1</property>
                                   </object>
                                 </child>
                                 <child>

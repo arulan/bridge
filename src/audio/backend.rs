@@ -26,6 +26,7 @@ use glib::subclass::Signal;
 use crate::config::Side;
 use crate::wp;
 use super::hw_sink::{HwSink, hw_sink_from_node};
+use super::level_meter::LevelMeters;
 use super::pw_config;
 use super::test_tone;
 
@@ -45,6 +46,9 @@ pub struct PipeWireBackendImp {
     modules: RefCell<HashMap<Side, wp::LoadedModule>>,
 
     default_metadata: RefCell<Option<wp::Metadata>>,
+
+    // Per-sink level meters
+    level_meters: RefCell<Option<LevelMeters>>,
 
     // Order is important: om before core
     om:    RefCell<Option<wp::ObjectManager>>,
@@ -116,6 +120,8 @@ impl PipeWireBackend {
         let imp = self.imp();
         imp.core.replace(Some(core));
         imp.om.replace(Some(om));
+
+        imp.level_meters.replace(Some(LevelMeters::start()));
     }
 
     pub fn stop(&self) {
@@ -215,6 +221,12 @@ impl PipeWireBackend {
         let sweep      = (0..positions.len()).collect();
 
         test_tone::play_through_sink(sink_name, n_channels, positions, sweep, on_done);
+    }
+
+  
+    /// Get the latest peak level on each side's sink
+    pub fn peak(&self, side: Side) -> f32 {
+        self.imp().level_meters.borrow().as_ref().map_or(0.0, |m| m.peak(side))
     }
 
     pub fn set_main_default(&self) {

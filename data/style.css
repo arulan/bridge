@@ -12,6 +12,9 @@ button.compact-icon-button { min-width: 0; min-height: 0; padding: 2px 6px; }
   opacity: 0.6;
 }
 
+/* Per-side activity meter under the hw dropdown */
+levelbar.level-meter { min-height: 6px; }
+
 /* A (Aux/Main) card banner to display warnings,
   errors, information for a specific side */
 .inline-banner {
