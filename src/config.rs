@@ -35,6 +35,14 @@ impl Side {
             _      => None,
         }
     }
+
+    /// dashboard.role string for the loopback conf
+    pub fn as_wire(&self) -> &'static str {
+        match self {
+            Side::Aux  => "aux",
+            Side::Main => "main",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]

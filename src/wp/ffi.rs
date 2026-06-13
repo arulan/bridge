@@ -35,6 +35,10 @@ pub type GType = usize;
 #[repr(C)] pub struct WpMetadata(u8);
 #[repr(C)] pub struct WpObject(u8);
 
+// pw types
+#[repr(C)] pub struct PwContext(u8);
+#[repr(C)] pub struct PwImplModule(u8);
+
 pub const WP_INIT_ALL: u32 = 15;
 pub const WP_PROXY_FEATURE_BOUND: u32 = 1;
 pub const WP_PIPEWIRE_OBJECT_FEATURE_INFO: u32 = 16;
@@ -55,6 +59,7 @@ extern "C" {
     pub fn wp_core_connect(self_: *mut WpCore) -> gboolean;
     pub fn wp_core_disconnect(self_: *mut WpCore);
     pub fn wp_core_install_object_manager(self_: *mut WpCore, om: *mut WpObjectManager);
+    pub fn wp_core_get_pw_context(self_: *mut WpCore) -> *mut PwContext;
 
     pub fn wp_object_manager_new() -> *mut WpObjectManager;
     pub fn wp_object_manager_add_interest_full(
@@ -156,4 +161,16 @@ extern "C" {
     
     pub fn wp_spa_pod_builder_unref(self_: *mut WpSpaPodBuilder);
     pub fn wp_spa_pod_unref(self_: *mut WpSpaPod);
+}
+
+#[link(name = "pipewire-0.3")]
+extern "C" {
+    pub fn pw_context_load_module(
+        context:    *mut PwContext,
+        name:       *const c_char,
+        args:       *const c_char,
+        properties: *mut c_void,
+    ) -> *mut PwImplModule;
+
+    pub fn pw_impl_module_destroy(module: *mut PwImplModule);
 }

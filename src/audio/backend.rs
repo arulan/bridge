@@ -41,6 +41,9 @@ pub struct PipeWireBackendImp {
     // Our own loopback capture nodes, keyed by Side
     owned: RefCell<HashMap<Side, OwnedNode>>,
 
+    // Our session-only loopback modules; Empty once persistent sinks are created
+    modules: RefCell<HashMap<Side, wp::LoadedModule>>,
+
     default_metadata: RefCell<Option<wp::Metadata>>,
 
     // Order is important: om before core
@@ -61,6 +64,7 @@ impl ObjectImpl for PipeWireBackendImp {
             vec![
                 Signal::builder("sinks-ready").build(),
                 Signal::builder("default-changed").build(),
+                Signal::builder("owned-changed").build(),
             ]
         })
     }
@@ -92,7 +96,13 @@ impl PipeWireBackend {
 
         om.connect_installed(glib::clone!(
             #[weak(rename_to = be)] self,
-            move || be.emit_by_name::<()>("sinks-ready", &[])
+            move || {
+                // relaunch the app, but persistent sinks aren't live yet, such as
+                // after first-run setup -> close app -> relaunch app.
+                // In this case, we create the temp sinks again.
+                be.create_missing_temp_sinks();
+                be.emit_by_name::<()>("sinks-ready", &[]);
+            }
         ));
 
         om.add_interest_for_type(wp::node_type());
@@ -117,10 +127,13 @@ impl PipeWireBackend {
             owned.node.set_mute(false);
             owned.node.set_volume(1.0);
         }
+
+        // Teardown; Order is important: modules -> om -> core
+        imp.modules.borrow_mut().clear();
         if let Some(core) = imp.core.borrow().as_ref() {
             core.disconnect();
         }
-        // Teardown; Order is important: om before core
+        // Teardown; Order is important: modules -> om -> core
         imp.om.replace(None);
         imp.core.replace(None);
     }
@@ -135,6 +148,42 @@ impl PipeWireBackend {
     pub fn owned_sinks_present(&self) -> bool {
         let owned = self.imp().owned.borrow();
         [Side::Aux, Side::Main].iter().all(|side| owned.contains_key(side))
+    }
+
+    /// True while sink is a session-only loopback we loaded, rather than a
+    /// persistent one from the conf
+    pub fn using_temp_sinks(&self) -> bool {
+        !self.imp().modules.borrow().is_empty()
+    }
+
+    /// Create in-process loopback for any configured side that isn't
+    /// already live with a persistent sink
+    pub fn create_missing_temp_sinks(&self) {
+        if !crate::config::is_configured() {
+            return;
+        }
+        let cfg = crate::config::load();
+        let imp = self.imp();
+
+        for side in [Side::Aux, Side::Main] {
+            if imp.owned.borrow().contains_key(&side) || imp.modules.borrow().contains_key(&side) {
+                continue;
+            }
+            let args = pw_config::loopback_module_args(side, cfg.side(side));
+            let module = imp.core.borrow().as_ref()
+                .and_then(|core| core.load_module("libpipewire-module-loopback", &args));
+            match module {
+                Some(m) => { imp.modules.borrow_mut().insert(side, m); }
+                None    => eprintln!("backend: failed to load temp loopback for {side:?}"),
+            }
+        }
+    }
+
+    /// Clear our loopbacks and recreate them for the current config
+    /// Used when running Set Up again
+    pub fn recreate_temp_sinks(&self) {
+        self.imp().modules.borrow_mut().clear();
+        self.create_missing_temp_sinks();
     }
 
     /// Sets the volume on one of our sinks
@@ -200,6 +249,14 @@ impl PipeWireBackend {
             None
         });
     }
+
+    pub fn connect_owned_changed<F: Fn(&Self) + 'static>(&self, f: F) {
+        self.connect_local("owned-changed", false, move |args| {
+            let be = args[0].get::<PipeWireBackend>().unwrap();
+            f(&be);
+            None
+        });
+    }
     
 
     fn on_object_added(&self, obj: glib::Object) {
@@ -235,6 +292,7 @@ impl PipeWireBackend {
                 let id = wp::bound_id(&obj);
                 let node = wp::Node::from_object(obj);
                 self.imp().owned.borrow_mut().insert(side, OwnedNode { id, node });
+                self.emit_by_name::<()>("owned-changed", &[]);
             }
             return;
         }
@@ -246,6 +304,16 @@ impl PipeWireBackend {
     fn on_object_removed(&self, obj: glib::Object) {
         let id = wp::bound_id(&obj);
         self.imp().sinks.borrow_mut().remove(&id);
-        self.imp().owned.borrow_mut().retain(|_, owned| owned.id != id);
+
+        let owned_dropped = {
+            let mut owned = self.imp().owned.borrow_mut();
+            let before = owned.len();
+            owned.retain(|_, owned| owned.id != id);
+            owned.len() != before
+        };
+
+        if owned_dropped {
+            self.emit_by_name::<()>("owned-changed", &[]);
+        }
     }
 }

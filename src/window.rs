@@ -165,6 +165,11 @@ impl DashboardWindow {
             #[weak(rename_to = w)] self,
             move |_| w.refresh_default_banner()
         ));
+
+        backend.connect_owned_changed(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_| w.sync_controls()
+        ));
         *imp.backend.borrow_mut() = Some(backend.clone());
     }
 
@@ -189,6 +194,13 @@ impl DashboardWindow {
         }
         imp.suppress_selected.set(false);
 
+        self.sync_controls();
+    }
+
+    fn sync_controls(&self) {
+        let imp = self.imp();
+        let Some(backend) = imp.backend.borrow().clone() else { return };
+
         // crossfader and mute are disabled until our virtual sinks exist
         let present = backend.owned_sinks_present();
         imp.mix_scale.set_sensitive(present);
@@ -203,8 +215,11 @@ impl DashboardWindow {
             backend.set_mute(Side::Main, imp.main_mute_button.is_active());
         }
 
+        let persistent = present && !backend.using_temp_sinks();
+
         // only display when persistent virtual sinks aren't live yet
-        imp.persist_banner.set_revealed(!present);
+        // temp sinks are only live while the app is open
+        imp.persist_banner.set_revealed(config::is_configured() && !persistent);
     }
 
     pub fn reveal_persist_banner(&self) {

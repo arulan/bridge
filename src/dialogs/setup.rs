@@ -196,7 +196,7 @@ impl SetupDialog {
             "Dashboard creates two virtual outputs — \
              <b>Aux</b> and <b>Main</b> — that you can mix independently. \
              Each mirrors the channel layout of the configured output device.\n\n\
-             The written PipeWire configuration allows them to persist after your next login."
+             You must login again to persist the outputs beyond the current session."
         );
         desc.set_wrap(true);
         desc.set_xalign(0.0);

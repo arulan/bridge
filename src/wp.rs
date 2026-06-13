@@ -18,6 +18,7 @@
 pub mod ffi;
 
 use std::ffi::{c_void, CStr, CString};
+use std::ptr::NonNull;
 use glib::prelude::*;
 use glib::gobject_ffi::GObject;
 use glib::translate::FromGlibPtrFull;
@@ -123,6 +124,33 @@ impl Core {
                 om.obj.as_ptr() as *mut ffi::WpObjectManager,
             )
         }
+    }
+
+    // load a PW module in the session context
+    pub fn load_module(&self, name: &str, args: &str) -> Option<LoadedModule> {
+        let name_c = CString::new(name).ok()?;
+        let args_c = CString::new(args).ok()?;
+        unsafe {
+            let ctx = ffi::wp_core_get_pw_context(self.obj.as_ptr() as *mut ffi::WpCore);
+            if ctx.is_null() {
+                return None;
+            }
+            let m = ffi::pw_context_load_module(
+                ctx,
+                name_c.as_ptr(),
+                args_c.as_ptr(),
+                std::ptr::null_mut(),
+            );
+            NonNull::new(m).map(LoadedModule)
+        }
+    }
+}
+
+pub struct LoadedModule(NonNull<ffi::PwImplModule>);
+
+impl Drop for LoadedModule {
+    fn drop(&mut self) {
+        unsafe { ffi::pw_impl_module_destroy(self.0.as_ptr()) }
     }
 }
 

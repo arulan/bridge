@@ -17,10 +17,12 @@
 
 use std::path::PathBuf;
 
-use crate::config::SinkConfig;
+use crate::config::{Side, SinkConfig, SinkDef};
 
 pub const AUX_SINK:  &str = "dashboard_aux";
 pub const MAIN_SINK: &str = "dashboard_main";
+pub const AUX_PB:    &str = "dashboard_aux_pb";
+pub const MAIN_PB:   &str = "dashboard_main_pb";
 
 // Flatpak will need --filesystem=xdg-config/pipewire:create
 pub fn config_dir() -> PathBuf {
@@ -33,67 +35,75 @@ pub fn config_file() -> PathBuf {
 
 /// Our main & aux loopback sinks; Routes to target hardware output or PW defeault
 pub fn build_pw_config(cfg: &SinkConfig) -> String {
-    let aux_channels  = cfg.aux.channels;
-    let main_channels = cfg.main.channels;
-    let aux_position  = cfg.aux.position.replace(',', " ");
-    let main_position = cfg.main.position.replace(',', " ");
-    let aux_target  = target_fragment(&cfg.aux.hw_name);
-    let main_target = target_fragment(&cfg.main.hw_name);
-    let aux_name  = AUX_SINK;
-    let main_name = MAIN_SINK;
-
-    // Important: node.dont-fallback + node.linger are necessary to change WP's
-    // policy on fallback routing when the target.object disappears and preventing
-    // the node from being destroyed (e.g. HW output is unplugged)
+    let aux_body  = loopback_body(Side::Aux,  &cfg.aux,  false);
+    let main_body = loopback_body(Side::Main, &cfg.main, false);
     format!(
         r#"context.modules = [
   {{
     name = libpipewire-module-loopback
     args = {{
-      capture.props = {{
-        node.name        = {aux_name}
-        node.description = "Dashboard - Aux"
-        media.class      = Audio/Sink
-        audio.channels   = {aux_channels}
-        audio.position   = "[ {aux_position} ]"
-        node.virtual     = true
-        dashboard.role  = aux
-      }}
-      playback.props = {{
-        node.name           = dashboard_aux_pb
-        audio.channels      = {aux_channels}
-        audio.position      = "[ {aux_position} ]"
-        node.dont-fallback  = true
-        node.linger         = true
-        dashboard.pb-role  = aux{aux_target}
-      }}
+{aux_body}
     }}
   }}
   {{
     name = libpipewire-module-loopback
     args = {{
-      capture.props = {{
-        node.name        = {main_name}
-        node.description = "Dashboard - Main"
-        media.class      = Audio/Sink
-        audio.channels   = {main_channels}
-        audio.position   = "[ {main_position} ]"
-        node.virtual     = true
-        dashboard.role  = main
-      }}
-      playback.props = {{
-        node.name           = dashboard_main_pb
-        audio.channels      = {main_channels}
-        audio.position      = "[ {main_position} ]"
-        node.dont-fallback  = true
-        node.linger         = true
-        dashboard.pb-role  = main{main_target}
-      }}
+{main_body}
     }}
   }}
 ]
 "#
     )
+}
+
+fn side_spec(side: Side) -> (&'static str, &'static str, &'static str) {
+    match side {
+        Side::Aux  => (AUX_SINK,  AUX_PB,  "Dashboard - Aux"),
+        Side::Main => (MAIN_SINK, MAIN_PB, "Dashboard - Main"),
+    }
+}
+
+// The capture + playback props for one side. Shared by the persistent conf and
+// the in-process module args so the two can't drift.
+//
+// Important: node.dont-fallback + node.linger are necessary to change WP's
+// policy on fallback routing when the target.object disappears and preventing
+// the node from being destroyed (e.g. HW output is unplugged)
+//
+// temp sinks add state.restore-props = false
+// Avoids having recreated temp sinks desync volume/mute state with UI controls
+fn loopback_body(side: Side, def: &SinkDef, temp: bool) -> String {
+    let (name, pb_name, desc) = side_spec(side);
+    let role     = side.as_wire();
+    let channels = def.channels;
+    let position = def.position.replace(',', " ");
+    let target   = target_fragment(&def.hw_name);
+    let restore  = if temp { "\n        state.restore-props = false" } else { "" };
+    format!(
+        r#"      capture.props = {{
+        node.name        = {name}
+        node.description = "{desc}"
+        media.class      = Audio/Sink
+        audio.channels   = {channels}
+        audio.position   = "[ {position} ]"
+        node.virtual     = true{restore}
+        dashboard.role  = {role}
+      }}
+      playback.props = {{
+        node.name           = {pb_name}
+        audio.channels      = {channels}
+        audio.position      = "[ {position} ]"
+        node.dont-fallback  = true
+        node.linger         = true
+        dashboard.pb-role  = {role}{target}
+      }}"#
+    )
+}
+
+// loopback args for pw_context_load_module; the same body the persistent conf
+// uses plus the temp-sink state.restore-props = false
+pub fn loopback_module_args(side: Side, def: &SinkDef) -> String {
+    format!("{{\n{}\n}}", loopback_body(side, def, true))
 }
 
 /// Writes the pipewire.conf.d that persists the virtual sinks

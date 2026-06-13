@@ -105,11 +105,14 @@ impl DashboardApplicationImp {
         let dialog = SetupDialog::new(hw_sinks, aux_id, main_id, win.as_ref());
 
         let win_c = win.clone();
+        let be_c = be.clone();
         dialog.connect_closure("approved", false, glib::closure_local!(
             move |d: SetupDialog| {
                 let cfg = d.sink_config();
                 config::store(&cfg);
                 pw_config::write_config(&cfg);
+
+                be_c.recreate_temp_sinks();
                 if let Some(w) = &win_c {
                     w.populate_dropdowns();
                     w.present();
