@@ -21,6 +21,8 @@ pub struct HwSink {
     pub name:         String,
     pub display_name: String,
     pub device_api:   String,
+    pub device_bus:   String,
+    pub profile_name: String,
     pub channels:     u32,
     pub position:     String,
 }
@@ -49,6 +51,8 @@ pub fn hw_sink_from_node(node: &glib::Object) -> Option<HwSink> {
         .or_else(|| wp::node_pw_prop(node, "device.name"))
         .unwrap_or_else(|| node_name.clone());
     let device_api = wp::node_pw_prop(node, "device.api").unwrap_or_default();
+    let device_bus = wp::node_pw_prop(node, "device.bus").unwrap_or_default();
+    let profile_name = wp::node_pw_prop(node, "device.profile.name").unwrap_or_default();
     let channels = wp::node_pw_prop(node, "audio.channels")
         .and_then(|s| s.parse().ok())
         .unwrap_or(2);
@@ -56,7 +60,59 @@ pub fn hw_sink_from_node(node: &glib::Object) -> Option<HwSink> {
         .map(|s| normalize_position(&s))
         .unwrap_or_else(|| "FL,FR".to_owned());
 
-    Some(HwSink { node_id, name: node_name, display_name, device_api, channels, position })
+    Some(HwSink {
+        node_id,
+        name: node_name,
+        display_name,
+        device_api,
+        device_bus,
+        profile_name,
+        channels,
+        position,
+    })
+}
+
+impl HwSink {
+
+    // Label for connection hardware/transport type
+    pub fn connection_label(&self) -> Option<&'static str> {
+        let profile = self.profile_name.to_ascii_lowercase();
+        let name = self.name.to_ascii_lowercase();
+
+        let is_hdmi = profile.starts_with("hdmi") || name.contains(".hdmi-");
+        let is_spdif = profile.contains("spdif") || profile.contains("iec958")
+            || name.contains("spdif") || name.contains("iec958");
+
+        if self.device_api == "bluez5" || self.device_bus == "bluetooth" {
+            Some("Bluetooth")
+        } else if is_hdmi {
+            Some("HDMI / DP")
+        } else if is_spdif {
+            Some("S/PDIF")
+        } else if self.device_bus == "usb" {
+            Some("USB")
+        } else if self.device_bus == "firewire" {
+            Some("FireWire")
+        } else if self.device_bus == "pci" || self.device_bus == "isa" {
+            Some("Built-in")
+        } else {
+            None
+        }
+    }
+}
+
+/// Label for channel layout: "Mono", "Stereo", or the surround
+/// "{full}.{lfe}" form (e.g. 5.1, 7.1, 2.1, and 4.0).
+pub fn channel_layout_label(channels: u32, position: &str) -> String {
+    match channels {
+        0 => String::new(),
+        1 => "Mono".into(),
+        2 => "Stereo".into(),
+        n => {
+            let lfe = position.split(',').filter(|c| c.starts_with("LFE")).count() as u32;
+            format!("{}.{} ch", n.saturating_sub(lfe), lfe)
+        }
+    }
 }
 
 // SPA uses space separated channels, such as "[ FL FR ]"; our is comma separated
@@ -76,5 +132,56 @@ mod tests {
         assert_eq!(normalize_position("[ FL FR ]"), "FL,FR");
         assert_eq!(normalize_position("FL,FR"), "FL,FR");
         assert_eq!(normalize_position("[ FL, FR, LFE ]"), "FL,FR,LFE");
+    }
+
+    fn sink(api: &str, bus: &str, profile: &str, name: &str) -> HwSink {
+        HwSink {
+            node_id:      0,
+            name:         name.to_owned(),
+            display_name: String::new(),
+            device_api:   api.to_owned(),
+            device_bus:   bus.to_owned(),
+            profile_name: profile.to_owned(),
+            channels:     2,
+            position:     "FL,FR".to_owned(),
+        }
+    }
+
+    #[test]
+    fn connection_labels() {
+        let bt = sink("bluez5", "", "a2dp-sink", "bluez_output.1");
+        assert_eq!(bt.connection_label(), Some("Bluetooth"));
+
+        let hdmi = sink("alsa", "pci", "hdmi-stereo", "alsa_output.pci-0.1.hdmi-stereo");
+        assert_eq!(hdmi.connection_label(), Some("HDMI / DP"));
+
+        let usb = sink("alsa", "usb", "analog-stereo", "alsa_output.usb-RME.analog-stereo");
+        assert_eq!(usb.connection_label(), Some("USB"));
+
+        let spdif_ucm = sink("alsa", "usb", "HiFi: SPDIF: sink", "alsa_output.usb-Generic.HiFi__SPDIF__sink");
+        assert_eq!(spdif_ucm.connection_label(), Some("S/PDIF"));
+
+        let spdif_acp = sink("alsa", "pci", "iec958-stereo", "alsa_output.pci-0000_00_1f.3.iec958-stereo");
+        assert_eq!(spdif_acp.connection_label(), Some("S/PDIF"));
+
+        let onboard = sink("alsa", "pci", "analog-stereo", "alsa_output.pci-0000_00_1f.3.analog-stereo");
+        assert_eq!(onboard.connection_label(), Some("Built-in"));
+
+        // People still using FireWire?
+        let fw = sink("alsa", "firewire", "analog-stereo", "alsa_output.firewire-Focusrite.analog-stereo");
+        assert_eq!(fw.connection_label(), Some("FireWire"));
+
+        let unknown = sink("alsa", "", "", "alsa_output.platform-something");
+        assert_eq!(unknown.connection_label(), None);
+    }
+
+    #[test]
+    fn channel_labels() {
+        assert_eq!(channel_layout_label(1, "MONO"), "Mono");
+        assert_eq!(channel_layout_label(2, "FL,FR"), "Stereo");
+        assert_eq!(channel_layout_label(3, "FL,FR,LFE"), "2.1 ch");
+        assert_eq!(channel_layout_label(6, "FL,FR,FC,LFE,RL,RR"), "5.1 ch");
+        assert_eq!(channel_layout_label(8, "FL,FR,FC,LFE,RL,RR,SL,SR"), "7.1 ch");
+        assert_eq!(channel_layout_label(4, "FL,FR,RL,RR"), "4.0 ch");
     }
 }

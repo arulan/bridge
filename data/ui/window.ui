@@ -90,15 +90,14 @@
                                 <property name="margin-bottom">16</property>
                                 <property name="margin-start">16</property>
                                 <property name="margin-end">16</property>
-                                <!-- Heading row: title + sink-name subtitle + mute -->
+                                <!-- Heading row: title over sink-name subtitle + corner volume -->
                                 <child>
                                   <object class="GtkBox">
                                     <property name="orientation">horizontal</property>
                                     <property name="spacing">6</property>
                                     <child>
                                       <object class="GtkBox">
-                                        <property name="orientation">horizontal</property>
-                                        <property name="spacing">6</property>
+                                        <property name="orientation">vertical</property>
                                         <property name="hexpand">True</property>
                                         <property name="valign">center</property>
                                         <child>
@@ -106,27 +105,64 @@
                                             <style><class name="heading"/></style>
                                             <property name="label">Aux</property>
                                             <property name="xalign">0</property>
-                                            <property name="valign">baseline</property>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkLabel">
-                                            <property name="use-markup">True</property>
-                                            <property name="label">&lt;span rise="1400"&gt;|&lt;/span&gt;</property>
-                                            <property name="valign">baseline</property>
-                                            <style><class name="card-sep"/></style>
                                           </object>
                                         </child>
                                         <child>
                                           <object class="GtkLabel">
                                             <property name="label">Dashboard - Aux</property>
                                             <property name="xalign">0</property>
-                                            <property name="hexpand">True</property>
-                                            <property name="valign">baseline</property>
                                             <property name="ellipsize">end</property>
-                                            <style><class name="card-subtitle"/></style>
+                                            <style><class name="caption"/></style>
+                                            <style><class name="dim-label"/></style>
                                           </object>
                                         </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkBox" id="aux_volume_box">
+                                        <property name="orientation">horizontal</property>
+                                        <property name="spacing">2</property>
+                                        <property name="valign">start</property>
+                                        <property name="halign">end</property>
+                                        <property name="baseline-position">bottom</property>
+                                        <style><class name="card-volume-box"/></style>
+                                        <child>
+                                          <object class="GtkLabel" id="aux_volume_value">
+                                            <property name="label">0.0</property>
+                                            <property name="valign">baseline</property>
+                                            <style><class name="card-volume"/></style>
+                                            <style><class name="numeric"/></style>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel" id="aux_volume_unit">
+                                            <property name="label">dB</property>
+                                            <property name="valign">baseline</property>
+                                            <style><class name="card-volume-unit"/></style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <!-- Action row: channel layout + device type + test tone + mute -->
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">6</property>
+                                    <property name="margin-top">8</property>
+                                    <child>
+                                      <object class="GtkLabel" id="aux_channels_label">
+                                        <property name="xalign">0</property>
+                                        <property name="valign">center</property>
+                                        <property name="ellipsize">end</property>
+                                        <style><class name="caption"/></style>
+                                        <style><class name="dim-label"/></style>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkBox">
+                                        <property name="hexpand">True</property>
                                       </object>
                                     </child>
                                     <child>
@@ -159,18 +195,6 @@
                                     </child>
                                   </object>
                                 </child>
-                                <!-- Hint -->
-                                <child>
-                                  <object class="GtkLabel">
-                                    <property name="label">Route apps (e.g. chat, music) to this separate output to include them in the crossfader mix. Requires manually setting the in-app output.</property>
-                                    <property name="xalign">0</property>
-                                    <property name="yalign">0</property>
-                                    <property name="wrap">True</property>
-                                    <property name="vexpand">True</property>
-                                    <style><class name="caption"/></style>
-                                    <style><class name="dim-label"/></style>
-                                  </object>
-                                </child>
                                 <child>
                                   <object class="GtkDropDown" id="aux_hw_dropdown">
                                     <property name="hexpand">True</property>
@@ -200,15 +224,14 @@
                                 <property name="margin-bottom">16</property>
                                 <property name="margin-start">16</property>
                                 <property name="margin-end">16</property>
-                                <!-- Heading row: title + sink-name subtitle + mute -->
+                                <!-- Heading row: title over sink-name subtitle + corner volume -->
                                 <child>
                                   <object class="GtkBox">
                                     <property name="orientation">horizontal</property>
                                     <property name="spacing">6</property>
                                     <child>
                                       <object class="GtkBox">
-                                        <property name="orientation">horizontal</property>
-                                        <property name="spacing">6</property>
+                                        <property name="orientation">vertical</property>
                                         <property name="hexpand">True</property>
                                         <property name="valign">center</property>
                                         <child>
@@ -216,27 +239,75 @@
                                             <style><class name="heading"/></style>
                                             <property name="label">Main</property>
                                             <property name="xalign">0</property>
-                                            <property name="valign">baseline</property>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkLabel">
-                                            <property name="use-markup">True</property>
-                                            <property name="label">&lt;span rise="1400"&gt;|&lt;/span&gt;</property>
-                                            <property name="valign">baseline</property>
-                                            <style><class name="card-sep"/></style>
                                           </object>
                                         </child>
                                         <child>
                                           <object class="GtkLabel">
                                             <property name="label">Dashboard - Main</property>
                                             <property name="xalign">0</property>
-                                            <property name="hexpand">True</property>
-                                            <property name="valign">baseline</property>
                                             <property name="ellipsize">end</property>
-                                            <style><class name="card-subtitle"/></style>
+                                            <style><class name="caption"/></style>
+                                            <style><class name="dim-label"/></style>
                                           </object>
                                         </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkBox" id="main_volume_box">
+                                        <property name="orientation">horizontal</property>
+                                        <property name="spacing">2</property>
+                                        <property name="valign">start</property>
+                                        <property name="halign">end</property>
+                                        <property name="baseline-position">bottom</property>
+                                        <style><class name="card-volume-box"/></style>
+                                        <child>
+                                          <object class="GtkLabel" id="main_volume_value">
+                                            <property name="label">0.0</property>
+                                            <property name="valign">baseline</property>
+                                            <style><class name="card-volume"/></style>
+                                            <style><class name="numeric"/></style>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel" id="main_volume_unit">
+                                            <property name="label">dB</property>
+                                            <property name="valign">baseline</property>
+                                            <style><class name="card-volume-unit"/></style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <!-- Action row: channel layout + device type + default? + test tone + mute -->
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">6</property>
+                                    <property name="margin-top">8</property>
+                                    <child>
+                                      <object class="GtkLabel" id="main_channels_label">
+                                        <property name="xalign">0</property>
+                                        <property name="valign">center</property>
+                                        <property name="ellipsize">end</property>
+                                        <style><class name="caption"/></style>
+                                        <style><class name="dim-label"/></style>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel" id="main_default_tag">
+                                        <property name="visible">False</property>
+                                        <property name="label">· System Default</property>
+                                        <property name="xalign">0</property>
+                                        <property name="valign">center</property>
+                                        <property name="ellipsize">end</property>
+                                        <style><class name="caption"/></style>
+                                        <style><class name="dim-label"/></style>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkBox">
+                                        <property name="hexpand">True</property>
                                       </object>
                                     </child>
                                     <child>
@@ -267,18 +338,6 @@
                                         </child>
                                       </object>
                                     </child>
-                                  </object>
-                                </child>
-                                <!-- Hint -->
-                                <child>
-                                  <object class="GtkLabel">
-                                    <property name="label">When set as the system default, apps (e.g. games, browser) will naturally route to this output.</property>
-                                    <property name="xalign">0</property>
-                                    <property name="yalign">0</property>
-                                    <property name="wrap">True</property>
-                                    <property name="vexpand">True</property>
-                                    <style><class name="caption"/></style>
-                                    <style><class name="dim-label"/></style>
                                   </object>
                                 </child>
                                 <child>
@@ -336,34 +395,6 @@
                       <object class="GtkBox">
                         <property name="orientation">vertical</property>
                         <property name="spacing">0</property>
-                        <child>
-                          <object class="GtkBox">
-                            <property name="orientation">horizontal</property>
-                            <child>
-                              <object class="GtkLabel" id="aux_side_label">
-                                <property name="label">Aux</property>
-                                <property name="hexpand">True</property>
-                                <property name="xalign">0</property>
-                                <style>
-                                  <class name="caption"/>
-                                  <class name="dim-label"/>
-                                  <class name="numeric"/>
-                                </style>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkLabel" id="main_side_label">
-                                <property name="label">Main</property>
-                                <property name="xalign">1</property>
-                                <style>
-                                  <class name="caption"/>
-                                  <class name="dim-label"/>
-                                  <class name="numeric"/>
-                                </style>
-                              </object>
-                            </child>
-                          </object>
-                        </child>
                         <child>
                           <object class="GtkScale" id="mix_scale">
                             <property name="orientation">horizontal</property>

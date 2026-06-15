@@ -47,7 +47,7 @@ pub const WP_PIPEWIRE_OBJECT_FEATURE_INFO: u32 = 16;
 pub const WP_METADATA_FEATURE_DATA: u32 = 1 << 16;
 
 #[link(name = "wireplumber-0.5")]
-extern "C" {
+unsafe extern "C" {
     pub fn wp_init(flags: u32);
 
     pub fn wp_core_new(
@@ -164,7 +164,7 @@ extern "C" {
 }
 
 #[link(name = "pipewire-0.3")]
-extern "C" {
+unsafe extern "C" {
     pub fn pw_context_load_module(
         context:    *mut PwContext,
         name:       *const c_char,

@@ -42,11 +42,18 @@ pub struct DashboardWindowImp {
     #[template_child] pub main_test_tone_button: TemplateChild<gtk::Button>,
     #[template_child] pub aux_level_bar:  TemplateChild<gtk::LevelBar>,
     #[template_child] pub main_level_bar: TemplateChild<gtk::LevelBar>,
+    #[template_child] pub aux_channels_label:  TemplateChild<gtk::Label>,
+    #[template_child] pub main_channels_label: TemplateChild<gtk::Label>,
     #[template_child] pub mix_scale: TemplateChild<gtk::Scale>,
-    #[template_child] pub aux_side_label:  TemplateChild<gtk::Label>,
-    #[template_child] pub main_side_label: TemplateChild<gtk::Label>,
+    #[template_child] pub aux_volume_box:    TemplateChild<gtk::Box>,
+    #[template_child] pub main_volume_box:   TemplateChild<gtk::Box>,
+    #[template_child] pub aux_volume_value:  TemplateChild<gtk::Label>,
+    #[template_child] pub main_volume_value: TemplateChild<gtk::Label>,
+    #[template_child] pub aux_volume_unit:   TemplateChild<gtk::Label>,
+    #[template_child] pub main_volume_unit:  TemplateChild<gtk::Label>,
     #[template_child] pub main_default_banner: TemplateChild<gtk::Box>,
     #[template_child] pub main_default_button: TemplateChild<gtk::Button>,
+    #[template_child] pub main_default_tag:    TemplateChild<gtk::Label>,
 
     backend:        RefCell<Option<PipeWireBackend>>,
     suppress_selected: Cell<bool>,
@@ -55,6 +62,7 @@ pub struct DashboardWindowImp {
     settings:       OnceCell<gio::Settings>,
 
     activity_tick_id: RefCell<Option<glib::SourceId>>,
+    scale_css:        RefCell<Option<gtk::CssProvider>>,
 }
 
 #[glib::object_subclass]
@@ -100,6 +108,19 @@ impl DashboardWindow {
 
         // TODO: Look into GResource later
         add_css();
+
+        // Override slider fill bheavior (center -> selection)
+        if let Some(display) = gtk::gdk::Display::default() {
+            let provider = gtk::CssProvider::new();
+            gtk::style_context_add_provider_for_display(
+                &display,
+                &provider,
+                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            );
+            imp.scale_css.replace(Some(provider));
+        }
+        imp.mix_scale.add_css_class("mix-crossfader");
+        self.render_fill(imp.mix_scale.value());
 
         // meter stays uniform color
         for bar in [imp.aux_level_bar.get(), imp.main_level_bar.get()] {
@@ -242,6 +263,9 @@ impl DashboardWindow {
         }
         imp.suppress_selected.set(false);
 
+        self.refresh_channels_label(Side::Aux);
+        self.refresh_channels_label(Side::Main);
+
         self.sync_controls();
     }
 
@@ -283,7 +307,24 @@ impl DashboardWindow {
         backend.set_volume(Side::Aux, aux);
         backend.set_volume(Side::Main, main);
 
+        self.render_fill(imp.mix_scale.value());
         self.update_readout_labels();
+    }
+
+    // fill bheavior center -> selection
+    fn render_fill(&self, v: f64) {
+        let imp = self.imp();
+        let Some(provider) = imp.scale_css.borrow().clone() else { return };
+
+        let pct = (v + 1.0) / 2.0 * 100.0;
+        let lo = f64::min(50.0, pct);
+        let hi = f64::max(50.0, pct);
+        provider.load_from_string(&format!(
+            "scale.mix-crossfader trough highlight {{ background: transparent; box-shadow: none; transition: none; }}\n\
+             scale.mix-crossfader trough {{ transition: none; background-image: linear-gradient(to right, \
+               transparent {lo:.2}%, @accent_bg_color {lo:.2}%, \
+               @accent_bg_color {hi:.2}%, transparent {hi:.2}%); }}"
+        ));
     }
 
     fn on_mute_toggled(&self, side: Side, muted: bool) {
@@ -299,6 +340,8 @@ impl DashboardWindow {
         if let Some(backend) = imp.backend.borrow().clone() {
             backend.set_mute(side, muted);
         }
+
+        self.update_readout_labels();
     }
 
     fn on_test_clicked(&self, side: Side) {
@@ -324,16 +367,38 @@ impl DashboardWindow {
         let imp = self.imp();
         let (aux, main) = mixer::calculate_multipliers(imp.mix_scale.value());
         let mode = imp.volume_display.get();
-        imp.aux_side_label.set_text(&format!("Aux {}", mode.format(aux)));
-        imp.main_side_label.set_text(&format!("{} Main", mode.format(main)));
+
+        for (mul, muted, val, unit, vbox) in [
+            (aux,  imp.aux_mute_button.is_active(),  &*imp.aux_volume_value,  &*imp.aux_volume_unit,  &*imp.aux_volume_box),
+            (main, imp.main_mute_button.is_active(), &*imp.main_volume_value, &*imp.main_volume_unit, &*imp.main_volume_box),
+        ] {
+            if muted {
+                val.set_text("Muted");
+                unit.set_text("");
+                vbox.remove_css_class("attenuated");
+                vbox.add_css_class("muted");
+            } else {
+                let (n, u) = mode.format_parts(mul);
+                val.set_text(&n);
+                unit.set_text(u);
+                vbox.remove_css_class("muted");
+                if mul < 1.0 - f64::EPSILON {
+                    vbox.add_css_class("attenuated");
+                } else {
+                    vbox.remove_css_class("attenuated");
+                }
+            }
+        }
     }
 
     fn refresh_default_banner(&self) {
         let imp = self.imp();
         let Some(backend) = imp.backend.borrow().clone() else { return };
 
-        // only when Main isn't default sink
-        imp.main_default_banner.set_visible(backend.main_is_default() == Some(false));
+        let is_default = backend.main_is_default();
+        // only when Main isn't default sink, the tag confirms when it is
+        imp.main_default_banner.set_visible(is_default == Some(false));
+        imp.main_default_tag.set_visible(is_default == Some(true));
     }
 
     fn on_hw_selected(&self, side: Side) {
@@ -351,7 +416,30 @@ impl DashboardWindow {
         config::store(&cfg);
         pw_config::write_config(&cfg);
 
+        self.refresh_channels_label(side);
         self.reveal_persist_banner();
+    }
+
+    fn refresh_channels_label(&self, side: Side) {
+        let imp = self.imp();
+        let (dropdown, label) = match side {
+            Side::Aux  => (&*imp.aux_hw_dropdown,  &*imp.aux_channels_label),
+            Side::Main => (&*imp.main_hw_dropdown, &*imp.main_channels_label),
+        };
+        let text = selected_hw_sink(dropdown)
+            .map(|s| {
+                let mut text = crate::audio::hw_sink::channel_layout_label(s.channels, &s.position);
+                if let Some(conn) = s.connection_label() {
+                    if text.is_empty() {
+                        text = conn.to_owned();
+                    } else {
+                        text = format!("{text} · {conn}");
+                    }
+                }
+                text
+            })
+            .unwrap_or_default();
+        label.set_text(&text);
     }
 }
 

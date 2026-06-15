@@ -26,9 +26,9 @@ use ffi::GType;
 
 pub use ffi::{WP_INIT_ALL, WP_PIPEWIRE_OBJECT_FEATURE_INFO, WP_PROXY_FEATURE_BOUND};
 
-unsafe fn to_gobj_full<T>(ptr: *mut T) -> glib::Object {
+unsafe fn to_gobj_full<T>(ptr: *mut T) -> glib::Object { unsafe {
     glib::Object::from_glib_full(ptr as *mut GObject)
-}
+}}
 
 pub fn init_all() {
     unsafe { ffi::wp_init(WP_INIT_ALL) }
@@ -328,7 +328,7 @@ impl Metadata {
 }
 
 // Async; finishes activation and returns success flag to boxed FnOnce
-unsafe extern "C" fn activate_data_ready(source: *mut c_void, res: *mut c_void, data: *mut c_void) {
+unsafe extern "C" fn activate_data_ready(source: *mut c_void, res: *mut c_void, data: *mut c_void) { unsafe {
     let mut err: *mut c_void = std::ptr::null_mut();
     let ok = ffi::wp_object_activate_finish(source as *mut ffi::WpObject, res, &mut err);
     if !err.is_null() {
@@ -336,7 +336,7 @@ unsafe extern "C" fn activate_data_ready(source: *mut c_void, res: *mut c_void, 
     }
     let cb: Box<Box<dyn FnOnce(bool)>> = Box::from_raw(data as *mut Box<dyn FnOnce(bool)>);
     cb(ok != 0);
-}
+}}
 
 // caller takes ownership of the pod
 // sets channelVolumes or mutes
@@ -346,7 +346,7 @@ unsafe fn build_props_pod(
     volume:   Option<f32>,
     channels: u32,
     mute:     Option<bool>,
-) -> *mut ffi::WpSpaPod {
+) -> *mut ffi::WpSpaPod { unsafe {
     let type_name = CString::new("Spa:Pod:Object:Param:Props").unwrap();
     let id_name = CString::new("Props").unwrap();
     let builder = ffi::wp_spa_pod_builder_new_object(
@@ -391,4 +391,4 @@ unsafe fn build_props_pod(
     }
 
     ffi::wp_spa_pod_builder_end(builder)
-}
+}}

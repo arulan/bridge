@@ -49,25 +49,21 @@ impl VolumeDisplay {
         let _ = settings().set_string("volume-display", self.as_key());
     }
 
-    pub fn format(self, mul: f64) -> String {
+    pub fn format_parts(self, mul: f64) -> (String, &'static str) {
         match self {
-            VolumeDisplay::Decibel    => format_db(mul),
-            VolumeDisplay::Percentage => format_percent(mul),
+            VolumeDisplay::Decibel => {
+                let db = if (mul - 1.0).abs() < f64::EPSILON {
+                    "0".to_string()
+                } else if mul <= 0.0 {
+                    "−∞".to_string()   // minus sign + infinity
+                } else {
+                    format!("{:.1}", 20.0 * mul.log10())
+                };
+                (db, "dB")
+            }
+            VolumeDisplay::Percentage => (format!("{:.0}", (mul * 100.0).round()), "%"),
         }
     }
-}
-
-fn format_db(mul: f64) -> String {
-    if mul <= 0.0 { return "Muted".into(); }
-    if (mul - 1.0).abs() < f64::EPSILON { return "0 dB".into(); }
-    
-    // negative only
-    format!("-{:.1} dB", -(20.0 * mul.log10()))
-}
-
-fn format_percent(mul: f64) -> String {
-    if mul <= 0.0 { return "Muted".into(); }
-    format!("{:.0}%", (mul * 100.0).round())
 }
 
 #[cfg(test)]
@@ -75,17 +71,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn db_readout() {
-        assert_eq!(format_db(1.0), "0 dB");
-        assert_eq!(format_db(0.0), "Muted");
+    fn db_parts() {
+        assert_eq!(VolumeDisplay::Decibel.format_parts(1.0), ("0".into(), "dB"));
         let half = 10f64.powf(-15.0 / 20.0);
-        assert_eq!(format_db(half), "-15.0 dB");
+        assert_eq!(VolumeDisplay::Decibel.format_parts(half), ("-15.0".into(), "dB"));
+        assert_eq!(VolumeDisplay::Decibel.format_parts(0.0), ("−∞".into(), "dB"));
     }
 
     #[test]
-    fn percent_readout() {
-        assert_eq!(format_percent(1.0), "100%");
-        assert_eq!(format_percent(0.0), "Muted");
-        assert_eq!(format_percent(0.5), "50%");
+    fn percent_parts() {
+        assert_eq!(VolumeDisplay::Percentage.format_parts(1.0), ("100".into(), "%"));
+        assert_eq!(VolumeDisplay::Percentage.format_parts(0.5), ("50".into(), "%"));
+        assert_eq!(VolumeDisplay::Percentage.format_parts(0.0), ("0".into(), "%"));
     }
 }
