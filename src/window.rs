@@ -195,6 +195,11 @@ impl DashboardWindow {
             move |_| w.populate_dropdowns()
         ));
 
+        backend.connect_sinks_changed(glib::clone!(
+            #[weak(rename_to = w)] self,
+            move |_| w.populate_dropdowns()
+        ));
+
         backend.connect_default_changed(glib::clone!(
             #[weak(rename_to = w)] self,
             move |_| w.refresh_default_banner()
@@ -292,10 +297,6 @@ impl DashboardWindow {
         // only display when persistent virtual sinks aren't live yet
         // temp sinks are only live while the app is open
         imp.persist_banner.set_revealed(config::is_configured() && !persistent);
-    }
-
-    pub fn reveal_persist_banner(&self) {
-        self.imp().persist_banner.set_revealed(true);
     }
 
     fn apply_mix(&self) {
@@ -410,14 +411,19 @@ impl DashboardWindow {
             Side::Main => &*imp.main_hw_dropdown,
         };
         let Some(sink) = selected_hw_sink(dropdown) else { return };
+        let hw_name = sink.name.clone();
 
         let mut cfg = config::load();
         *cfg.side_mut(side) = sink.into();
         config::store(&cfg);
         pw_config::write_config(&cfg);
 
+        // route live now; the new conf write is the default for next session
+        if let Some(backend) = imp.backend.borrow().clone() {
+            backend.retarget(side, &hw_name);
+        }
+
         self.refresh_channels_label(side);
-        self.reveal_persist_banner();
     }
 
     fn refresh_channels_label(&self, side: Side) {

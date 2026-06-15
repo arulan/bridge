@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -42,6 +42,12 @@ pub struct PipeWireBackendImp {
     // Our own loopback capture nodes, keyed by Side
     owned: RefCell<HashMap<Side, OwnedNode>>,
 
+    // Used to change hw sink links for live routing
+    owned_pb: RefCell<HashMap<Side, u32>>,
+
+    // used to gate between sinks-ready and sinks-changed states
+    installed: Cell<bool>,
+
     // Our session-only loopback modules; Empty once persistent sinks are created
     modules: RefCell<HashMap<Side, wp::LoadedModule>>,
 
@@ -67,6 +73,7 @@ impl ObjectImpl for PipeWireBackendImp {
         SIGNALS.get_or_init(|| {
             vec![
                 Signal::builder("sinks-ready").build(),
+                Signal::builder("sinks-changed").build(),
                 Signal::builder("default-changed").build(),
                 Signal::builder("owned-changed").build(),
             ]
@@ -105,6 +112,7 @@ impl PipeWireBackend {
                 // after first-run setup -> close app -> relaunch app.
                 // In this case, we create the temp sinks again.
                 be.create_missing_temp_sinks();
+                be.imp().installed.set(true);
                 be.emit_by_name::<()>("sinks-ready", &[]);
             }
         ));
@@ -192,6 +200,16 @@ impl PipeWireBackend {
         self.create_missing_temp_sinks();
     }
 
+    /// Live routing of one side's (Aux or Main) hardware output by node.name
+    /// None targets the system default; The conf writes the target for new sessions
+    pub fn retarget(&self, side: Side, hw_name: &str) {
+        let imp = self.imp();
+        let Some(&pb_id) = imp.owned_pb.borrow().get(&side) else { return };
+        if let Some(meta) = imp.default_metadata.borrow().as_ref() {
+            meta.set_target_object(pb_id, (!hw_name.is_empty()).then_some(hw_name));
+        }
+    }
+
     /// Sets the volume on one of our sinks
     pub fn set_volume(&self, side: Side, volume: f64) {
         if let Some(owned) = self.imp().owned.borrow().get(&side) {
@@ -254,6 +272,14 @@ impl PipeWireBackend {
         });
     }
 
+    pub fn connect_sinks_changed<F: Fn(&Self) + 'static>(&self, f: F) {
+        self.connect_local("sinks-changed", false, move |args| {
+            let be = args[0].get::<PipeWireBackend>().unwrap();
+            f(&be);
+            None
+        });
+    }
+
     pub fn connect_default_changed<F: Fn(&Self) + 'static>(&self, f: F) {
         self.connect_local("default-changed", false, move |args| {
             let be = args[0].get::<PipeWireBackend>().unwrap();
@@ -308,14 +334,29 @@ impl PipeWireBackend {
             }
             return;
         }
+        if let Some(role) = wp::node_pw_prop(&obj, "dashboard.pb-role") {
+            if let Some(side) = Side::from_wire(&role) {
+                self.imp().owned_pb.borrow_mut().insert(side, wp::bound_id(&obj));
+            }
+            return;
+        }
         if let Some(sink) = hw_sink_from_node(&obj) {
             self.imp().sinks.borrow_mut().insert(sink.node_id, sink);
+            if self.imp().installed.get() {
+                self.emit_by_name::<()>("sinks-changed", &[]);
+            }
         }
     }
 
     fn on_object_removed(&self, obj: glib::Object) {
         let id = wp::bound_id(&obj);
-        self.imp().sinks.borrow_mut().remove(&id);
+
+        let hw_dropped = self.imp().sinks.borrow_mut().remove(&id).is_some();
+        if hw_dropped && self.imp().installed.get() {
+            self.emit_by_name::<()>("sinks-changed", &[]);
+        }
+
+        self.imp().owned_pb.borrow_mut().retain(|_, pb_id| *pb_id != id);
 
         let owned_dropped = {
             let mut owned = self.imp().owned.borrow_mut();

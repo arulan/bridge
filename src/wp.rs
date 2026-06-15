@@ -282,6 +282,24 @@ impl Metadata {
         }
     }
 
+    // Sets the target.object of a node. WP policy reads the change and moves
+    // the stream to the new target live.
+    pub fn set_target_object(&self, subject: u32, target: Option<&str>) {
+        let key   = CString::new("target.object").unwrap();
+        let type_ = CString::new("Spa:String").unwrap();
+        let value = target.map(|n| CString::new(n).unwrap());
+
+        unsafe {
+            ffi::wp_metadata_set(
+                self.obj.as_ptr() as *mut ffi::WpMetadata,
+                subject,
+                key.as_ptr(),
+                if value.is_some() { type_.as_ptr() } else { std::ptr::null() },
+                value.as_ref().map_or(std::ptr::null(), |c| c.as_ptr()),
+            );
+        }
+    }
+
     // Read a value from the local cache
     pub fn find(&self, subject: u32, key: &str) -> Option<String> {
         let key_c = CString::new(key).ok()?;
