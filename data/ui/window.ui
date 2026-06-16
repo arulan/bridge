@@ -208,6 +208,31 @@
                                     <property name="max-value">1</property>
                                   </object>
                                 </child>
+                                <child>
+                                  <object class="GtkBox" id="aux_disconnect_banner">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">8</property>
+                                    <property name="visible">False</property>
+                                    <style><class name="inline-banner"/><class name="error"/></style>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="icon-name">dialog-warning-symbolic</property>
+                                        <property name="valign">center</property>
+                                        <property name="pixel-size">10</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="label">Output device disconnected</property>
+                                        <property name="hexpand">True</property>
+                                        <property name="xalign">0</property>
+                                        <property name="valign">center</property>
+                                        <property name="wrap">False</property>
+                                        <property name="ellipsize">end</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
                               </object>
                             </child>
                           </object>
@@ -351,6 +376,31 @@
                                     <property name="mode">continuous</property>
                                     <property name="min-value">0</property>
                                     <property name="max-value">1</property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkBox" id="main_disconnect_banner">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">8</property>
+                                    <property name="visible">False</property>
+                                    <style><class name="inline-banner"/><class name="error"/></style>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="icon-name">dialog-warning-symbolic</property>
+                                        <property name="valign">center</property>
+                                        <property name="pixel-size">10</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="label">Output device disconnected</property>
+                                        <property name="hexpand">True</property>
+                                        <property name="xalign">0</property>
+                                        <property name="valign">center</property>
+                                        <property name="wrap">False</property>
+                                        <property name="ellipsize">end</property>
+                                      </object>
+                                    </child>
                                   </object>
                                 </child>
                                 <child>

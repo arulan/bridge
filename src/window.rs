@@ -23,6 +23,7 @@ use gtk4::{self as gtk, prelude::*, CompositeTemplate};
 use glib::subclass::InitializingObject;
 
 use crate::audio::backend::PipeWireBackend;
+use crate::audio::hw_sink::HwSink;
 use crate::audio::{mixer, pw_config};
 use crate::config::{self, Side};
 use crate::util::{hw_sink_factory, hw_sink_model, selected_hw_sink};
@@ -54,9 +55,13 @@ pub struct DashboardWindowImp {
     #[template_child] pub main_default_banner: TemplateChild<gtk::Box>,
     #[template_child] pub main_default_button: TemplateChild<gtk::Button>,
     #[template_child] pub main_default_tag:    TemplateChild<gtk::Label>,
+    #[template_child] pub aux_disconnect_banner:  TemplateChild<gtk::Box>,
+    #[template_child] pub main_disconnect_banner: TemplateChild<gtk::Box>,
 
     backend:        RefCell<Option<PipeWireBackend>>,
     suppress_selected: Cell<bool>,
+    aux_disconnected:  Cell<bool>,
+    main_disconnected: Cell<bool>,
 
     volume_display: Cell<VolumeDisplay>,
     settings:       OnceCell<gio::Settings>,
@@ -253,19 +258,12 @@ impl DashboardWindow {
 
         let sinks = backend.hw_sinks();
         let cfg = config::load();
-        let model = hw_sink_model(&sinks);
 
-        // guard against set_model & set_selected firing notify::selected 
+        // guard against set_model & set_selected firing notify::selected
         // when user hasn't changed hw_dropdown
         imp.suppress_selected.set(true);
-        for (dropdown, hw_name) in [
-            (&*imp.aux_hw_dropdown,  &cfg.aux.hw_name),
-            (&*imp.main_hw_dropdown, &cfg.main.hw_name),
-        ] {
-            dropdown.set_model(Some(&model));
-            let idx = sinks.iter().position(|s| &s.name == hw_name).unwrap_or(0) as u32;
-            dropdown.set_selected(idx);
-        }
+        self.refresh_side_dropdown(Side::Aux,  &sinks, &cfg);
+        self.refresh_side_dropdown(Side::Main, &sinks, &cfg);
         imp.suppress_selected.set(false);
 
         self.refresh_channels_label(Side::Aux);
@@ -274,17 +272,68 @@ impl DashboardWindow {
         self.sync_controls();
     }
 
+    // Rebuild one side's dropdown model and selection
+    // Prepend "Disconnected —" when selected hw device disconnects
+    fn refresh_side_dropdown(&self, side: Side, sinks: &[HwSink], cfg: &config::SinkConfig) {
+        let imp = self.imp();
+        let (dropdown, banner, disc_cell) = match side {
+            Side::Aux  => (&*imp.aux_hw_dropdown,  &*imp.aux_disconnect_banner,  &imp.aux_disconnected),
+            Side::Main => (&*imp.main_hw_dropdown, &*imp.main_disconnect_banner, &imp.main_disconnected),
+        };
+
+        let def = cfg.side(side);
+        let present = sinks.iter().any(|s| s.name == def.hw_name);
+        let disconnected = !def.hw_name.is_empty() && !present;
+
+        let model = hw_sink_model(sinks);
+        if disconnected {
+            let label = if def.display_name.is_empty() {
+                "Disconnected".to_owned()
+            } else {
+                format!("Disconnected — {}", def.display_name)
+            };
+            let placeholder = HwSink {
+                node_id:      0,
+                name:         def.hw_name.clone(),
+                display_name: label,
+                device_api:   String::new(),
+                device_bus:   String::new(),
+                profile_name: String::new(),
+                channels:     def.channels,
+                position:     def.position.clone(),
+            };
+            model.insert(0, &glib::BoxedAnyObject::new(placeholder));
+        }
+        dropdown.set_model(Some(&model));
+
+        let idx = if disconnected {
+            0
+        } else {
+            sinks.iter().position(|s| s.name == def.hw_name).unwrap_or(0) as u32
+        };
+        dropdown.set_selected(idx);
+
+        disc_cell.set(disconnected);
+        banner.set_visible(disconnected);
+    }
+
     fn sync_controls(&self) {
         let imp = self.imp();
         let Some(backend) = imp.backend.borrow().clone() else { return };
 
-        // crossfader and mute are disabled until our virtual sinks exist
+        // controls are disabled until our virtual sinks exist
+        // controls are disabled if its hw output is disconnected
         let present = backend.owned_sinks_present();
-        imp.mix_scale.set_sensitive(present);
-        imp.aux_mute_button.set_sensitive(present);
-        imp.main_mute_button.set_sensitive(present);
-        imp.aux_test_tone_button.set_sensitive(present);
-        imp.main_test_tone_button.set_sensitive(present);
+        let aux_disc  = imp.aux_disconnected.get();
+        let main_disc = imp.main_disconnected.get();
+
+        imp.aux_mute_button.set_sensitive(present && !aux_disc);
+        imp.main_mute_button.set_sensitive(present && !main_disc);
+        imp.aux_test_tone_button.set_sensitive(present && !aux_disc);
+        imp.main_test_tone_button.set_sensitive(present && !main_disc);
+
+        // disable crossfading when either side's hw is disconnected
+        imp.mix_scale.set_sensitive(present && !aux_disc && !main_disc);
 
         if present {
             self.apply_mix();
@@ -297,6 +346,9 @@ impl DashboardWindow {
         // only display when persistent virtual sinks aren't live yet
         // temp sinks are only live while the app is open
         imp.persist_banner.set_revealed(config::is_configured() && !persistent);
+
+        // keep the default banner/tag in step with the disconnect state
+        self.refresh_default_banner();
     }
 
     fn apply_mix(&self) {
@@ -396,6 +448,14 @@ impl DashboardWindow {
         let imp = self.imp();
         let Some(backend) = imp.backend.borrow().clone() else { return };
 
+
+        // disables Main's default banner/tag when hw is disconnected
+        if imp.main_disconnected.get() {
+            imp.main_default_banner.set_visible(false);
+            imp.main_default_tag.set_visible(false);
+            return;
+        }
+
         let is_default = backend.main_is_default();
         // only when Main isn't default sink, the tag confirms when it is
         imp.main_default_banner.set_visible(is_default == Some(false));
@@ -411,6 +471,8 @@ impl DashboardWindow {
             Side::Main => &*imp.main_hw_dropdown,
         };
         let Some(sink) = selected_hw_sink(dropdown) else { return };
+        // node_id 0 is the disconnected placeholder, not a real output device
+        if sink.node_id == 0 { return }
         let hw_name = sink.name.clone();
 
         let mut cfg = config::load();
@@ -419,8 +481,21 @@ impl DashboardWindow {
         pw_config::write_config(&cfg);
 
         // route live now; the new conf write is the default for next session
-        if let Some(backend) = imp.backend.borrow().clone() {
-            backend.retarget(side, &hw_name);
+        let Some(backend) = imp.backend.borrow().clone() else { return };
+        backend.retarget(side, &hw_name);
+
+        // picking a new output device while in hw disonnected state rebuilds the side
+        let was_disc = match side {
+            Side::Aux  => imp.aux_disconnected.get(),
+            Side::Main => imp.main_disconnected.get(),
+        };
+
+        if was_disc {
+            let sinks = backend.hw_sinks();
+            imp.suppress_selected.set(true);
+            self.refresh_side_dropdown(side, &sinks, &cfg);
+            imp.suppress_selected.set(false);
+            self.sync_controls();
         }
 
         self.refresh_channels_label(side);
@@ -428,10 +503,16 @@ impl DashboardWindow {
 
     fn refresh_channels_label(&self, side: Side) {
         let imp = self.imp();
-        let (dropdown, label) = match side {
-            Side::Aux  => (&*imp.aux_hw_dropdown,  &*imp.aux_channels_label),
-            Side::Main => (&*imp.main_hw_dropdown, &*imp.main_channels_label),
+        let (dropdown, label, disc) = match side {
+            Side::Aux  => (&*imp.aux_hw_dropdown,  &*imp.aux_channels_label,  imp.aux_disconnected.get()),
+            Side::Main => (&*imp.main_hw_dropdown, &*imp.main_channels_label, imp.main_disconnected.get()),
         };
+
+        if disc {
+            label.set_text("");
+            return;
+        }
+        
         let text = selected_hw_sink(dropdown)
             .map(|s| {
                 let mut text = crate::audio::hw_sink::channel_layout_label(s.channels, &s.position);
