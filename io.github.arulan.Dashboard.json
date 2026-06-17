@@ -1,0 +1,94 @@
+{
+    "app-id": "io.github.arulan.Dashboard",
+    "runtime": "org.gnome.Platform",
+    "runtime-version": "50",
+    "sdk": "org.gnome.Sdk",
+    "sdk-extensions": [
+        "org.freedesktop.Sdk.Extension.rust-stable",
+        "org.freedesktop.Sdk.Extension.llvm22"
+    ],
+    "command": "dashboard",
+    "finish-args": [
+        "--socket=wayland",
+        "--socket=fallback-x11",
+        "--share=ipc",
+        "--device=dri",
+        "--filesystem=xdg-run/pipewire-0",
+        "--filesystem=xdg-config/pipewire:create"
+    ],
+    "build-options": {
+        "append-path": "/usr/lib/sdk/rust-stable/bin"
+    },
+    "cleanup": [
+        "/include",
+        "/lib/pkgconfig",
+        "/man",
+        "/share/doc",
+        "/share/man",
+        "*.la",
+        "*.a"
+    ],
+    "modules": [
+        "shared-modules/lua5.4/lua-5.4.json",
+        {
+            "name": "wireplumber",
+            "buildsystem": "meson",
+            "config-opts": [
+                "-Ddoc=disabled",
+                "-Dintrospection=disabled",
+                "-Dtests=false",
+                "-Ddbus-tests=false",
+                "-Dsystem-lua=true",
+                "-Delogind=disabled",
+                "-Dsystemd=disabled",
+                "-Ddaemon=false",
+                "-Dtools=false"
+            ],
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://gitlab.freedesktop.org/pipewire/wireplumber.git",
+                    "tag": "0.5.10",
+                    "commit": "7a4d3177550b6b53fe0a49396da5b07f5353daff"
+                }
+            ]
+        },
+        {
+            "name": "dashboard",
+            "builddir": true,
+            "buildsystem": "meson",
+            "config-opts": [
+                "--buildtype=release"
+            ],
+            "build-options": {
+                "env": {
+                    "CARGO_NET_OFFLINE": "true"
+                },
+                "append-path": "/usr/lib/sdk/llvm22/bin",
+                "prepend-ld-library-path": "/usr/lib/sdk/llvm22/lib"
+            },
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": ".",
+                    "skip": [
+                        "./builddir",
+                        "./build",
+                        "./target",
+                        "./.flatpak-builder",
+                        "./.cargo-sources-tools",
+                        "./.git"
+                    ]
+                },
+                "cargo-sources.json",
+                {
+                    "type": "shell",
+                    "commands": [
+                        "mkdir -p .cargo",
+                        "cp -vf cargo/config .cargo/"
+                    ]
+                }
+            ]
+        }
+    ]
+}

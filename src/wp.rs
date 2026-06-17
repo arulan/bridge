@@ -91,15 +91,23 @@ pub struct Core {
 impl Core {
     pub fn new() -> Self {
         unsafe {
-    
+
+            // before we package as a flatpak, we need media.category=Manager to
+            // make us a priviledged client
+            let props = ffi::wp_properties_new_empty();
+            assert!(!props.is_null(), "wp_properties_new_empty returned NULL");
+            
+            let cat_key = CString::new("media.category").unwrap();
+            let cat_val = CString::new("Manager").unwrap();
+            ffi::wp_properties_set(props, cat_key.as_ptr(), cat_val.as_ptr());
 
             // It looks like we can pass a NULL conf so that pw_context loads the
-            // Pipewire client.conf. This pulls in the modules we need. 
+            // Pipewire client.conf. This pulls in the modules we need.
             // TODO: After flatpak packaging check this assumption again
             let ptr = ffi::wp_core_new(
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                props,
             );
             assert!(!ptr.is_null(), "wp_core_new returned NULL");
 

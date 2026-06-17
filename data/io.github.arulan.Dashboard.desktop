@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+
+Name=Dashboard
+Comment=PipeWire crossfade mixer
+Categories=AudioVideo;Audio;Mixer;
+Keywords=PipeWire;Audio;Mixer;Crossfade;Volume;
+
+Exec=dashboard
+Icon=io.github.arulan.Dashboard
+Terminal=false
+
+

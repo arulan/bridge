@@ -30,7 +30,7 @@ use crate::util::{hw_sink_factory, hw_sink_model, selected_hw_sink};
 use crate::volume::VolumeDisplay;
 
 #[derive(CompositeTemplate, Default)]
-#[template(file = "../data/ui/window.ui")]
+#[template(resource = "/io/github/arulan/Dashboard/ui/window.ui")]
 pub struct DashboardWindowImp {
     #[template_child] pub persist_banner: TemplateChild<adw::Banner>,
     #[template_child] pub aux_hw_dropdown:  TemplateChild<gtk::DropDown>,
@@ -533,7 +533,7 @@ impl DashboardWindow {
 fn add_css() {
     let Some(display) = gtk::gdk::Display::default() else { return };
     let provider = gtk::CssProvider::new();
-    provider.load_from_string(include_str!("../data/style.css"));
+    provider.load_from_resource("/io/github/arulan/Dashboard/style.css");
     gtk::style_context_add_provider_for_display(
         &display,
         &provider,

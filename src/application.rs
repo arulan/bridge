@@ -28,7 +28,13 @@ use crate::dialogs::preferences;
 use crate::dialogs::setup::SetupDialog;
 use crate::window::DashboardWindow;
 
-pub const APP_ID: &str = "io.github.arulan.Dashboard";
+// fallback for cargo; comes from meson at build time now
+pub const APP_ID: &str = match option_env!("APP_ID") {
+    Some(id) => id,
+    None => "io.github.arulan.Dashboard",
+};
+
+pub const RESOURCES_FILE: Option<&str> = option_env!("RESOURCES_FILE");
 
 // The GSettings SCHEMA_ID == APP_ID
 pub fn settings() -> gio::Settings {
@@ -141,7 +147,7 @@ impl DashboardApplicationImp {
     fn show_shortcuts_dialog(&self) {
         let dialog = adw::ShortcutsDialog::new();
 
-        let builder = gtk::Builder::from_string(include_str!("../data/ui/shortcuts.ui"));
+        let builder = gtk::Builder::from_resource("/io/github/arulan/Dashboard/ui/shortcuts.ui");
         for id in ["section_crossfader", "section_application"] {
             if let Some(section) = builder.object::<adw::ShortcutsSection>(id) {
                 dialog.add(section);

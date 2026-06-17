@@ -82,6 +82,12 @@ unsafe extern "C" {
     ) -> *const WpProperties;
     
     pub fn wp_properties_get(self_: *const WpProperties, key: *const c_char) -> *const c_char;
+    pub fn wp_properties_new_empty() -> *mut WpProperties;
+    pub fn wp_properties_set(
+        self_: *mut WpProperties,
+        key:   *const c_char,
+        value: *const c_char,
+    ) -> i32;
 
     pub fn wp_node_get_type() -> GType;
     pub fn wp_metadata_get_type() -> GType;

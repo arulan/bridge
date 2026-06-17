@@ -25,9 +25,13 @@ mod window;
 mod wp;
 
 use adw::prelude::*;
-use application::{register_actions, DashboardApplication};
+use application::{register_actions, DashboardApplication, RESOURCES_FILE};
 
 fn main() -> glib::ExitCode {
+    let path = RESOURCES_FILE.expect("RESOURCES_FILE not set; build with meson");
+    let resources = gio::Resource::load(path).expect("failed to load resources");
+    gio::resources_register(&resources);
+
     let app = DashboardApplication::new();
     register_actions(&app);
     app.run()

@@ -1,2 +1,7 @@
 /target
+/builddir
+/build
+/.flatpak-builder
 /data/gschemas.compiled
+/cargo-sources.json
+/.cargo-sources-tools
