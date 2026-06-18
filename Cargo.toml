@@ -11,6 +11,7 @@ adw = { package = "libadwaita", version = "0.8", features = ["v1_8"] }
 glib = "0.21"
 gio = "0.21"
 pipewire = { version = "0.10", features = ["v0_3_77"] }
+async-channel = "2"
 
 [build-dependencies]
 pkg-config = "0.3"
