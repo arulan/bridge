@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
-// Mixer goes from -30dB --- 0 --- -30dB 
+// Mixer goes from -30dB --- 0 --- -30dB
 // Slider set to half-way left  produces <  0dB Aux -|- + --- -15dB Main>
 // Slider set to half-way right produces <-15dB Aux --- + -|-   0dB Main>
 // Slider set to middle produces         <  0dB Aux --- | ---   0dB Main>
@@ -23,14 +23,18 @@
 const FLOOR_DB: f64 = -30.0;
 
 fn position_to_multiplier(t: f64) -> f64 {
-    if t <= 0.0 { return 1.0; }
-    if t >= 1.0 { return 0.0; }
+    if t <= 0.0 {
+        return 1.0;
+    }
+    if t >= 1.0 {
+        return 0.0;
+    }
     10f64.powf(t * FLOOR_DB / 20.0)
 }
 
 /// Returns (aux_multiplier, main_multiplier)
 pub fn calculate_multipliers(v: f64) -> (f64, f64) {
-    let aux  = position_to_multiplier(f64::max(0.0,  v));
+    let aux = position_to_multiplier(f64::max(0.0, v));
     let main = position_to_multiplier(f64::max(0.0, -v));
     (aux, main)
 }
@@ -46,7 +50,7 @@ mod tests {
 
     #[test]
     fn extremes_mute() {
-        assert_eq!(calculate_multipliers(1.0),  (0.0, 1.0));
+        assert_eq!(calculate_multipliers(1.0), (0.0, 1.0));
         assert_eq!(calculate_multipliers(-1.0), (1.0, 0.0));
     }
 

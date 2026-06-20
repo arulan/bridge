@@ -20,15 +20,15 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use glib::prelude::*;
-use glib::subclass::prelude::*;
 use glib::subclass::Signal;
+use glib::subclass::prelude::*;
 
-use crate::config::{self, Side};
 use super::hw_sink::HwSink;
 use super::level_meter::LevelMeters;
 use super::pw_config;
 use super::pw_connection::{Event, PwConnection, Request};
 use super::test_tone;
+use crate::config::{self, Side};
 
 #[derive(Default)]
 pub struct PipeWireBackendImp {
@@ -43,7 +43,7 @@ pub struct PipeWireBackendImp {
     using_temp: Cell<bool>,
 
     level_meters: RefCell<Option<LevelMeters>>,
-    pw:           RefCell<Option<PwConnection>>,
+    pw: RefCell<Option<PwConnection>>,
 }
 
 #[glib::object_subclass]
@@ -147,7 +147,9 @@ impl PipeWireBackend {
 
     pub fn owned_sinks_present(&self) -> bool {
         let owned = self.imp().owned.borrow();
-        [Side::Aux, Side::Main].iter().all(|side| owned.contains_key(side))
+        [Side::Aux, Side::Main]
+            .iter()
+            .all(|side| owned.contains_key(side))
     }
 
     /// True while sink is a session-only loopback we loaded, rather than a
@@ -204,7 +206,10 @@ impl PipeWireBackend {
     /// Sets the volume on one of our sinks
     pub fn set_volume(&self, side: Side, volume: f64) {
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
-            pw.send(Request::SetVolume { side, volume: volume as f32 });
+            pw.send(Request::SetVolume {
+                side,
+                volume: volume as f32,
+            });
         }
     }
 
@@ -219,22 +224,26 @@ impl PipeWireBackend {
     /// from the saved config.
     pub fn play_test_tone(&self, side: Side, on_done: impl FnOnce() + Send + 'static) {
         let sink_name = match side {
-            Side::Aux  => pw_config::AUX_SINK,
+            Side::Aux => pw_config::AUX_SINK,
             Side::Main => pw_config::MAIN_SINK,
         };
 
         let def = config::load();
         let def = def.side(side);
         let n_channels = def.channels.max(2);
-        let positions  = test_tone::pos_str_to_spa_ids(&def.position, n_channels);
-        let sweep      = (0..positions.len()).collect();
+        let positions = test_tone::pos_str_to_spa_ids(&def.position, n_channels);
+        let sweep = (0..positions.len()).collect();
 
         test_tone::play_through_sink(sink_name, n_channels, positions, sweep, on_done);
     }
 
     /// Get the latest peak level on each side's sink
     pub fn peak(&self, side: Side) -> f32 {
-        self.imp().level_meters.borrow().as_ref().map_or(0.0, |m| m.peak(side))
+        self.imp()
+            .level_meters
+            .borrow()
+            .as_ref()
+            .map_or(0.0, |m| m.peak(side))
     }
 
     pub fn set_main_default(&self) {
@@ -249,7 +258,8 @@ impl PipeWireBackend {
     }
 
     pub fn main_is_default(&self) -> Option<bool> {
-        self.default_sink_name().map(|name| name == pw_config::MAIN_SINK)
+        self.default_sink_name()
+            .map(|name| name == pw_config::MAIN_SINK)
     }
 
     pub fn connect_sinks_ready<F: Fn(&Self) + 'static>(&self, f: F) {

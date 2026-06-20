@@ -15,8 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
-use gtk4::{self as gtk};
 use gtk::prelude::*;
+use gtk4::{self as gtk};
 
 use crate::audio::hw_sink::HwSink;
 
@@ -63,11 +63,11 @@ pub fn hw_sink_factory() -> gtk::SignalListItemFactory {
 /// The default.audio.sink metadata value is SPA-JSON like { "name": "<node.name>" },
 /// not a bare string, so pull the name out before comparing it to our sink names.
 pub fn parse_default_name(value: &str) -> Option<String> {
-    let after_key   = value.split_once("\"name\"")?.1;
+    let after_key = value.split_once("\"name\"")?.1;
     let after_colon = after_key.split_once(':')?.1;
-    let open        = after_colon.find('"')? + 1;
-    let rest        = &after_colon[open..];
-    let close       = rest.find('"')?;
+    let open = after_colon.find('"')? + 1;
+    let rest = &after_colon[open..];
+    let close = rest.find('"')?;
     Some(rest[..close].to_owned())
 }
 
@@ -77,8 +77,14 @@ mod tests {
 
     #[test]
     fn pulls_name_from_json() {
-        assert_eq!(parse_default_name(r#"{"name":"dashboard_main"}"#).as_deref(), Some("dashboard_main"));
-        assert_eq!(parse_default_name(r#"{ "name": "alsa_output.pci-0000" }"#).as_deref(), Some("alsa_output.pci-0000"));
+        assert_eq!(
+            parse_default_name(r#"{"name":"dashboard_main"}"#).as_deref(),
+            Some("dashboard_main")
+        );
+        assert_eq!(
+            parse_default_name(r#"{ "name": "alsa_output.pci-0000" }"#).as_deref(),
+            Some("alsa_output.pci-0000")
+        );
     }
 
     #[test]

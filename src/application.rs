@@ -43,7 +43,7 @@ pub fn settings() -> gio::Settings {
 
 #[derive(Default)]
 pub struct DashboardApplicationImp {
-    window:  RefCell<Option<DashboardWindow>>,
+    window: RefCell<Option<DashboardWindow>>,
     backend: RefCell<Option<PipeWireBackend>>,
 }
 
@@ -99,7 +99,9 @@ impl AdwApplicationImpl for DashboardApplicationImp {}
 
 impl DashboardApplicationImp {
     fn show_setup_dialog(&self, first_run: bool) {
-        let Some(be) = self.backend.borrow().clone() else { return };
+        let Some(be) = self.backend.borrow().clone() else {
+            return;
+        };
 
         let win = self.window.borrow().clone();
         let hw_sinks = be.hw_sinks();
@@ -112,8 +114,10 @@ impl DashboardApplicationImp {
 
         let win_c = win.clone();
         let be_c = be.clone();
-        dialog.connect_closure("approved", false, glib::closure_local!(
-            move |d: SetupDialog| {
+        dialog.connect_closure(
+            "approved",
+            false,
+            glib::closure_local!(move |d: SetupDialog| {
                 let cfg = d.sink_config();
                 config::store(&cfg);
                 pw_config::write_config(&cfg);
@@ -123,17 +127,19 @@ impl DashboardApplicationImp {
                     w.populate_dropdowns();
                     w.present();
                 }
-            }
-        ));
+            }),
+        );
 
         // Quit app if first-run setup is cancelled
         if first_run {
             let app = self.obj().clone();
-            dialog.connect_closure("declined", false, glib::closure_local!(
-                move |_d: SetupDialog| {
+            dialog.connect_closure(
+                "declined",
+                false,
+                glib::closure_local!(move |_d: SetupDialog| {
                     app.quit();
-                }
-            ));
+                }),
+            );
         }
 
         dialog.present();

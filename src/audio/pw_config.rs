@@ -19,10 +19,10 @@ use std::path::PathBuf;
 
 use crate::config::{Side, SinkConfig, SinkDef};
 
-pub const AUX_SINK:  &str = "dashboard_aux";
+pub const AUX_SINK: &str = "dashboard_aux";
 pub const MAIN_SINK: &str = "dashboard_main";
-pub const AUX_PB:    &str = "dashboard_aux_pb";
-pub const MAIN_PB:   &str = "dashboard_main_pb";
+pub const AUX_PB: &str = "dashboard_aux_pb";
+pub const MAIN_PB: &str = "dashboard_main_pb";
 
 // Flatpak will need --filesystem=xdg-config/pipewire:create
 pub fn config_dir() -> PathBuf {
@@ -35,7 +35,7 @@ pub fn config_file() -> PathBuf {
 
 /// Our main & aux loopback sinks; Routes to target hardware output or PW defeault
 pub fn build_pw_config(cfg: &SinkConfig) -> String {
-    let aux_body  = loopback_body(Side::Aux,  &cfg.aux,  false);
+    let aux_body = loopback_body(Side::Aux, &cfg.aux, false);
     let main_body = loopback_body(Side::Main, &cfg.main, false);
     format!(
         r#"context.modules = [
@@ -58,7 +58,7 @@ pub fn build_pw_config(cfg: &SinkConfig) -> String {
 
 fn side_spec(side: Side) -> (&'static str, &'static str, &'static str) {
     match side {
-        Side::Aux  => (AUX_SINK,  AUX_PB,  "Dashboard - Aux"),
+        Side::Aux => (AUX_SINK, AUX_PB, "Dashboard - Aux"),
         Side::Main => (MAIN_SINK, MAIN_PB, "Dashboard - Main"),
     }
 }
@@ -74,11 +74,15 @@ fn side_spec(side: Side) -> (&'static str, &'static str, &'static str) {
 // Avoids having recreated temp sinks desync volume/mute state with UI controls
 fn loopback_body(side: Side, def: &SinkDef, temp: bool) -> String {
     let (name, pb_name, desc) = side_spec(side);
-    let role     = side.as_wire();
+    let role = side.as_wire();
     let channels = def.channels;
     let position = def.position.replace(',', " ");
-    let target   = target_fragment(&def.hw_name);
-    let restore  = if temp { "\n        state.restore-props = false" } else { "" };
+    let target = target_fragment(&def.hw_name);
+    let restore = if temp {
+        "\n        state.restore-props = false"
+    } else {
+        ""
+    };
     format!(
         r#"      capture.props = {{
         node.name        = {name}
@@ -122,7 +126,10 @@ pub fn write_config(cfg: &SinkConfig) {
 
 /// Previews the conf files created in setup
 pub fn preview_files(cfg: &SinkConfig) -> Vec<(String, String)> {
-    vec![(config_file().to_string_lossy().into_owned(), build_pw_config(cfg))]
+    vec![(
+        config_file().to_string_lossy().into_owned(),
+        build_pw_config(cfg),
+    )]
 }
 
 // TODO: Revisit this when we get to runtime linking

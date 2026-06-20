@@ -19,8 +19,8 @@ use std::cell::{Cell, OnceCell, RefCell};
 use std::time::Duration;
 
 use adw::subclass::prelude::*;
-use gtk4::{self as gtk, prelude::*, CompositeTemplate};
 use glib::subclass::InitializingObject;
+use gtk4::{self as gtk, CompositeTemplate, prelude::*};
 
 use crate::audio::backend::PipeWireBackend;
 use crate::audio::hw_sink::HwSink;
@@ -32,42 +32,67 @@ use crate::volume::VolumeDisplay;
 #[derive(CompositeTemplate, Default)]
 #[template(resource = "/io/github/arulan/Dashboard/ui/window.ui")]
 pub struct DashboardWindowImp {
-    #[template_child] pub persist_banner: TemplateChild<adw::Banner>,
-    #[template_child] pub aux_hw_dropdown:  TemplateChild<gtk::DropDown>,
-    #[template_child] pub main_hw_dropdown: TemplateChild<gtk::DropDown>,
-    #[template_child] pub aux_mute_button:  TemplateChild<gtk::ToggleButton>,
-    #[template_child] pub main_mute_button: TemplateChild<gtk::ToggleButton>,
-    #[template_child] pub aux_mute_image:   TemplateChild<gtk::Image>,
-    #[template_child] pub main_mute_image:  TemplateChild<gtk::Image>,
-    #[template_child] pub aux_test_tone_button:  TemplateChild<gtk::Button>,
-    #[template_child] pub main_test_tone_button: TemplateChild<gtk::Button>,
-    #[template_child] pub aux_level_bar:  TemplateChild<gtk::LevelBar>,
-    #[template_child] pub main_level_bar: TemplateChild<gtk::LevelBar>,
-    #[template_child] pub aux_channels_label:  TemplateChild<gtk::Label>,
-    #[template_child] pub main_channels_label: TemplateChild<gtk::Label>,
-    #[template_child] pub mix_scale: TemplateChild<gtk::Scale>,
-    #[template_child] pub aux_volume_box:    TemplateChild<gtk::Box>,
-    #[template_child] pub main_volume_box:   TemplateChild<gtk::Box>,
-    #[template_child] pub aux_volume_value:  TemplateChild<gtk::Label>,
-    #[template_child] pub main_volume_value: TemplateChild<gtk::Label>,
-    #[template_child] pub aux_volume_unit:   TemplateChild<gtk::Label>,
-    #[template_child] pub main_volume_unit:  TemplateChild<gtk::Label>,
-    #[template_child] pub main_default_banner: TemplateChild<gtk::Box>,
-    #[template_child] pub main_default_button: TemplateChild<gtk::Button>,
-    #[template_child] pub main_default_tag:    TemplateChild<gtk::Label>,
-    #[template_child] pub aux_disconnect_banner:  TemplateChild<gtk::Box>,
-    #[template_child] pub main_disconnect_banner: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub persist_banner: TemplateChild<adw::Banner>,
+    #[template_child]
+    pub aux_hw_dropdown: TemplateChild<gtk::DropDown>,
+    #[template_child]
+    pub main_hw_dropdown: TemplateChild<gtk::DropDown>,
+    #[template_child]
+    pub aux_mute_button: TemplateChild<gtk::ToggleButton>,
+    #[template_child]
+    pub main_mute_button: TemplateChild<gtk::ToggleButton>,
+    #[template_child]
+    pub aux_mute_image: TemplateChild<gtk::Image>,
+    #[template_child]
+    pub main_mute_image: TemplateChild<gtk::Image>,
+    #[template_child]
+    pub aux_test_tone_button: TemplateChild<gtk::Button>,
+    #[template_child]
+    pub main_test_tone_button: TemplateChild<gtk::Button>,
+    #[template_child]
+    pub aux_level_bar: TemplateChild<gtk::LevelBar>,
+    #[template_child]
+    pub main_level_bar: TemplateChild<gtk::LevelBar>,
+    #[template_child]
+    pub aux_channels_label: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub main_channels_label: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub mix_scale: TemplateChild<gtk::Scale>,
+    #[template_child]
+    pub aux_volume_box: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub main_volume_box: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub aux_volume_value: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub main_volume_value: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub aux_volume_unit: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub main_volume_unit: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub main_default_banner: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub main_default_button: TemplateChild<gtk::Button>,
+    #[template_child]
+    pub main_default_tag: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub aux_disconnect_banner: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub main_disconnect_banner: TemplateChild<gtk::Box>,
 
-    backend:        RefCell<Option<PipeWireBackend>>,
+    backend: RefCell<Option<PipeWireBackend>>,
     suppress_selected: Cell<bool>,
-    aux_disconnected:  Cell<bool>,
+    aux_disconnected: Cell<bool>,
     main_disconnected: Cell<bool>,
 
     volume_display: Cell<VolumeDisplay>,
-    settings:       OnceCell<gio::Settings>,
+    settings: OnceCell<gio::Settings>,
 
     activity_tick_id: RefCell<Option<glib::SourceId>>,
-    scale_css:        RefCell<Option<gtk::CssProvider>>,
+    scale_css: RefCell<Option<gtk::CssProvider>>,
 }
 
 #[glib::object_subclass]
@@ -85,7 +110,6 @@ impl ObjectSubclass for DashboardWindowImp {
     }
 }
 
-
 impl ObjectImpl for DashboardWindowImp {}
 impl WidgetImpl for DashboardWindowImp {}
 impl WindowImpl for DashboardWindowImp {}
@@ -100,12 +124,9 @@ glib::wrapper! {
                     gtk::Native, gtk::Root, gtk::ShortcutManager;
 }
 
-
 impl DashboardWindow {
     pub fn new(app: &adw::Application) -> Self {
-        glib::Object::builder()
-            .property("application", app)
-            .build()
+        glib::Object::builder().property("application", app).build()
     }
 
     pub fn setup(&self, backend: &PipeWireBackend) {
@@ -139,79 +160,98 @@ impl DashboardWindow {
         imp.main_hw_dropdown.set_factory(Some(&hw_sink_factory()));
 
         imp.aux_hw_dropdown.connect_selected_notify(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |_| w.on_hw_selected(Side::Aux)
         ));
         imp.main_hw_dropdown.connect_selected_notify(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |_| w.on_hw_selected(Side::Main)
         ));
 
         imp.persist_banner.connect_button_clicked(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |_| w.imp().persist_banner.set_revealed(false)
         ));
 
         imp.mix_scale.connect_value_changed(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |_| w.apply_mix()
         ));
 
         imp.aux_mute_button.connect_toggled(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |b| w.on_mute_toggled(Side::Aux, b.is_active())
         ));
         imp.main_mute_button.connect_toggled(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |b| w.on_mute_toggled(Side::Main, b.is_active())
         ));
 
         imp.aux_test_tone_button.connect_clicked(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |_| w.on_test_clicked(Side::Aux)
         ));
         imp.main_test_tone_button.connect_clicked(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |_| w.on_test_clicked(Side::Main)
         ));
 
         imp.volume_display.set(VolumeDisplay::load());
         let settings = crate::application::settings();
-        settings.connect_changed(Some("volume-display"), glib::clone!(
-            #[weak(rename_to = w)] self,
-            move |_, _| {
-                w.imp().volume_display.set(VolumeDisplay::load());
-                w.update_readout_labels();
-            }
-        ));
+        settings.connect_changed(
+            Some("volume-display"),
+            glib::clone!(
+                #[weak(rename_to = w)]
+                self,
+                move |_, _| {
+                    w.imp().volume_display.set(VolumeDisplay::load());
+                    w.update_readout_labels();
+                }
+            ),
+        );
         let _ = imp.settings.set(settings);
         self.update_readout_labels();
 
         imp.main_default_button.connect_clicked(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |_| {
-                let Some(backend) = w.imp().backend.borrow().clone() else { return };
+                let Some(backend) = w.imp().backend.borrow().clone() else {
+                    return;
+                };
                 backend.set_main_default();
             }
         ));
 
         backend.connect_sinks_ready(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |_| w.populate_dropdowns()
         ));
 
         backend.connect_sinks_changed(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |_| w.populate_dropdowns()
         ));
 
         backend.connect_default_changed(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |_| w.refresh_default_banner()
         ));
 
         backend.connect_owned_changed(glib::clone!(
-            #[weak(rename_to = w)] self,
+            #[weak(rename_to = w)]
+            self,
             move |_| w.sync_controls()
         ));
         *imp.backend.borrow_mut() = Some(backend.clone());
@@ -222,24 +262,31 @@ impl DashboardWindow {
     // Target ~40ms to avoid running into the PW quantum, causing ghosting/flickering
     // TODO: Should we calculate the quantum for low-latency users and increase our tick?
     fn start_activity_ticker(&self) {
-        let id = glib::timeout_add_local(Duration::from_millis(40), glib::clone!(
-            #[weak(rename_to = w)] self,
-            #[upgrade_or] glib::ControlFlow::Break,
-            move || {
-                w.on_activity_tick();
-                glib::ControlFlow::Continue
-            }
-        ));
+        let id = glib::timeout_add_local(
+            Duration::from_millis(40),
+            glib::clone!(
+                #[weak(rename_to = w)]
+                self,
+                #[upgrade_or]
+                glib::ControlFlow::Break,
+                move || {
+                    w.on_activity_tick();
+                    glib::ControlFlow::Continue
+                }
+            ),
+        );
         *self.imp().activity_tick_id.borrow_mut() = Some(id);
     }
 
     fn on_activity_tick(&self) {
         const SMOOTHING: f64 = 0.3;
         let imp = self.imp();
-        let Some(backend) = imp.backend.borrow().clone() else { return };
+        let Some(backend) = imp.backend.borrow().clone() else {
+            return;
+        };
 
         for (side, bar, mute_btn) in [
-            (Side::Aux,  &*imp.aux_level_bar,  &*imp.aux_mute_button),
+            (Side::Aux, &*imp.aux_level_bar, &*imp.aux_mute_button),
             (Side::Main, &*imp.main_level_bar, &*imp.main_mute_button),
         ] {
             let val = if mute_btn.is_active() {
@@ -254,7 +301,9 @@ impl DashboardWindow {
 
     pub fn populate_dropdowns(&self) {
         let imp = self.imp();
-        let Some(backend) = imp.backend.borrow().clone() else { return };
+        let Some(backend) = imp.backend.borrow().clone() else {
+            return;
+        };
 
         let sinks = backend.hw_sinks();
         let cfg = config::load();
@@ -262,7 +311,7 @@ impl DashboardWindow {
         // guard against set_model & set_selected firing notify::selected
         // when user hasn't changed hw_dropdown
         imp.suppress_selected.set(true);
-        self.refresh_side_dropdown(Side::Aux,  &sinks, &cfg);
+        self.refresh_side_dropdown(Side::Aux, &sinks, &cfg);
         self.refresh_side_dropdown(Side::Main, &sinks, &cfg);
         imp.suppress_selected.set(false);
 
@@ -277,8 +326,16 @@ impl DashboardWindow {
     fn refresh_side_dropdown(&self, side: Side, sinks: &[HwSink], cfg: &config::SinkConfig) {
         let imp = self.imp();
         let (dropdown, banner, disc_cell) = match side {
-            Side::Aux  => (&*imp.aux_hw_dropdown,  &*imp.aux_disconnect_banner,  &imp.aux_disconnected),
-            Side::Main => (&*imp.main_hw_dropdown, &*imp.main_disconnect_banner, &imp.main_disconnected),
+            Side::Aux => (
+                &*imp.aux_hw_dropdown,
+                &*imp.aux_disconnect_banner,
+                &imp.aux_disconnected,
+            ),
+            Side::Main => (
+                &*imp.main_hw_dropdown,
+                &*imp.main_disconnect_banner,
+                &imp.main_disconnected,
+            ),
         };
 
         let def = cfg.side(side);
@@ -293,14 +350,14 @@ impl DashboardWindow {
                 format!("Disconnected — {}", def.display_name)
             };
             let placeholder = HwSink {
-                node_id:      0,
-                name:         def.hw_name.clone(),
+                node_id: 0,
+                name: def.hw_name.clone(),
                 display_name: label,
-                device_api:   String::new(),
-                device_bus:   String::new(),
+                device_api: String::new(),
+                device_bus: String::new(),
                 profile_name: String::new(),
-                channels:     def.channels,
-                position:     def.position.clone(),
+                channels: def.channels,
+                position: def.position.clone(),
             };
             model.insert(0, &glib::BoxedAnyObject::new(placeholder));
         }
@@ -309,7 +366,10 @@ impl DashboardWindow {
         let idx = if disconnected {
             0
         } else {
-            sinks.iter().position(|s| s.name == def.hw_name).unwrap_or(0) as u32
+            sinks
+                .iter()
+                .position(|s| s.name == def.hw_name)
+                .unwrap_or(0) as u32
         };
         dropdown.set_selected(idx);
 
@@ -319,21 +379,25 @@ impl DashboardWindow {
 
     fn sync_controls(&self) {
         let imp = self.imp();
-        let Some(backend) = imp.backend.borrow().clone() else { return };
+        let Some(backend) = imp.backend.borrow().clone() else {
+            return;
+        };
 
         // controls are disabled until our virtual sinks exist
         // controls are disabled if its hw output is disconnected
         let present = backend.owned_sinks_present();
-        let aux_disc  = imp.aux_disconnected.get();
+        let aux_disc = imp.aux_disconnected.get();
         let main_disc = imp.main_disconnected.get();
 
         imp.aux_mute_button.set_sensitive(present && !aux_disc);
         imp.main_mute_button.set_sensitive(present && !main_disc);
         imp.aux_test_tone_button.set_sensitive(present && !aux_disc);
-        imp.main_test_tone_button.set_sensitive(present && !main_disc);
+        imp.main_test_tone_button
+            .set_sensitive(present && !main_disc);
 
         // disable crossfading when either side's hw is disconnected
-        imp.mix_scale.set_sensitive(present && !aux_disc && !main_disc);
+        imp.mix_scale
+            .set_sensitive(present && !aux_disc && !main_disc);
 
         if present {
             self.apply_mix();
@@ -345,7 +409,8 @@ impl DashboardWindow {
 
         // only display when persistent virtual sinks aren't live yet
         // temp sinks are only live while the app is open
-        imp.persist_banner.set_revealed(config::is_configured() && !persistent);
+        imp.persist_banner
+            .set_revealed(config::is_configured() && !persistent);
 
         // keep the default banner/tag in step with the disconnect state
         self.refresh_default_banner();
@@ -353,7 +418,9 @@ impl DashboardWindow {
 
     fn apply_mix(&self) {
         let imp = self.imp();
-        let Some(backend) = imp.backend.borrow().clone() else { return };
+        let Some(backend) = imp.backend.borrow().clone() else {
+            return;
+        };
 
         let (aux, main) = mixer::calculate_multipliers(imp.mix_scale.value());
 
@@ -367,7 +434,9 @@ impl DashboardWindow {
     // fill bheavior center -> selection
     fn render_fill(&self, v: f64) {
         let imp = self.imp();
-        let Some(provider) = imp.scale_css.borrow().clone() else { return };
+        let Some(provider) = imp.scale_css.borrow().clone() else {
+            return;
+        };
 
         let pct = (v + 1.0) / 2.0 * 100.0;
         let lo = f64::min(50.0, pct);
@@ -384,11 +453,19 @@ impl DashboardWindow {
         let imp = self.imp();
 
         let (img, btn) = match side {
-            Side::Aux  => (&*imp.aux_mute_image,  &*imp.aux_mute_button),
+            Side::Aux => (&*imp.aux_mute_image, &*imp.aux_mute_button),
             Side::Main => (&*imp.main_mute_image, &*imp.main_mute_button),
         };
-        img.set_icon_name(Some(if muted { "audio-volume-muted-symbolic" } else { "audio-volume-high-symbolic" }));
-        btn.set_tooltip_text(Some(if muted { "Unmute this output" } else { "Mute this output" }));
+        img.set_icon_name(Some(if muted {
+            "audio-volume-muted-symbolic"
+        } else {
+            "audio-volume-high-symbolic"
+        }));
+        btn.set_tooltip_text(Some(if muted {
+            "Unmute this output"
+        } else {
+            "Mute this output"
+        }));
 
         if let Some(backend) = imp.backend.borrow().clone() {
             backend.set_mute(side, muted);
@@ -399,10 +476,12 @@ impl DashboardWindow {
 
     fn on_test_clicked(&self, side: Side) {
         let imp = self.imp();
-        let Some(backend) = imp.backend.borrow().clone() else { return };
+        let Some(backend) = imp.backend.borrow().clone() else {
+            return;
+        };
 
         let btn = match side {
-            Side::Aux  => &*imp.aux_test_tone_button,
+            Side::Aux => &*imp.aux_test_tone_button,
             Side::Main => &*imp.main_test_tone_button,
         };
         btn.set_sensitive(false);
@@ -422,8 +501,20 @@ impl DashboardWindow {
         let mode = imp.volume_display.get();
 
         for (mul, muted, val, unit, vbox) in [
-            (aux,  imp.aux_mute_button.is_active(),  &*imp.aux_volume_value,  &*imp.aux_volume_unit,  &*imp.aux_volume_box),
-            (main, imp.main_mute_button.is_active(), &*imp.main_volume_value, &*imp.main_volume_unit, &*imp.main_volume_box),
+            (
+                aux,
+                imp.aux_mute_button.is_active(),
+                &*imp.aux_volume_value,
+                &*imp.aux_volume_unit,
+                &*imp.aux_volume_box,
+            ),
+            (
+                main,
+                imp.main_mute_button.is_active(),
+                &*imp.main_volume_value,
+                &*imp.main_volume_unit,
+                &*imp.main_volume_box,
+            ),
         ] {
             if muted {
                 val.set_text("Muted");
@@ -446,8 +537,9 @@ impl DashboardWindow {
 
     fn refresh_default_banner(&self) {
         let imp = self.imp();
-        let Some(backend) = imp.backend.borrow().clone() else { return };
-
+        let Some(backend) = imp.backend.borrow().clone() else {
+            return;
+        };
 
         // disables Main's default banner/tag when hw is disconnected
         if imp.main_disconnected.get() {
@@ -458,21 +550,28 @@ impl DashboardWindow {
 
         let is_default = backend.main_is_default();
         // only when Main isn't default sink, the tag confirms when it is
-        imp.main_default_banner.set_visible(is_default == Some(false));
+        imp.main_default_banner
+            .set_visible(is_default == Some(false));
         imp.main_default_tag.set_visible(is_default == Some(true));
     }
 
     fn on_hw_selected(&self, side: Side) {
         let imp = self.imp();
-        if imp.suppress_selected.get() { return }
+        if imp.suppress_selected.get() {
+            return;
+        }
 
         let dropdown = match side {
-            Side::Aux  => &*imp.aux_hw_dropdown,
+            Side::Aux => &*imp.aux_hw_dropdown,
             Side::Main => &*imp.main_hw_dropdown,
         };
-        let Some(sink) = selected_hw_sink(dropdown) else { return };
+        let Some(sink) = selected_hw_sink(dropdown) else {
+            return;
+        };
         // node_id 0 is the disconnected placeholder, not a real output device
-        if sink.node_id == 0 { return }
+        if sink.node_id == 0 {
+            return;
+        }
         let hw_name = sink.name.clone();
 
         let mut cfg = config::load();
@@ -481,12 +580,14 @@ impl DashboardWindow {
         pw_config::write_config(&cfg);
 
         // route live now; the new conf write is the default for next session
-        let Some(backend) = imp.backend.borrow().clone() else { return };
+        let Some(backend) = imp.backend.borrow().clone() else {
+            return;
+        };
         backend.retarget(side, &hw_name);
 
         // picking a new output device while in hw disonnected state rebuilds the side
         let was_disc = match side {
-            Side::Aux  => imp.aux_disconnected.get(),
+            Side::Aux => imp.aux_disconnected.get(),
             Side::Main => imp.main_disconnected.get(),
         };
 
@@ -504,15 +605,23 @@ impl DashboardWindow {
     fn refresh_channels_label(&self, side: Side) {
         let imp = self.imp();
         let (dropdown, label, disc) = match side {
-            Side::Aux  => (&*imp.aux_hw_dropdown,  &*imp.aux_channels_label,  imp.aux_disconnected.get()),
-            Side::Main => (&*imp.main_hw_dropdown, &*imp.main_channels_label, imp.main_disconnected.get()),
+            Side::Aux => (
+                &*imp.aux_hw_dropdown,
+                &*imp.aux_channels_label,
+                imp.aux_disconnected.get(),
+            ),
+            Side::Main => (
+                &*imp.main_hw_dropdown,
+                &*imp.main_channels_label,
+                imp.main_disconnected.get(),
+            ),
         };
 
         if disc {
             label.set_text("");
             return;
         }
-        
+
         let text = selected_hw_sink(dropdown)
             .map(|s| {
                 let mut text = crate::audio::hw_sink::channel_layout_label(s.channels, &s.position);
@@ -531,7 +640,9 @@ impl DashboardWindow {
 }
 
 fn add_css() {
-    let Some(display) = gtk::gdk::Display::default() else { return };
+    let Some(display) = gtk::gdk::Display::default() else {
+        return;
+    };
     let provider = gtk::CssProvider::new();
     provider.load_from_resource("/io/github/arulan/Dashboard/style.css");
     gtk::style_context_add_provider_for_display(

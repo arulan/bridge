@@ -30,16 +30,16 @@ impl Side {
     /// Parse dashboard.role from the loopback conf
     pub fn from_wire(s: &str) -> Option<Side> {
         match s {
-            "aux"  => Some(Side::Aux),
+            "aux" => Some(Side::Aux),
             "main" => Some(Side::Main),
-            _      => None,
+            _ => None,
         }
     }
 
     /// dashboard.role string for the loopback conf
     pub fn as_wire(&self) -> &'static str {
         match self {
-            Side::Aux  => "aux",
+            Side::Aux => "aux",
             Side::Main => "main",
         }
     }
@@ -47,29 +47,29 @@ impl Side {
 
 #[derive(Clone, Debug, Default)]
 pub struct SinkDef {
-    pub channels:     u32,
-    pub position:     String,
-    pub hw_name:      String,
+    pub channels: u32,
+    pub position: String,
+    pub hw_name: String,
     pub display_name: String,
 }
 
 #[derive(Clone, Debug)]
 pub struct SinkConfig {
-    pub aux:  SinkDef,
+    pub aux: SinkDef,
     pub main: SinkDef,
 }
 
 impl SinkConfig {
     pub fn side(&self, side: Side) -> &SinkDef {
         match side {
-            Side::Aux  => &self.aux,
+            Side::Aux => &self.aux,
             Side::Main => &self.main,
         }
     }
 
     pub fn side_mut(&mut self, side: Side) -> &mut SinkDef {
         match side {
-            Side::Aux  => &mut self.aux,
+            Side::Aux => &mut self.aux,
             Side::Main => &mut self.main,
         }
     }
@@ -78,9 +78,9 @@ impl SinkConfig {
 impl From<HwSink> for SinkDef {
     fn from(sink: HwSink) -> Self {
         SinkDef {
-            channels:     sink.channels,
-            position:     sink.position,
-            hw_name:      sink.name,
+            channels: sink.channels,
+            position: sink.position,
+            hw_name: sink.name,
             display_name: sink.display_name,
         }
     }
@@ -95,16 +95,16 @@ pub fn is_configured() -> bool {
 pub fn load() -> SinkConfig {
     let s = settings();
     SinkConfig {
-        aux:  load_sink(&s.child("aux")),
+        aux: load_sink(&s.child("aux")),
         main: load_sink(&s.child("main")),
     }
 }
 
 fn load_sink(s: &gio::Settings) -> SinkDef {
     SinkDef {
-        channels:     s.int("channels") as u32,
-        position:     s.string("position").into(),
-        hw_name:      s.string("hw-name").into(),
+        channels: s.int("channels") as u32,
+        position: s.string("position").into(),
+        hw_name: s.string("hw-name").into(),
         display_name: s.string("display-name").into(),
     }
 }

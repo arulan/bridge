@@ -16,7 +16,7 @@
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
 // Per-sink level meters. One capture pw_stream per virtual sink reads from the
-// sink's monitor 
+// sink's monitor
 //
 // Lives in its own thread to avoid issues with the GTK loop
 
@@ -32,10 +32,10 @@ use crate::config::Side;
 
 const SAMPLE_RATE: u32 = 48_000;
 
-/// One peak atomic per virtual sink. 
+/// One peak atomic per virtual sink.
 /// Each holds the loudest sample seen since the last read.
 pub struct LevelMeters {
-    aux:  Arc<AtomicU32>,
+    aux: Arc<AtomicU32>,
     main: Arc<AtomicU32>,
     // Detached
     _thread: std::thread::JoinHandle<()>,
@@ -43,13 +43,10 @@ pub struct LevelMeters {
 
 impl LevelMeters {
     pub fn start() -> Self {
-        let aux  = Arc::new(AtomicU32::new(0));
+        let aux = Arc::new(AtomicU32::new(0));
         let main = Arc::new(AtomicU32::new(0));
 
-        let sinks = [
-            (AUX_SINK,  Arc::clone(&aux)),
-            (MAIN_SINK, Arc::clone(&main)),
-        ];
+        let sinks = [(AUX_SINK, Arc::clone(&aux)), (MAIN_SINK, Arc::clone(&main))];
 
         let thread = std::thread::spawn(move || {
             if let Err(e) = run_thread(sinks) {
@@ -57,13 +54,17 @@ impl LevelMeters {
             }
         });
 
-        LevelMeters { aux, main, _thread: thread }
+        LevelMeters {
+            aux,
+            main,
+            _thread: thread,
+        }
     }
 
     /// Peak observed since the last call
     pub fn peak(&self, side: Side) -> f32 {
         let atomic = match side {
-            Side::Aux  => &self.aux,
+            Side::Aux => &self.aux,
             Side::Main => &self.main,
         };
         f32::from_bits(atomic.swap(0, Ordering::Relaxed))
@@ -73,11 +74,11 @@ impl LevelMeters {
 fn run_thread(sinks: [(&'static str, Arc<AtomicU32>); 2]) -> Result<(), pw::Error> {
     pw::init();
     let mainloop = pw::main_loop::MainLoopRc::new(None)?;
-    let context  = pw::context::ContextRc::new(&mainloop, None)?;
-    let core     = context.connect_rc(None)?;
+    let context = pw::context::ContextRc::new(&mainloop, None)?;
+    let core = context.connect_rc(None)?;
 
     // Streams and listeners must outlive mainloop.run()
-    let mut streams   = Vec::with_capacity(sinks.len());
+    let mut streams = Vec::with_capacity(sinks.len());
     let mut listeners = Vec::with_capacity(sinks.len());
 
     for (sink_name, atomic) in sinks {
@@ -96,7 +97,13 @@ fn open_meter_stream<'c>(
     core: &'c pw::core::Core,
     sink_name: &str,
     atomic: Arc<AtomicU32>,
-) -> Result<(pw::stream::StreamBox<'c>, pw::stream::StreamListener<Arc<AtomicU32>>), pw::Error> {
+) -> Result<
+    (
+        pw::stream::StreamBox<'c>,
+        pw::stream::StreamListener<Arc<AtomicU32>>,
+    ),
+    pw::Error,
+> {
     let stream_name = format!("dashboard-meter-{sink_name}");
     let stream = pw::stream::StreamBox::new(
         core,
@@ -117,18 +124,21 @@ fn open_meter_stream<'c>(
     let listener = stream
         .add_local_listener_with_user_data(atomic)
         .process(|stream, atomic| {
-            let Some(mut buffer) = stream.dequeue_buffer() else { return };
+            let Some(mut buffer) = stream.dequeue_buffer() else {
+                return;
+            };
             let datas = buffer.datas_mut();
-            if datas.is_empty() { return }
-            let data   = &mut datas[0];
-            let size   = data.chunk().size()   as usize;
+            if datas.is_empty() {
+                return;
+            }
+            let data = &mut datas[0];
+            let size = data.chunk().size() as usize;
             let offset = data.chunk().offset() as usize;
             let Some(slice) = data.data() else { return };
             let end = (offset + size).min(slice.len());
 
             let peak = peak_f32le(&slice[offset..end]);
             if peak > 0.0 {
-
                 atomic.fetch_max(peak.to_bits(), Ordering::Relaxed);
             }
         })
@@ -147,7 +157,7 @@ fn open_meter_stream<'c>(
         std::io::Cursor::new(Vec::new()),
         &pw::spa::pod::Value::Object(pw::spa::pod::Object {
             type_: pw::spa::sys::SPA_TYPE_OBJECT_Format,
-            id:    pw::spa::sys::SPA_PARAM_EnumFormat,
+            id: pw::spa::sys::SPA_PARAM_EnumFormat,
             properties: audio_info.into(),
         }),
     )
@@ -175,7 +185,9 @@ fn peak_f32le(slice: &[u8]) -> f32 {
     while i + 4 <= slice.len() {
         let v = f32::from_le_bytes([slice[i], slice[i + 1], slice[i + 2], slice[i + 3]]);
         let a = v.abs();
-        if a > peak { peak = a; }
+        if a > peak {
+            peak = a;
+        }
         i += 4;
     }
     peak

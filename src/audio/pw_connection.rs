@@ -34,10 +34,10 @@ use pw::properties::properties;
 use pw::spa;
 use pw::types::ObjectType;
 
-use crate::audio::hw_sink::{hw_sink_from_props, HwSink};
+use crate::audio::hw_sink::{HwSink, hw_sink_from_props};
 use crate::config::Side;
 
-use ffi::{load_module, LoadedModule};
+use ffi::{LoadedModule, load_module};
 use pod::set_node_props;
 
 // Used by stop() waiting for the pw thread to finish flushing
@@ -46,8 +46,8 @@ const FLUSH_TIMEOUT: Duration = Duration::from_millis(250);
 // main -> pw
 pub enum Request {
     SetVolume { side: Side, volume: f32 },
-    SetMute   { side: Side, muted: bool },
-    Retarget  { side: Side, hw_name: Option<String> },
+    SetMute { side: Side, muted: bool },
+    Retarget { side: Side, hw_name: Option<String> },
     SetDefault(String),
     // (side, module args) for each configured side
     // skipped for live sink/module sides
@@ -61,7 +61,7 @@ pub enum Event {
     Settled,
     SinkAdded(HwSink),
     SinkRemoved(u32),
-    OwnedAdded   { side: Side, id: u32 },
+    OwnedAdded { side: Side, id: u32 },
     OwnedRemoved { side: Side },
     DefaultSink(Option<String>),
 }
@@ -69,7 +69,7 @@ pub enum Event {
 pub struct PwConnection {
     cmd_tx: pw::channel::Sender<Request>,
     ack_rx: mpsc::Receiver<()>,
-    _join:  JoinHandle<()>,
+    _join: JoinHandle<()>,
 }
 
 impl PwConnection {
@@ -84,7 +84,14 @@ impl PwConnection {
             }
         });
 
-        (PwConnection { cmd_tx, ack_rx, _join: join }, evt_rx)
+        (
+            PwConnection {
+                cmd_tx,
+                ack_rx,
+                _join: join,
+            },
+            evt_rx,
+        )
     }
 
     pub fn send(&self, req: Request) {
@@ -100,23 +107,23 @@ impl PwConnection {
 
 // One of our loopback capture nodes
 struct OwnedSink {
-    id:       u32,
+    id: u32,
     channels: u32,
 }
 
 struct State {
     // Every node we've bound
-    bound:    HashMap<u32, (pw::node::Node, pw::node::NodeListener)>,
+    bound: HashMap<u32, (pw::node::Node, pw::node::NodeListener)>,
     // Our owned capture nodes, the ones we set volume and mute on
-    owned:    HashMap<Side, OwnedSink>,
+    owned: HashMap<Side, OwnedSink>,
     // Owned playback node ids, the targets we change for live routing
     owned_pb: HashMap<Side, u32>,
     // The hardware sink ids we report with SinkAdded
-    hw:       HashSet<u32>,
+    hw: HashSet<u32>,
 
-    metadata:   Option<(pw::metadata::Metadata, pw::metadata::MetadataListener)>,
+    metadata: Option<(pw::metadata::Metadata, pw::metadata::MetadataListener)>,
     meta_cache: HashMap<String, String>,
-    modules:    HashMap<Side, LoadedModule>,
+    modules: HashMap<Side, LoadedModule>,
 
     shutting_down: bool,
 }
@@ -124,13 +131,13 @@ struct State {
 impl State {
     fn new() -> Self {
         State {
-            bound:         HashMap::new(),
-            owned:         HashMap::new(),
-            owned_pb:      HashMap::new(),
-            hw:            HashSet::new(),
-            metadata:      None,
-            meta_cache:    HashMap::new(),
-            modules:       HashMap::new(),
+            bound: HashMap::new(),
+            owned: HashMap::new(),
+            owned_pb: HashMap::new(),
+            hw: HashSet::new(),
+            metadata: None,
+            meta_cache: HashMap::new(),
+            modules: HashMap::new(),
             shutting_down: false,
         }
     }
@@ -151,7 +158,7 @@ fn pw_main(
     pw::init();
 
     let mainloop = pw::main_loop::MainLoopRc::new(None)?;
-    let context  = pw::context::ContextRc::new(&mainloop, None)?;
+    let context = pw::context::ContextRc::new(&mainloop, None)?;
 
     // media.category = Manager is required to get the flatpak client access
     // to the full graph
@@ -169,10 +176,10 @@ fn pw_main(
     let _core_listener = core
         .add_listener_local()
         .done({
-            let evt_tx   = evt_tx.clone();
+            let evt_tx = evt_tx.clone();
             let mainloop = mainloop.clone();
-            let state    = state.clone();
-            let core     = core.clone();
+            let state = state.clone();
+            let core = core.clone();
             move |id, _seq| {
                 if id != pw::core::PW_ID_CORE {
                     return;
@@ -183,9 +190,15 @@ fn pw_main(
                     return;
                 }
                 match phase.get() {
-                    Phase::Registry => { phase.set(Phase::Props); let _ = core.sync(0); }
-                    Phase::Props    => { phase.set(Phase::Settled); let _ = evt_tx.try_send(Event::Settled); }
-                    Phase::Settled  => {}
+                    Phase::Registry => {
+                        phase.set(Phase::Props);
+                        let _ = core.sync(0);
+                    }
+                    Phase::Props => {
+                        phase.set(Phase::Settled);
+                        let _ = evt_tx.try_send(Event::Settled);
+                    }
+                    Phase::Settled => {}
                 }
             }
         })
@@ -195,21 +208,21 @@ fn pw_main(
         .add_listener_local()
         .global({
             let registry = registry.clone();
-            let evt_tx   = evt_tx.clone();
-            let state    = state.clone();
+            let evt_tx = evt_tx.clone();
+            let state = state.clone();
             move |global| handle_global(global, &registry, &evt_tx, &state)
         })
         .global_remove({
             let evt_tx = evt_tx.clone();
-            let state  = state.clone();
+            let state = state.clone();
             move |id| handle_global_remove(id, &evt_tx, &state)
         })
         .register();
 
     let _recv = cmd_rx.attach(mainloop.loop_(), {
-        let core     = core.clone();
-        let context  = context.clone();
-        let state    = state.clone();
+        let core = core.clone();
+        let context = context.clone();
+        let state = state.clone();
         move |req| handle_request(req, &core, &context, &state)
     });
 
@@ -221,10 +234,10 @@ fn pw_main(
 }
 
 fn handle_request(
-    req:     Request,
-    core:    &pw::core::CoreRc,
+    req: Request,
+    core: &pw::core::CoreRc,
     context: &pw::context::ContextRc,
-    state:   &Rc<RefCell<State>>,
+    state: &Rc<RefCell<State>>,
 ) {
     match req {
         Request::SetVolume { side, volume } => {
@@ -250,15 +263,22 @@ fn handle_request(
                 return;
             };
             match hw_name.as_deref() {
-                Some(name) => meta.set_property(subject, "target.object", Some("Spa:String"), Some(name)),
-                None       => meta.set_property(subject, "target.object", None, None),
+                Some(name) => {
+                    meta.set_property(subject, "target.object", Some("Spa:String"), Some(name))
+                }
+                None => meta.set_property(subject, "target.object", None, None),
             }
         }
         Request::SetDefault(name) => {
             let st = state.borrow();
             if let Some((meta, _)) = st.metadata.as_ref() {
                 let value = format!("{{\"name\":\"{name}\"}}");
-                meta.set_property(0, "default.configured.audio.sink", Some("Spa:String:JSON"), Some(&value));
+                meta.set_property(
+                    0,
+                    "default.configured.audio.sink",
+                    Some("Spa:String:JSON"),
+                    Some(&value),
+                );
             }
         }
         Request::CreateTempSinks(configs) => {
@@ -287,7 +307,7 @@ fn handle_request(
 
 fn load_temp_sinks(
     context: &pw::context::ContextRc,
-    state:   &Rc<RefCell<State>>,
+    state: &Rc<RefCell<State>>,
     configs: Vec<(Side, String)>,
 ) {
     for (side, args) in configs {
@@ -298,17 +318,19 @@ fn load_temp_sinks(
             }
         }
         match load_module(context, "libpipewire-module-loopback", &args) {
-            Some(m) => { state.borrow_mut().modules.insert(side, m); }
-            None    => eprintln!("pw_connection: failed to load temp loopback for {side:?}"),
+            Some(m) => {
+                state.borrow_mut().modules.insert(side, m);
+            }
+            None => eprintln!("pw_connection: failed to load temp loopback for {side:?}"),
         }
     }
 }
 
 fn handle_global(
-    global:   &pw::registry::GlobalObject<&spa::utils::dict::DictRef>,
+    global: &pw::registry::GlobalObject<&spa::utils::dict::DictRef>,
     registry: &pw::registry::RegistryRc,
-    evt_tx:   &async_channel::Sender<Event>,
-    state:    &Rc<RefCell<State>>,
+    evt_tx: &async_channel::Sender<Event>,
+    state: &Rc<RefCell<State>>,
 ) {
     match global.type_ {
         ObjectType::Metadata => {
@@ -319,20 +341,30 @@ fn handle_global(
             if state.borrow().metadata.is_some() {
                 return;
             }
-            let Ok(meta) = registry.bind::<pw::metadata::Metadata, _>(global) else { return };
+            let Ok(meta) = registry.bind::<pw::metadata::Metadata, _>(global) else {
+                return;
+            };
             let listener = meta
                 .add_listener_local()
                 .property({
                     let evt_tx = evt_tx.clone();
-                    let state  = state.clone();
+                    let state = state.clone();
                     move |_subject, key, _type, value| {
                         if let Some(key) = key {
                             match value {
-                                Some(v) => { state.borrow_mut().meta_cache.insert(key.to_owned(), v.to_owned()); }
-                                None    => { state.borrow_mut().meta_cache.remove(key); }
+                                Some(v) => {
+                                    state
+                                        .borrow_mut()
+                                        .meta_cache
+                                        .insert(key.to_owned(), v.to_owned());
+                                }
+                                None => {
+                                    state.borrow_mut().meta_cache.remove(key);
+                                }
                             }
                             if key == "default.audio.sink" {
-                                let _ = evt_tx.try_send(Event::DefaultSink(value.map(str::to_owned)));
+                                let _ =
+                                    evt_tx.try_send(Event::DefaultSink(value.map(str::to_owned)));
                             }
                         }
                         0
@@ -346,7 +378,9 @@ fn handle_global(
             let Some(props) = global.props else { return };
 
             // Filter out the nodes we don't care about
-            let ours = props.get("node.name").is_some_and(|n| n.starts_with("dashboard_"));
+            let ours = props
+                .get("node.name")
+                .is_some_and(|n| n.starts_with("dashboard_"));
             if props.get("media.class") != Some("Audio/Sink") && !ours {
                 return;
             }
@@ -355,7 +389,9 @@ fn handle_global(
             if state.borrow().bound.contains_key(&id) {
                 return;
             }
-            let Ok(node) = registry.bind::<pw::node::Node, _>(global) else { return };
+            let Ok(node) = registry.bind::<pw::node::Node, _>(global) else {
+                return;
+            };
 
             // We get the full prop set on the node's info event
             let classified = Cell::new(false);
@@ -363,7 +399,7 @@ fn handle_global(
                 .add_listener_local()
                 .info({
                     let evt_tx = evt_tx.clone();
-                    let state  = state.clone();
+                    let state = state.clone();
                     move |info| {
                         if classified.replace(true) {
                             return;
@@ -382,14 +418,20 @@ fn handle_global(
 }
 
 fn classify_node(
-    id:     u32,
-    props:  &spa::utils::dict::DictRef,
+    id: u32,
+    props: &spa::utils::dict::DictRef,
     evt_tx: &async_channel::Sender<Event>,
-    state:  &Rc<RefCell<State>>,
+    state: &Rc<RefCell<State>>,
 ) {
     if let Some(side) = props.get("dashboard.role").and_then(Side::from_wire) {
-        let channels = props.get("audio.channels").and_then(|s| s.parse().ok()).unwrap_or(2);
-        state.borrow_mut().owned.insert(side, OwnedSink { id, channels });
+        let channels = props
+            .get("audio.channels")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(2);
+        state
+            .borrow_mut()
+            .owned
+            .insert(side, OwnedSink { id, channels });
         let _ = evt_tx.try_send(Event::OwnedAdded { side, id });
         return;
     }
@@ -406,9 +448,9 @@ fn classify_node(
 }
 
 fn handle_global_remove(
-    id:     u32,
+    id: u32,
     evt_tx: &async_channel::Sender<Event>,
-    state:  &Rc<RefCell<State>>,
+    state: &Rc<RefCell<State>>,
 ) {
     let mut st = state.borrow_mut();
 
@@ -429,5 +471,8 @@ fn side_for_owned(owned: &HashMap<Side, OwnedSink>, id: u32) -> Option<Side> {
 }
 
 fn side_for_pb(owned_pb: &HashMap<Side, u32>, id: u32) -> Option<Side> {
-    owned_pb.iter().find(|&(_, &pb_id)| pb_id == id).map(|(&s, _)| s)
+    owned_pb
+        .iter()
+        .find(|&(_, &pb_id)| pb_id == id)
+        .map(|(&s, _)| s)
 }

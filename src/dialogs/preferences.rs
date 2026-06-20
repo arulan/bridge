@@ -24,13 +24,11 @@ pub fn show(parent: Option<&impl IsA<gtk::Widget>>) {
     let dialog = adw::PreferencesDialog::new();
     let page = adw::PreferencesPage::new();
 
-    let general = adw::PreferencesGroup::builder()
-        .title("General")
-        .build();
+    let general = adw::PreferencesGroup::builder().title("General").build();
 
     let model = gtk::StringList::new(&["Decibel (dB)", "Percentage (%)"]);
     let selected = match VolumeDisplay::load() {
-        VolumeDisplay::Decibel    => 0,
+        VolumeDisplay::Decibel => 0,
         VolumeDisplay::Percentage => 1,
     };
 

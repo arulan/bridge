@@ -17,7 +17,7 @@
 
 // What remains of FFI, libpipewire only; Needed for the temp sinks
 
-use std::ffi::{c_char, c_void, CString};
+use std::ffi::{CString, c_char, c_void};
 use std::ptr::NonNull;
 
 use pipewire::context::ContextRc;
@@ -52,9 +52,9 @@ struct PwImplModule(u8);
 #[link(name = "pipewire-0.3")]
 unsafe extern "C" {
     fn pw_context_load_module(
-        context:    *mut PwContext,
-        name:       *const c_char,
-        args:       *const c_char,
+        context: *mut PwContext,
+        name: *const c_char,
+        args: *const c_char,
         properties: *mut c_void,
     ) -> *mut PwImplModule;
 

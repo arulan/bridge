@@ -26,7 +26,11 @@ use spa::pod::{Object, Pod, Property, PropertyFlags, Value, ValueArray};
 
 // For applying channelVolumes & mute. The volume carries its own channel count
 // since the array width has to match the node
-pub(super) fn set_node_props(node: &pw::node::Node, volume: Option<(f32, u32)>, mute: Option<bool>) {
+pub(super) fn set_node_props(
+    node: &pw::node::Node,
+    volume: Option<(f32, u32)>,
+    mute: Option<bool>,
+) {
     let bytes = props_pod(volume, mute);
     if let Some(pod) = Pod::from_bytes(&bytes) {
         node.set_param(spa::param::ParamType::Props, 0, pod);
@@ -39,7 +43,7 @@ fn props_pod(volume: Option<(f32, u32)>, mute: Option<bool>) -> Vec<u8> {
 
     if let Some((v, channels)) = volume {
         props.push(Property {
-            key:   spa::sys::SPA_PROP_channelVolumes,
+            key: spa::sys::SPA_PROP_channelVolumes,
             flags: PropertyFlags::empty(),
             value: Value::ValueArray(ValueArray::Float(vec![v; channels.max(1) as usize])),
         });
@@ -47,15 +51,15 @@ fn props_pod(volume: Option<(f32, u32)>, mute: Option<bool>) -> Vec<u8> {
 
     if let Some(m) = mute {
         props.push(Property {
-            key:   spa::sys::SPA_PROP_mute,
+            key: spa::sys::SPA_PROP_mute,
             flags: PropertyFlags::empty(),
             value: Value::Bool(m),
         });
     }
 
     let object = Value::Object(Object {
-        type_:      spa::sys::SPA_TYPE_OBJECT_Props,
-        id:         spa::sys::SPA_PARAM_Props,
+        type_: spa::sys::SPA_TYPE_OBJECT_Props,
+        id: spa::sys::SPA_PARAM_Props,
         properties: props,
     });
 

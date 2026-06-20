@@ -24,7 +24,7 @@ mod volume;
 mod window;
 
 use adw::prelude::*;
-use application::{register_actions, DashboardApplication, RESOURCES_FILE};
+use application::{DashboardApplication, RESOURCES_FILE, register_actions};
 
 fn main() -> glib::ExitCode {
     let path = RESOURCES_FILE.expect("RESOURCES_FILE not set; build with meson");

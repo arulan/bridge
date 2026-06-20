@@ -28,10 +28,10 @@ use crate::util::{hw_sink_factory, hw_sink_model, selected_hw_sink};
 
 #[derive(Default)]
 pub struct SetupDialogImp {
-    aux_dropdown:    RefCell<Option<gtk::DropDown>>,
-    main_dropdown:   RefCell<Option<gtk::DropDown>>,
+    aux_dropdown: RefCell<Option<gtk::DropDown>>,
+    main_dropdown: RefCell<Option<gtk::DropDown>>,
     files_container: RefCell<Option<gtk::Box>>,
-    responded:       Cell<bool>,
+    responded: Cell<bool>,
 }
 
 #[glib::object_subclass]
@@ -54,7 +54,6 @@ impl ObjectImpl for SetupDialogImp {
         })
     }
 }
-
 
 impl WidgetImpl for SetupDialogImp {}
 impl WindowImpl for SetupDialogImp {
@@ -90,7 +89,6 @@ impl SetupDialog {
             .property("resizable", true)
             .build();
 
-
         if let Some(parent) = transient_for {
             obj.set_transient_for(Some(parent));
         }
@@ -102,7 +100,7 @@ impl SetupDialog {
     /// The selected sink layout
     pub fn sink_config(&self) -> SinkConfig {
         SinkConfig {
-            aux:  self.selected_sink(Side::Aux).into(),
+            aux: self.selected_sink(Side::Aux).into(),
             main: self.selected_sink(Side::Main).into(),
         }
     }
@@ -110,18 +108,20 @@ impl SetupDialog {
     fn selected_sink(&self, side: Side) -> HwSink {
         let imp = self.imp();
         let dropdown = match side {
-            Side::Aux  => imp.aux_dropdown.borrow(),
+            Side::Aux => imp.aux_dropdown.borrow(),
             Side::Main => imp.main_dropdown.borrow(),
         };
-        dropdown.as_ref()
+        dropdown
+            .as_ref()
             .and_then(selected_hw_sink)
             .expect("selected_sink called with no device selected")
     }
 
-
     fn respond(&self, approved: bool) {
         let imp = self.imp();
-        if imp.responded.get() { return; }
+        if imp.responded.get() {
+            return;
+        }
         imp.responded.set(true);
         self.close();
         self.emit_by_name::<()>(if approved { "approved" } else { "declined" }, &[]);
@@ -133,11 +133,15 @@ impl SetupDialog {
 
     fn rebuild_files(&self) {
         let imp = self.imp();
-        let Some(container) = imp.files_container.borrow().clone() else { return };
+        let Some(container) = imp.files_container.borrow().clone() else {
+            return;
+        };
         while let Some(child) = container.first_child() {
             container.remove(&child);
         }
-        if imp.aux_dropdown.borrow().is_none() { return; }
+        if imp.aux_dropdown.borrow().is_none() {
+            return;
+        }
         for (path, content) in pw_config::preview_files(&self.sink_config()) {
             container.append(&make_file_row(&path, &content));
         }
@@ -187,8 +191,10 @@ impl SetupDialog {
         let body = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(16)
-            .margin_top(24).margin_bottom(24)
-            .margin_start(20).margin_end(20)
+            .margin_top(24)
+            .margin_bottom(24)
+            .margin_start(20)
+            .margin_end(20)
             .build();
 
         let desc = gtk::Label::new(None);
@@ -196,7 +202,7 @@ impl SetupDialog {
             "Dashboard creates two virtual outputs — \
              <b>Aux</b> and <b>Main</b> — that you can mix independently. \
              Each mirrors the channel layout of the configured output device.\n\n\
-             You must login again to persist the outputs beyond the current session."
+             You must login again to persist the outputs beyond the current session.",
         );
         desc.set_wrap(true);
         desc.set_xalign(0.0);
@@ -214,7 +220,7 @@ impl SetupDialog {
             let aux_idx = aux_default_id
                 .and_then(|id| hw_sinks.iter().position(|s| s.node_id == id))
                 .unwrap_or(0) as u32;
-            
+
             let main_idx = main_default_id
                 .and_then(|id| hw_sinks.iter().position(|s| s.node_id == id))
                 .unwrap_or(0) as u32;
@@ -241,7 +247,7 @@ impl SetupDialog {
             let obj_c = self.clone();
             main_dd.connect_selected_notify(move |_| obj_c.on_device_changed());
 
-            *imp.aux_dropdown.borrow_mut()  = Some(aux_dd);
+            *imp.aux_dropdown.borrow_mut() = Some(aux_dd);
             *imp.main_dropdown.borrow_mut() = Some(main_dd);
         } else {
             let warn = gtk::Label::new(Some("No audio output devices found"));
@@ -310,8 +316,10 @@ fn make_file_row(path: &str, content: &str) -> gtk::Box {
         .editable(false)
         .monospace(true)
         .cursor_visible(false)
-        .top_margin(10).bottom_margin(10)
-        .left_margin(12).right_margin(12)
+        .top_margin(10)
+        .bottom_margin(10)
+        .left_margin(12)
+        .right_margin(12)
         .build();
     tv.buffer().set_text(content.trim());
 
