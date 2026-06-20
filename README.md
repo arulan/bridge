@@ -8,7 +8,7 @@ send chat to one side, and game audio to the other.
 
 ## Building with Meson
 
-Requires GTK4, libadwaita, WirePlumber (`wireplumber-0.5`), PipeWire, and a Rust toolchain (edition 2024, rustc ≥1.96).
+Requires GTK4, libadwaita, PipeWire, and a Rust toolchain (edition 2024, rustc ≥1.96).
 
 ```
 meson setup builddir
@@ -16,14 +16,13 @@ meson compile -C builddir
 meson install -C builddir
 ```
 
-`meson setup builddir --buildtype=release` for an optimized build. 
 
 After the install steps, run the app from the install prefix.
 
 ## Building with Flatpak
 
-The manifest pulls WirePlumber and builds against the GNOME 50
-runtime, with the Rust and LLVM SDK extensions:
+The manifest builds against the GNOME 50 runtime, with the Rust and
+LLVM SDK extensions:
 
 ```
 flatpak install flathub org.gnome.Platform//50 org.gnome.Sdk//50 \
@@ -31,11 +30,9 @@ flatpak install flathub org.gnome.Platform//50 org.gnome.Sdk//50 \
     org.freedesktop.Sdk.Extension.llvm22
 ```
 
-The `shared-modules` submodule and a generated `cargo-sources.json` both have 
-to be available first:
+A generated `cargo-sources.json` has to be available first:
 
 ```
-git submodule update --init
 ./generate-cargo-sources.sh
 ```
 

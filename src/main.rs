@@ -22,7 +22,6 @@ mod dialogs;
 mod util;
 mod volume;
 mod window;
-mod wp;
 
 use adw::prelude::*;
 use application::{register_actions, DashboardApplication, RESOURCES_FILE};

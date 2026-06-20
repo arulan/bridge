@@ -29,30 +29,6 @@
         "*.a"
     ],
     "modules": [
-        "shared-modules/lua5.4/lua-5.4.json",
-        {
-            "name": "wireplumber",
-            "buildsystem": "meson",
-            "config-opts": [
-                "-Ddoc=disabled",
-                "-Dintrospection=disabled",
-                "-Dtests=false",
-                "-Ddbus-tests=false",
-                "-Dsystem-lua=true",
-                "-Delogind=disabled",
-                "-Dsystemd=disabled",
-                "-Ddaemon=false",
-                "-Dtools=false"
-            ],
-            "sources": [
-                {
-                    "type": "git",
-                    "url": "https://gitlab.freedesktop.org/pipewire/wireplumber.git",
-                    "tag": "0.5.10",
-                    "commit": "7a4d3177550b6b53fe0a49396da5b07f5353daff"
-                }
-            ]
-        },
         {
             "name": "dashboard",
             "builddir": true,
