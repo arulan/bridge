@@ -12,13 +12,13 @@
         "--socket=wayland",
         "--socket=fallback-x11",
         "--share=ipc",
-        "--share=network",
         "--device=dri",
         "--filesystem=xdg-run/pipewire-0",
         "--filesystem=xdg-config/pipewire:create"
     ],
     "build-options": {
-        "append-path": "/usr/lib/sdk/rust-stable/bin",
+        "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm22/bin",
+        "prepend-ld-library-path": "/usr/lib/sdk/llvm22/lib",
         "build-args": [
             "--share=network"
         ]
@@ -40,10 +40,6 @@
             "config-opts": [
                 "--buildtype=debug"
             ],
-            "build-options": {
-                "append-path": "/usr/lib/sdk/llvm22/bin",
-                "prepend-ld-library-path": "/usr/lib/sdk/llvm22/lib"
-            },
             "sources": [
                 {
                     "type": "dir",
