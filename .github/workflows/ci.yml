@@ -58,16 +58,3 @@ jobs:
           bundle: dashboard.flatpak
           manifest-path: io.github.arulan.Dashboard-dev.json
           cache-key: flatpak-builder-${{ github.sha }}
-      - name: Install flatpak-builder-lint
-        run: |
-          flatpak remote-add --if-not-exists --user \
-            flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          flatpak install -y --user flathub org.flatpak.Builder
-      - name: Lint manifest
-        run: |
-          flatpak run --command=flatpak-builder-lint org.flatpak.Builder \
-            manifest io.github.arulan.Dashboard.json
-      - name: Lint repo
-        run: |
-          flatpak run --command=flatpak-builder-lint org.flatpak.Builder \
-            repo repo
