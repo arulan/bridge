@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:gnome-nightly
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - name: Provision build environment
+        run: |
+          flatpak-builder --user --disable-rofiles-fuse --force-clean \
+            --keep-build-dirs --install-deps-from=flathub --stop-at=dashboard \
+            _build io.github.arulan.Dashboard.json
+      - name: Clippy
+        run: |
+          flatpak-builder --run _build io.github.arulan.Dashboard.json \
+            cargo clippy --all-targets -- -D warnings
+
+  flatpak:
+    name: Flatpak
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:gnome-nightly
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: dashboard.flatpak
+          manifest-path: io.github.arulan.Dashboard.json
+          cache-key: flatpak-builder-${{ github.sha }}
+      - name: Lint manifest
+        run: flatpak-builder-lint manifest io.github.arulan.Dashboard.json
+      - name: Lint repo
+        run: flatpak-builder-lint repo repo
