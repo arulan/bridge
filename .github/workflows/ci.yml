@@ -39,11 +39,11 @@ jobs:
       - name: Clippy
         run: |
           flatpak-builder --run _build io.github.arulan.Dashboard-dev.json \
-            cargo clippy --all-targets -- -D warnings
+            sh -c 'export CARGO_HOME=/run/build/dashboard/cargo && cargo clippy --all-targets -- -D warnings'
       - name: Test
         run: |
           flatpak-builder --run _build io.github.arulan.Dashboard-dev.json \
-            cargo test
+            sh -c 'export CARGO_HOME=/run/build/dashboard/cargo && cargo test'
 
   flatpak:
     name: Flatpak
