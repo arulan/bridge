@@ -1,0 +1,63 @@
+{
+    "app-id": "io.github.arulan.Dashboard",
+    "runtime": "org.gnome.Platform",
+    "runtime-version": "50",
+    "sdk": "org.gnome.Sdk",
+    "sdk-extensions": [
+        "org.freedesktop.Sdk.Extension.rust-stable",
+        "org.freedesktop.Sdk.Extension.llvm22"
+    ],
+    "command": "dashboard",
+    "finish-args": [
+        "--socket=wayland",
+        "--socket=fallback-x11",
+        "--share=ipc",
+        "--share=network",
+        "--device=dri",
+        "--filesystem=xdg-run/pipewire-0",
+        "--filesystem=xdg-config/pipewire:create"
+    ],
+    "build-options": {
+        "append-path": "/usr/lib/sdk/rust-stable/bin",
+        "build-args": [
+            "--share=network"
+        ]
+    },
+    "cleanup": [
+        "/include",
+        "/lib/pkgconfig",
+        "/man",
+        "/share/doc",
+        "/share/man",
+        "*.la",
+        "*.a"
+    ],
+    "modules": [
+        {
+            "name": "dashboard",
+            "builddir": true,
+            "buildsystem": "meson",
+            "config-opts": [
+                "--buildtype=debug"
+            ],
+            "build-options": {
+                "append-path": "/usr/lib/sdk/llvm22/bin",
+                "prepend-ld-library-path": "/usr/lib/sdk/llvm22/lib"
+            },
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": ".",
+                    "skip": [
+                        "./builddir",
+                        "./build",
+                        "./target",
+                        "./.flatpak-builder",
+                        "./.cargo-sources-tools",
+                        "./.git"
+                    ]
+                }
+            ]
+        }
+    ]
+}

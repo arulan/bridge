@@ -21,31 +21,29 @@ jobs:
           components: rustfmt
       - run: cargo fmt --all --check
 
-  clippy:
-    name: Clippy
+  checks:
+    name: Clippy & Test
     runs-on: ubuntu-latest
     container:
       image: bilelmoussaoui/flatpak-github-actions:gnome-nightly
       options: --privileged
     steps:
       - uses: actions/checkout@v5
-      - name: Generate cargo-sources.json
-        run: |
-          python3 -m venv /tmp/cargo-gen
-          . /tmp/cargo-gen/bin/activate
-          pip install --quiet aiohttp tomlkit
-          ./generate-cargo-sources.sh
       - name: Provision build environment
         run: |
           flatpak remote-add --if-not-exists --user \
             flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak-builder --user --disable-rofiles-fuse --force-clean \
             --keep-build-dirs --install-deps-from=flathub --stop-at=dashboard \
-            _build io.github.arulan.Dashboard.json
+            _build io.github.arulan.Dashboard-dev.json
       - name: Clippy
         run: |
-          flatpak-builder --run _build io.github.arulan.Dashboard.json \
+          flatpak-builder --run _build io.github.arulan.Dashboard-dev.json \
             cargo clippy --all-targets -- -D warnings
+      - name: Test
+        run: |
+          flatpak-builder --run _build io.github.arulan.Dashboard-dev.json \
+            cargo test
 
   flatpak:
     name: Flatpak
@@ -55,18 +53,21 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v5
-      - name: Generate cargo-sources.json
-        run: |
-          python3 -m venv /tmp/cargo-gen
-          . /tmp/cargo-gen/bin/activate
-          pip install --quiet aiohttp tomlkit
-          ./generate-cargo-sources.sh
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: dashboard.flatpak
-          manifest-path: io.github.arulan.Dashboard.json
+          manifest-path: io.github.arulan.Dashboard-dev.json
           cache-key: flatpak-builder-${{ github.sha }}
+      - name: Install flatpak-builder-lint
+        run: |
+          flatpak remote-add --if-not-exists --user \
+            flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install -y --user flathub org.flatpak.Builder
       - name: Lint manifest
-        run: flatpak-builder-lint manifest io.github.arulan.Dashboard.json
+        run: |
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder \
+            manifest io.github.arulan.Dashboard.json
       - name: Lint repo
-        run: flatpak-builder-lint repo repo
+        run: |
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder \
+            repo repo
