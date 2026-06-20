@@ -170,7 +170,6 @@ dependencies = [
  "gtk4",
  "libadwaita",
  "pipewire",
- "pkg-config",
 ]
 
 [[package]]

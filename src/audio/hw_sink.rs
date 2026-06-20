@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
+use pipewire::spa::utils::dict::DictRef;
+
 #[derive(Clone, Debug)]
 pub struct HwSink {
     pub node_id:      u32,
@@ -27,42 +29,35 @@ pub struct HwSink {
     pub position:     String,
 }
 
-/// Builds HwSink from a WP node; None for non-sinks or our virtual sinks
-pub fn hw_sink_from_node(node: &glib::Object) -> Option<HwSink> {
-    use crate::wp;
-
-    let media_class = wp::node_prop(node, "media.class").unwrap_or_default();
-    if media_class != "Audio/Sink" {
+/// Builds HwSink from a node's info props; None for non-sinks or our virtual
+/// sinks. The info dict is the full property set
+pub fn hw_sink_from_props(node_id: u32, props: &DictRef) -> Option<HwSink> {
+    if props.get("media.class") != Some("Audio/Sink") {
         return None;
     }
 
-    // Filter out app loopbacks from hw list using role prop or name as fallback
-    if wp::node_pw_prop(node, "dashboard.role").is_some() {
-        return None;
-    }
-    let node_name = wp::node_prop(node, "node.name").unwrap_or_default();
+    let node_name = props.get("node.name").unwrap_or_default();
     if node_name.starts_with("dashboard_") {
         return None;
     }
 
-    // Builds our HwSink
-    let node_id = wp::bound_id(node);
-    let display_name = wp::node_prop(node, "node.description")
-        .or_else(|| wp::node_pw_prop(node, "device.name"))
-        .unwrap_or_else(|| node_name.clone());
-    let device_api = wp::node_pw_prop(node, "device.api").unwrap_or_default();
-    let device_bus = wp::node_pw_prop(node, "device.bus").unwrap_or_default();
-    let profile_name = wp::node_pw_prop(node, "device.profile.name").unwrap_or_default();
-    let channels = wp::node_pw_prop(node, "audio.channels")
+    let display_name = props.get("node.description")
+        .or_else(|| props.get("device.name"))
+        .unwrap_or(node_name)
+        .to_owned();
+    let device_api = props.get("device.api").unwrap_or_default().to_owned();
+    let device_bus = props.get("device.bus").unwrap_or_default().to_owned();
+    let profile_name = props.get("device.profile.name").unwrap_or_default().to_owned();
+    let channels = props.get("audio.channels")
         .and_then(|s| s.parse().ok())
         .unwrap_or(2);
-    let position = wp::node_pw_prop(node, "audio.position")
-        .map(|s| normalize_position(&s))
+    let position = props.get("audio.position")
+        .map(normalize_position)
         .unwrap_or_else(|| "FL,FR".to_owned());
 
     Some(HwSink {
         node_id,
-        name: node_name,
+        name: node_name.to_owned(),
         display_name,
         device_api,
         device_bus,
