@@ -91,7 +91,7 @@ pub(super) fn open_meter_stream<'c>(
                 if new != StreamState::Streaming || pinned.get() {
                     return;
                 }
-                
+
                 if let Some((meta, _)) = state.borrow().metadata.as_ref() {
                     meta.set_property(
                         stream.node_id(),
