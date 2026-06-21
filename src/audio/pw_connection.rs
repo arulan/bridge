@@ -242,18 +242,18 @@ fn handle_request(
     match req {
         Request::SetVolume { side, volume } => {
             let st = state.borrow();
-            if let Some(owned) = st.owned.get(&side) {
-                if let Some((node, _)) = st.bound.get(&owned.id) {
-                    set_node_props(node, Some((volume, owned.channels)), None);
-                }
+            if let Some(owned) = st.owned.get(&side)
+                && let Some((node, _)) = st.bound.get(&owned.id)
+            {
+                set_node_props(node, Some((volume, owned.channels)), None);
             }
         }
         Request::SetMute { side, muted } => {
             let st = state.borrow();
-            if let Some(owned) = st.owned.get(&side) {
-                if let Some((node, _)) = st.bound.get(&owned.id) {
-                    set_node_props(node, None, Some(muted));
-                }
+            if let Some(owned) = st.owned.get(&side)
+                && let Some((node, _)) = st.bound.get(&owned.id)
+            {
+                set_node_props(node, None, Some(muted));
             }
         }
         Request::Retarget { side, hw_name } => {

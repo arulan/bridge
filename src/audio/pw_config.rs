@@ -113,11 +113,11 @@ pub fn loopback_module_args(side: Side, def: &SinkDef) -> String {
 /// Writes the pipewire.conf.d that persists the virtual sinks
 pub fn write_config(cfg: &SinkConfig) {
     let file = config_file();
-    if let Some(dir) = file.parent() {
-        if let Err(e) = std::fs::create_dir_all(dir) {
-            eprintln!("pw_config: failed to create {}: {e}", dir.display());
-            return;
-        }
+    if let Some(dir) = file.parent()
+        && let Err(e) = std::fs::create_dir_all(dir)
+    {
+        eprintln!("pw_config: failed to create {}: {e}", dir.display());
+        return;
     }
     if let Err(e) = std::fs::write(&file, build_pw_config(cfg)) {
         eprintln!("pw_config: failed to write {}: {e}", file.display());
