@@ -20,11 +20,14 @@
 // WpCore entirely
 
 mod ffi;
+mod meter;
 mod pod;
 
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::AtomicU32;
 use std::sync::mpsc;
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -35,6 +38,7 @@ use pw::spa;
 use pw::types::ObjectType;
 
 use crate::audio::hw_sink::{HwSink, hw_sink_from_props};
+use crate::audio::pw_config::{AUX_SINK, MAIN_SINK};
 use crate::config::Side;
 
 use ffi::{LoadedModule, load_module};
@@ -73,13 +77,16 @@ pub struct PwConnection {
 }
 
 impl PwConnection {
-    pub fn start() -> (Self, async_channel::Receiver<Event>) {
+    pub fn start(
+        aux_peak: Arc<AtomicU32>,
+        main_peak: Arc<AtomicU32>,
+    ) -> (Self, async_channel::Receiver<Event>) {
         let (cmd_tx, cmd_rx) = pw::channel::channel::<Request>();
         let (evt_tx, evt_rx) = async_channel::unbounded::<Event>();
         let (ack_tx, ack_rx) = mpsc::channel::<()>();
 
         let join = std::thread::spawn(move || {
-            if let Err(e) = pw_main(cmd_rx, evt_tx, ack_tx) {
+            if let Err(e) = pw_main(cmd_rx, evt_tx, ack_tx, aux_peak, main_peak) {
                 eprintln!("pw_connection: exited with error: {e}");
             }
         });
@@ -154,6 +161,8 @@ fn pw_main(
     cmd_rx: pw::channel::Receiver<Request>,
     evt_tx: async_channel::Sender<Event>,
     ack_tx: mpsc::Sender<()>,
+    aux_peak: Arc<AtomicU32>,
+    main_peak: Arc<AtomicU32>,
 ) -> Result<(), pw::Error> {
     pw::init();
 
@@ -226,10 +235,21 @@ fn pw_main(
         move |req| handle_request(req, &core, &context, &state)
     });
 
+    // capture meters run on this thread so they can be pinned in metadata
+    // autoconnects when their target sinks appear
+    let mut meters = Vec::with_capacity(2);
+    for (sink, atomic) in [(AUX_SINK, aux_peak), (MAIN_SINK, main_peak)] {
+        match meter::open_meter_stream(&core, sink, atomic, &state) {
+            Ok(pair) => meters.push(pair),
+            Err(e) => eprintln!("pw_connection: meter stream for {sink} failed: {e}"),
+        }
+    }
+
     // So the server 'done' fires once the globals are in
     let _ = core.sync(0);
 
     mainloop.run();
+    drop(meters);
     Ok(())
 }
 

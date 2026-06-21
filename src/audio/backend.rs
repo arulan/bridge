@@ -76,7 +76,11 @@ impl PipeWireBackend {
     }
 
     pub fn start(&self) {
-        let (pw, evt_rx) = PwConnection::start();
+        let meters = LevelMeters::new();
+        let (aux_peak, main_peak) = meters.atoms();
+        self.imp().level_meters.replace(Some(meters));
+
+        let (pw, evt_rx) = PwConnection::start(aux_peak, main_peak);
         self.imp().pw.replace(Some(pw));
 
         let weak = self.downgrade();
@@ -86,8 +90,6 @@ impl PipeWireBackend {
                 be.handle_event(evt);
             }
         });
-
-        self.imp().level_meters.replace(Some(LevelMeters::start()));
     }
 
     pub fn stop(&self) {
