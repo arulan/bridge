@@ -21,4 +21,5 @@ pub mod level_meter;
 pub mod mixer;
 pub mod pw_config;
 pub mod pw_connection;
+pub mod routing;
 pub mod test_tone;

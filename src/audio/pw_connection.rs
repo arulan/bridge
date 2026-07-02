@@ -39,6 +39,7 @@ use pw::types::ObjectType;
 
 use crate::audio::hw_sink::{HwSink, hw_sink_from_props};
 use crate::audio::pw_config::{AUX_SINK, MAIN_SINK};
+use crate::audio::routing::StreamInfo;
 use crate::config::Side;
 
 use ffi::{LoadedModule, load_module};
@@ -52,6 +53,7 @@ pub enum Request {
     SetVolume { side: Side, volume: f32 },
     SetMute { side: Side, muted: bool },
     Retarget { side: Side, hw_name: Option<String> },
+    RetargetStream { id: u32, target: Option<String> },
     SetDefault(String),
     // (side, module args) for each configured side
     // skipped for live sink/module sides
@@ -67,6 +69,8 @@ pub enum Event {
     SinkRemoved(u32),
     OwnedAdded { side: Side, id: u32 },
     OwnedRemoved { side: Side },
+    StreamAdded(StreamInfo),
+    StreamRemoved(u32),
     DefaultSink(Option<String>),
 }
 
@@ -127,6 +131,8 @@ struct State {
     owned_pb: HashMap<Side, u32>,
     // The hardware sink ids we report with SinkAdded
     hw: HashSet<u32>,
+    // streams for routing rules
+    streams: HashSet<u32>,
 
     metadata: Option<(pw::metadata::Metadata, pw::metadata::MetadataListener)>,
     meta_cache: HashMap<String, String>,
@@ -142,6 +148,7 @@ impl State {
             owned: HashMap::new(),
             owned_pb: HashMap::new(),
             hw: HashSet::new(),
+            streams: HashSet::new(),
             metadata: None,
             meta_cache: HashMap::new(),
             modules: HashMap::new(),
@@ -282,12 +289,14 @@ fn handle_request(
             else {
                 return;
             };
-            match hw_name.as_deref() {
-                Some(name) => {
-                    meta.set_property(subject, "target.object", Some("Spa:String"), Some(name))
-                }
-                None => meta.set_property(subject, "target.object", None, None),
-            }
+            set_target_object(meta, subject, hw_name.as_deref());
+        }
+        Request::RetargetStream { id, target } => {
+            let st = state.borrow();
+            let Some((meta, _)) = st.metadata.as_ref() else {
+                return;
+            };
+            set_target_object(meta, id, target.as_deref());
         }
         Request::SetDefault(name) => {
             let st = state.borrow();
@@ -401,7 +410,8 @@ fn handle_global(
             let ours = props
                 .get("node.name")
                 .is_some_and(|n| n.starts_with("dashboard_"));
-            if props.get("media.class") != Some("Audio/Sink") && !ours {
+            let class = props.get("media.class");
+            if class != Some("Audio/Sink") && class != Some("Stream/Output/Audio") && !ours {
                 return;
             }
 
@@ -461,6 +471,12 @@ fn classify_node(
         return;
     }
 
+    if let Some(info) = stream_info_from_props(id, props) {
+        state.borrow_mut().streams.insert(id);
+        let _ = evt_tx.try_send(Event::StreamAdded(info));
+        return;
+    }
+
     if let Some(sink) = hw_sink_from_props(id, props) {
         state.borrow_mut().hw.insert(id);
         let _ = evt_tx.try_send(Event::SinkAdded(sink));
@@ -481,9 +497,45 @@ fn handle_global_remove(
         st.owned_pb.remove(&side);
     } else if st.hw.remove(&id) {
         let _ = evt_tx.try_send(Event::SinkRemoved(id));
+    } else if st.streams.remove(&id) {
+        let _ = evt_tx.try_send(Event::StreamRemoved(id));
     }
 
     st.bound.remove(&id);
+}
+
+fn stream_info_from_props(id: u32, props: &spa::utils::dict::DictRef) -> Option<StreamInfo> {
+    if props.get("media.class") != Some("Stream/Output/Audio") {
+        return None;
+    }
+    if props.get("dashboard.role").is_some() || props.get("dashboard.pb-role").is_some() {
+        return None;
+    }
+
+    let app_name = dict_prop(props, "application.name");
+    let binary = dict_prop(props, "application.process.binary");
+    if app_name.is_none() && binary.is_none() {
+        return None;
+    }
+
+    Some(StreamInfo {
+        node_id: id,
+        app_name,
+        app_icon: dict_prop(props, "application.icon-name"),
+        binary,
+        media_name: dict_prop(props, "media.name"),
+    })
+}
+
+fn set_target_object(meta: &pw::metadata::Metadata, subject: u32, target: Option<&str>) {
+    match target {
+        Some(name) => meta.set_property(subject, "target.object", Some("Spa:String"), Some(name)),
+        None => meta.set_property(subject, "target.object", None, None),
+    }
+}
+
+fn dict_prop(props: &spa::utils::dict::DictRef, key: &str) -> Option<String> {
+    props.get(key).map(str::to_owned)
 }
 
 fn side_for_owned(owned: &HashMap<Side, OwnedSink>, id: u32) -> Option<Side> {

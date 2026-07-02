@@ -16,7 +16,7 @@
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
 use glib::prelude::*;
@@ -27,6 +27,7 @@ use super::hw_sink::HwSink;
 use super::level_meter::LevelMeters;
 use super::pw_config;
 use super::pw_connection::{Event, PwConnection, Request};
+use super::routing::{RoutingRule, StreamInfo, winning_rule_index};
 use super::test_tone;
 use crate::config::{self, Side};
 
@@ -35,6 +36,9 @@ pub struct PipeWireBackendImp {
     // Mirrors the pw side state
     sinks: RefCell<HashMap<u32, HwSink>>,
     owned: RefCell<HashMap<Side, u32>>,
+    streams: RefCell<HashMap<u32, StreamInfo>>,
+    // stream ids that we've changed target.object on
+    touched: RefCell<HashSet<u32>>,
     default_name: RefCell<Option<String>>,
 
     // gate sinks-ready vs sinks-changed
@@ -59,6 +63,7 @@ impl ObjectImpl for PipeWireBackendImp {
             vec![
                 Signal::builder("sinks-ready").build(),
                 Signal::builder("sinks-changed").build(),
+                Signal::builder("streams-changed").build(),
                 Signal::builder("default-changed").build(),
                 Signal::builder("owned-changed").build(),
             ]
@@ -109,6 +114,7 @@ impl PipeWireBackend {
             Event::Settled => {
                 self.create_missing_temp_sinks();
                 imp.installed.set(true);
+                self.apply_rules_all();
                 self.emit_by_name::<()>("sinks-ready", &[]);
             }
             Event::SinkAdded(sink) => {
@@ -132,6 +138,23 @@ impl PipeWireBackend {
                     self.emit_by_name::<()>("owned-changed", &[]);
                 }
             }
+            Event::StreamAdded(info) => {
+                let live = imp.installed.get();
+                if live {
+                    self.apply_rule_to_stream(&info, &config::load_rules());
+                }
+                imp.streams.borrow_mut().insert(info.node_id, info);
+                if live {
+                    self.emit_by_name::<()>("streams-changed", &[]);
+                }
+            }
+            Event::StreamRemoved(id) => {
+                imp.touched.borrow_mut().remove(&id);
+                let dropped = imp.streams.borrow_mut().remove(&id).is_some();
+                if dropped && imp.installed.get() {
+                    self.emit_by_name::<()>("streams-changed", &[]);
+                }
+            }
             Event::DefaultSink(raw) => {
                 let name = raw.and_then(|v| crate::util::parse_default_name(&v));
                 imp.default_name.replace(name);
@@ -145,6 +168,11 @@ impl PipeWireBackend {
         let mut sinks: Vec<HwSink> = self.imp().sinks.borrow().values().cloned().collect();
         sinks.sort_by_key(|s| s.display_name.to_lowercase());
         sinks
+    }
+
+    #[allow(dead_code)]
+    pub fn output_streams(&self) -> Vec<StreamInfo> {
+        self.imp().streams.borrow().values().cloned().collect()
     }
 
     pub fn owned_sinks_present(&self) -> bool {
@@ -202,6 +230,35 @@ impl PipeWireBackend {
         let hw_name = (!hw_name.is_empty()).then(|| hw_name.to_owned());
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
             pw.send(Request::Retarget { side, hw_name });
+        }
+    }
+
+    pub fn apply_rules_all(&self) {
+        let rules = config::load_rules();
+        for info in self.imp().streams.borrow().values() {
+            self.apply_rule_to_stream(info, &rules);
+        }
+    }
+
+    fn apply_rule_to_stream(&self, info: &StreamInfo, rules: &[RoutingRule]) {
+        let imp = self.imp();
+
+        let winner = winning_rule_index(rules, info);
+        let target = winner.map(|i| rules[i].target.node_name());
+
+        // Only clear streams we've changed the target.object on
+        if target.is_none() && !imp.touched.borrow_mut().remove(&info.node_id) {
+            return;
+        }
+        if target.is_some() {
+            imp.touched.borrow_mut().insert(info.node_id);
+        }
+
+        if let Some(pw) = imp.pw.borrow().as_ref() {
+            pw.send(Request::RetargetStream {
+                id: info.node_id,
+                target,
+            });
         }
     }
 
@@ -274,6 +331,15 @@ impl PipeWireBackend {
 
     pub fn connect_sinks_changed<F: Fn(&Self) + 'static>(&self, f: F) {
         self.connect_local("sinks-changed", false, move |args| {
+            let be = args[0].get::<PipeWireBackend>().unwrap();
+            f(&be);
+            None
+        });
+    }
+
+    #[allow(dead_code)]
+    pub fn connect_streams_changed<F: Fn(&Self) + 'static>(&self, f: F) {
+        self.connect_local("streams-changed", false, move |args| {
             let be = args[0].get::<PipeWireBackend>().unwrap();
             f(&be);
             None

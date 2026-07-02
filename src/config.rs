@@ -19,6 +19,7 @@ use gio::prelude::*;
 
 use crate::application::settings;
 use crate::audio::hw_sink::HwSink;
+use crate::audio::routing::RoutingRule;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Side {
@@ -120,4 +121,18 @@ fn store_sink(s: &gio::Settings, def: &SinkDef) {
     let _ = s.set_string("position", &def.position);
     let _ = s.set_string("hw-name", &def.hw_name);
     let _ = s.set_string("display-name", &def.display_name);
+}
+
+// Routing rules live in a GVariant array key
+pub fn load_rules() -> Vec<RoutingRule> {
+    settings()
+        .value("rules")
+        .iter()
+        .filter_map(|v| RoutingRule::from_variant(&v))
+        .collect()
+}
+
+#[allow(dead_code)]
+pub fn store_rules(rules: &[RoutingRule]) {
+    let _ = settings().set_value("rules", &rules.to_variant());
 }

@@ -24,6 +24,12 @@
     <child name="aux"  schema="io.github.arulan.Dashboard.sink"/>
     <child name="main" schema="io.github.arulan.Dashboard.sink"/>
 
+    <!-- (display_name, app_name?, binary?, target, enabled) per rule -->
+    <key name="rules" type="a(smsmssb)">
+      <default>[]</default>
+      <summary>Routing rules</summary>
+    </key>
+
     <key name="volume-display" type="s">
       <choices>
         <choice value="db"/>

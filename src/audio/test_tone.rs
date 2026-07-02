@@ -91,6 +91,8 @@ fn run(
             *pw::keys::TARGET_OBJECT  => sink_name,
             *pw::keys::NODE_NAME      => "dashboard-test-tone",
             *pw::keys::AUDIO_CHANNELS => ch_str.as_str(),
+            // used to filter out test tone streams from stream tracking
+            "dashboard.role"          => "test",
         },
     )?;
 
