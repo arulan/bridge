@@ -17,14 +17,15 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
-use std::sync::OnceLock;
+use std::sync::atomic::AtomicU32;
+use std::sync::{Arc, OnceLock};
 
 use glib::prelude::*;
 use glib::subclass::Signal;
 use glib::subclass::prelude::*;
 
 use super::hw_sink::HwSink;
-use super::level_meter::LevelMeters;
+use super::level_meter::{self, LevelMeters};
 use super::pw_config;
 use super::pw_connection::{Event, PwConnection, Request};
 use super::routing::{RoutingRule, StreamInfo, winning_rule_index};
@@ -37,6 +38,8 @@ pub struct PipeWireBackendImp {
     sinks: RefCell<HashMap<u32, HwSink>>,
     owned: RefCell<HashMap<Side, u32>>,
     streams: RefCell<HashMap<u32, StreamInfo>>,
+    // per-stream peaks, written by the capture meters on the pw thread
+    stream_peaks: RefCell<HashMap<u32, Arc<AtomicU32>>>,
     // stream ids that we've changed target.object on
     touched: RefCell<HashSet<u32>>,
     default_name: RefCell<Option<String>>,
@@ -138,11 +141,12 @@ impl PipeWireBackend {
                     self.emit_by_name::<()>("owned-changed", &[]);
                 }
             }
-            Event::StreamAdded(info) => {
+            Event::StreamAdded { info, peak } => {
                 let live = imp.installed.get();
                 if live {
                     self.apply_rule_to_stream(&info, &config::load_rules());
                 }
+                imp.stream_peaks.borrow_mut().insert(info.node_id, peak);
                 imp.streams.borrow_mut().insert(info.node_id, info);
                 if live {
                     self.emit_by_name::<()>("streams-changed", &[]);
@@ -150,6 +154,7 @@ impl PipeWireBackend {
             }
             Event::StreamRemoved(id) => {
                 imp.touched.borrow_mut().remove(&id);
+                imp.stream_peaks.borrow_mut().remove(&id);
                 let dropped = imp.streams.borrow_mut().remove(&id).is_some();
                 if dropped && imp.installed.get() {
                     self.emit_by_name::<()>("streams-changed", &[]);
@@ -170,7 +175,6 @@ impl PipeWireBackend {
         sinks
     }
 
-    #[allow(dead_code)]
     pub fn output_streams(&self) -> Vec<StreamInfo> {
         self.imp().streams.borrow().values().cloned().collect()
     }
@@ -305,6 +309,15 @@ impl PipeWireBackend {
             .map_or(0.0, |m| m.peak(side))
     }
 
+    /// Latest peak on one tracked app stream
+    pub fn stream_peak(&self, id: u32) -> f32 {
+        self.imp()
+            .stream_peaks
+            .borrow()
+            .get(&id)
+            .map_or(0.0, |a| level_meter::take_peak(a))
+    }
+
     pub fn set_main_default(&self) {
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
             pw.send(Request::SetDefault(pw_config::MAIN_SINK.to_owned()));
@@ -337,7 +350,6 @@ impl PipeWireBackend {
         });
     }
 
-    #[allow(dead_code)]
     pub fn connect_streams_changed<F: Fn(&Self) + 'static>(&self, f: F) {
         self.connect_local("streams-changed", false, move |args| {
             let be = args[0].get::<PipeWireBackend>().unwrap();

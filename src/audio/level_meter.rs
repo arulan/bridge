@@ -54,8 +54,13 @@ impl LevelMeters {
             Side::Aux => &self.aux,
             Side::Main => &self.main,
         };
-        f32::from_bits(atomic.swap(0, Ordering::Relaxed))
+        take_peak(atomic)
     }
+}
+
+/// Peak held in the atomic since the last read, resetting it
+pub(crate) fn take_peak(atomic: &AtomicU32) -> f32 {
+    f32::from_bits(atomic.swap(0, Ordering::Relaxed))
 }
 
 pub(crate) fn peak_f32le(slice: &[u8]) -> f32 {

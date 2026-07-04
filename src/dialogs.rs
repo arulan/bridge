@@ -15,5 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
+pub mod add_rule;
 pub mod preferences;
 pub mod setup;

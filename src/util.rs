@@ -18,7 +18,68 @@
 use gtk::prelude::*;
 use gtk4::{self as gtk};
 
+use crate::audio::backend::PipeWireBackend;
 use crate::audio::hw_sink::HwSink;
+use crate::audio::routing::RuleTarget;
+
+pub struct RouteTarget {
+    pub label: String,
+    pub target: RuleTarget,
+}
+
+pub fn route_targets(hw_sinks: &[HwSink]) -> Vec<RouteTarget> {
+    let mut out = vec![
+        RouteTarget {
+            label: "Aux".to_owned(),
+            target: RuleTarget::Aux,
+        },
+        RouteTarget {
+            label: "Main".to_owned(),
+            target: RuleTarget::Main,
+        },
+    ];
+    for sink in hw_sinks {
+        out.push(RouteTarget {
+            label: sink.display_name.clone(),
+            target: RuleTarget::DirectHw(sink.name.clone()),
+        });
+    }
+    out
+}
+
+pub fn row_level_meter() -> gtk::LevelBar {
+    let bar = gtk::LevelBar::builder()
+        .min_value(0.0)
+        .max_value(1.0)
+        .width_request(60)
+        .valign(gtk::Align::Center)
+        .build();
+    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_LOW));
+    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_HIGH));
+    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_FULL));
+    bar.add_css_class("level-meter");
+    bar
+}
+
+pub fn drive_stream_meters(backend: &PipeWireBackend, meters: &[(gtk::LevelBar, Vec<u32>)]) {
+    const SMOOTHING: f64 = 0.3;
+    for (bar, ids) in meters {
+        let peak = ids
+            .iter()
+            .map(|&id| backend.stream_peak(id) as f64)
+            .fold(0.0, f64::max);
+        let val = (peak * SMOOTHING + bar.value() * (1.0 - SMOOTHING)).clamp(0.0, 1.0);
+        bar.set_value(val);
+    }
+}
+
+pub fn stream_count(n: usize) -> String {
+    if n == 1 {
+        "1 stream".to_owned()
+    } else {
+        format!("{n} streams")
+    }
+}
 
 /// ListStore of HwSinks
 pub fn hw_sink_model(sinks: &[HwSink]) -> gio::ListStore {

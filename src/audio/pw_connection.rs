@@ -67,9 +67,17 @@ pub enum Event {
     Settled,
     SinkAdded(HwSink),
     SinkRemoved(u32),
-    OwnedAdded { side: Side, id: u32 },
-    OwnedRemoved { side: Side },
-    StreamAdded(StreamInfo),
+    OwnedAdded {
+        side: Side,
+        id: u32,
+    },
+    OwnedRemoved {
+        side: Side,
+    },
+    StreamAdded {
+        info: StreamInfo,
+        peak: Arc<AtomicU32>,
+    },
     StreamRemoved(u32),
     DefaultSink(Option<String>),
 }
@@ -133,6 +141,8 @@ struct State {
     hw: HashSet<u32>,
     // streams for routing rules
     streams: HashSet<u32>,
+    // per-stream capture meters, keyed by the stream
+    meters: HashMap<u32, meter::StreamMeter>,
 
     metadata: Option<(pw::metadata::Metadata, pw::metadata::MetadataListener)>,
     meta_cache: HashMap<String, String>,
@@ -149,6 +159,7 @@ impl State {
             owned_pb: HashMap::new(),
             hw: HashSet::new(),
             streams: HashSet::new(),
+            meters: HashMap::new(),
             metadata: None,
             meta_cache: HashMap::new(),
             modules: HashMap::new(),
@@ -224,9 +235,10 @@ fn pw_main(
         .add_listener_local()
         .global({
             let registry = registry.clone();
+            let core = core.clone();
             let evt_tx = evt_tx.clone();
             let state = state.clone();
-            move |global| handle_global(global, &registry, &evt_tx, &state)
+            move |global| handle_global(global, &registry, &core, &evt_tx, &state)
         })
         .global_remove({
             let evt_tx = evt_tx.clone();
@@ -246,7 +258,7 @@ fn pw_main(
     // autoconnects when their target sinks appear
     let mut meters = Vec::with_capacity(2);
     for (sink, atomic) in [(AUX_SINK, aux_peak), (MAIN_SINK, main_peak)] {
-        match meter::open_meter_stream(&core, sink, atomic, &state) {
+        match meter::open_sink_meter(&core, sink, atomic, &state) {
             Ok(pair) => meters.push(pair),
             Err(e) => eprintln!("pw_connection: meter stream for {sink} failed: {e}"),
         }
@@ -358,6 +370,7 @@ fn load_temp_sinks(
 fn handle_global(
     global: &pw::registry::GlobalObject<&spa::utils::dict::DictRef>,
     registry: &pw::registry::RegistryRc,
+    core: &pw::core::CoreRc,
     evt_tx: &async_channel::Sender<Event>,
     state: &Rc<RefCell<State>>,
 ) {
@@ -428,6 +441,7 @@ fn handle_global(
             let listener = node
                 .add_listener_local()
                 .info({
+                    let core = core.clone();
                     let evt_tx = evt_tx.clone();
                     let state = state.clone();
                     move |info| {
@@ -435,7 +449,7 @@ fn handle_global(
                             return;
                         }
                         let Some(props) = info.props() else { return };
-                        classify_node(info.id(), props, &evt_tx, &state);
+                        classify_node(info.id(), props, &core, &evt_tx, &state);
                     }
                 })
                 .register();
@@ -450,6 +464,7 @@ fn handle_global(
 fn classify_node(
     id: u32,
     props: &spa::utils::dict::DictRef,
+    core: &pw::core::CoreRc,
     evt_tx: &async_channel::Sender<Event>,
     state: &Rc<RefCell<State>>,
 ) {
@@ -472,8 +487,18 @@ fn classify_node(
     }
 
     if let Some(info) = stream_info_from_props(id, props) {
+        let peak = Arc::new(AtomicU32::new(0));
+        match dict_prop(props, "object.serial") {
+            Some(serial) => match meter::open_stream_meter(core, id, &serial, Arc::clone(&peak)) {
+                Ok(m) => {
+                    state.borrow_mut().meters.insert(id, m);
+                }
+                Err(e) => eprintln!("pw_connection: meter for stream {id} failed: {e}"),
+            },
+            None => eprintln!("pw_connection: stream {id} has no object.serial, not metering"),
+        }
         state.borrow_mut().streams.insert(id);
-        let _ = evt_tx.try_send(Event::StreamAdded(info));
+        let _ = evt_tx.try_send(Event::StreamAdded { info, peak });
         return;
     }
 
@@ -498,6 +523,7 @@ fn handle_global_remove(
     } else if st.hw.remove(&id) {
         let _ = evt_tx.try_send(Event::SinkRemoved(id));
     } else if st.streams.remove(&id) {
+        st.meters.remove(&id);
         let _ = evt_tx.try_send(Event::StreamRemoved(id));
     }
 

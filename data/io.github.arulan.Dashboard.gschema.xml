@@ -24,8 +24,8 @@
     <child name="aux"  schema="io.github.arulan.Dashboard.sink"/>
     <child name="main" schema="io.github.arulan.Dashboard.sink"/>
 
-    <!-- (display_name, app_name?, binary?, target, enabled) per rule -->
-    <key name="rules" type="a(smsmssb)">
+    <!-- (display_name, app_names, binaries, target, enabled) per rule -->
+    <key name="rules" type="a(sasassb)">
       <default>[]</default>
       <summary>Routing rules</summary>
     </key>

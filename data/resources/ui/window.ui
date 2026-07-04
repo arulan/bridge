@@ -467,6 +467,88 @@
                         </child>
                       </object>
                     </child>
+                    <!-- Routing tile -->
+                    <child>
+                      <object class="GtkBox" id="routing_tile">
+                        <style><class name="card"/></style>
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkListBox" id="routing_header_list">
+                            <property name="selection-mode">none</property>
+                            <style><class name="routing-header-list"/></style>
+                            <child>
+                              <object class="GtkListBoxRow" id="routing_toggle">
+                                <property name="activatable">True</property>
+                                <accessibility>
+                                  <property name="label">Routing</property>
+                                  <state name="expanded">False</state>
+                                </accessibility>
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">12</property>
+                                    <property name="margin-top">10</property>
+                                    <property name="margin-bottom">10</property>
+                                    <property name="margin-start">16</property>
+                                    <property name="margin-end">16</property>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="label">Routing</property>
+                                        <property name="valign">center</property>
+                                        <property name="xalign">0</property>
+                                        <style><class name="heading"/></style>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel" id="routing_badge">
+                                        <property name="label">0</property>
+                                        <property name="valign">center</property>
+                                        <property name="visible">False</property>
+                                        <style><class name="routing-badge"/></style>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkBox">
+                                        <property name="hexpand">True</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkButton" id="routing_add_button">
+                                        <property name="label">Add Rule</property>
+                                        <property name="tooltip-text">Add routing rule</property>
+                                        <property name="valign">center</property>
+                                        <property name="sensitive">False</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkImage" id="routing_chevron">
+                                        <property name="icon-name">pan-end-symbolic</property>
+                                        <property name="valign">center</property>
+                                        <property name="accessible-role">presentation</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkRevealer" id="routing_revealer">
+                            <property name="reveal-child">False</property>
+                            <property name="transition-type">slide-down</property>
+                            <child>
+                              <object class="GtkBox" id="routing_body">
+                                <property name="orientation">vertical</property>
+                                <property name="margin-start">16</property>
+                                <property name="margin-end">16</property>
+                                <property name="margin-bottom">12</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>

@@ -132,7 +132,6 @@ pub fn load_rules() -> Vec<RoutingRule> {
         .collect()
 }
 
-#[allow(dead_code)]
 pub fn store_rules(rules: &[RoutingRule]) {
     let _ = settings().set_value("rules", &rules.to_variant());
 }

@@ -15,8 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
-// a capture stream per virtual sink
-// runs on the pw_connection thread to pin its target.object in the metadata
+// capture streams feeding the level meters: one per virtual sink, plus one
+// per tracked app stream for the routing tile rows
+// they run on the pw_connection thread so the sink meters can pin their
+// target.object in the metadata
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -33,7 +35,16 @@ use crate::audio::level_meter::peak_f32le;
 
 const SAMPLE_RATE: u32 = 48_000;
 
-pub(super) fn open_meter_stream<'c>(
+// Caps meter wakeups on low-latency graphs to the default quantum
+const LATENCY: &str = "1024/48000";
+
+// Meter for one app stream
+pub(super) struct StreamMeter {
+    _listener: pw::stream::StreamListener<Arc<AtomicU32>>,
+    _stream: pw::stream::StreamRc,
+}
+
+pub(super) fn open_sink_meter<'c>(
     core: &'c pw::core::Core,
     sink_name: &str,
     atomic: Arc<AtomicU32>,
@@ -55,6 +66,7 @@ pub(super) fn open_meter_stream<'c>(
             *pw::keys::MEDIA_ROLE     => "Filter",
             *pw::keys::TARGET_OBJECT  => sink_name,
             *pw::keys::NODE_NAME      => stream_name.as_str(),
+            *pw::keys::NODE_LATENCY   => LATENCY,
             *pw::keys::AUDIO_CHANNELS => "1",
 
             // Important for WP to link to a sink's monitor
@@ -64,25 +76,7 @@ pub(super) fn open_meter_stream<'c>(
 
     let listener = stream
         .add_local_listener_with_user_data(atomic)
-        .process(|stream, atomic| {
-            let Some(mut buffer) = stream.dequeue_buffer() else {
-                return;
-            };
-            let datas = buffer.datas_mut();
-            if datas.is_empty() {
-                return;
-            }
-            let data = &mut datas[0];
-            let size = data.chunk().size() as usize;
-            let offset = data.chunk().offset() as usize;
-            let Some(slice) = data.data() else { return };
-            let end = (offset + size).min(slice.len());
-
-            let peak = peak_f32le(&slice[offset..end]);
-            if peak > 0.0 {
-                atomic.fetch_max(peak.to_bits(), Ordering::Relaxed);
-            }
-        })
+        .process(read_peak)
         .state_changed({
             let state = state.clone();
             let sink_name = sink_name.to_owned();
@@ -105,6 +99,66 @@ pub(super) fn open_meter_stream<'c>(
         })
         .register()?;
 
+    connect_mono(&stream)?;
+
+    Ok((stream, listener))
+}
+
+pub(super) fn open_stream_meter(
+    core: &pw::core::CoreRc,
+    node_id: u32,
+    serial: &str,
+    atomic: Arc<AtomicU32>,
+) -> Result<StreamMeter, pw::Error> {
+    let stream_name = format!("dashboard-meter-stream-{node_id}");
+    let stream = pw::stream::StreamRc::new(
+        core.clone(),
+        &stream_name,
+        properties! {
+            *pw::keys::MEDIA_TYPE     => "Audio",
+            *pw::keys::MEDIA_CATEGORY => "Capture",
+            *pw::keys::MEDIA_ROLE     => "Filter",
+            *pw::keys::TARGET_OBJECT  => serial,
+            *pw::keys::NODE_NAME      => stream_name.as_str(),
+            *pw::keys::NODE_LATENCY   => LATENCY,
+            *pw::keys::AUDIO_CHANNELS => "1",
+        },
+    )?;
+
+    let listener = stream
+        .add_local_listener_with_user_data(atomic)
+        .process(read_peak)
+        .register()?;
+
+    connect_mono(&stream)?;
+
+    Ok(StreamMeter {
+        _listener: listener,
+        _stream: stream,
+    })
+}
+
+fn read_peak(stream: &pw::stream::Stream, atomic: &mut Arc<AtomicU32>) {
+    let Some(mut buffer) = stream.dequeue_buffer() else {
+        return;
+    };
+    let datas = buffer.datas_mut();
+    if datas.is_empty() {
+        return;
+    }
+    let data = &mut datas[0];
+    let size = data.chunk().size() as usize;
+    let offset = data.chunk().offset() as usize;
+    let Some(slice) = data.data() else { return };
+    let end = (offset + size).min(slice.len());
+
+    let peak = peak_f32le(&slice[offset..end]);
+    if peak > 0.0 {
+        atomic.fetch_max(peak.to_bits(), Ordering::Relaxed);
+    }
+}
+
+fn connect_mono(stream: &pw::stream::Stream) -> Result<(), pw::Error> {
     let mut audio_info = spa::param::audio::AudioInfoRaw::new();
     audio_info.set_format(spa::param::audio::AudioFormat::F32LE);
     audio_info.set_rate(SAMPLE_RATE);
@@ -136,6 +190,5 @@ pub(super) fn open_meter_stream<'c>(
             | pw::stream::StreamFlags::RT_PROCESS,
         &mut params,
     )?;
-
-    Ok((stream, listener))
+    Ok(())
 }

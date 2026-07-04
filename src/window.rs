@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
+mod routing_tile;
+
 use std::cell::{Cell, OnceCell, RefCell};
 use std::time::Duration;
 
@@ -26,7 +28,7 @@ use crate::audio::backend::PipeWireBackend;
 use crate::audio::hw_sink::HwSink;
 use crate::audio::{mixer, pw_config};
 use crate::config::{self, Side};
-use crate::util::{hw_sink_factory, hw_sink_model, selected_hw_sink};
+use crate::util::{drive_stream_meters, hw_sink_factory, hw_sink_model, selected_hw_sink};
 use crate::volume::VolumeDisplay;
 
 #[derive(CompositeTemplate, Default)]
@@ -82,11 +84,33 @@ pub struct DashboardWindowImp {
     pub aux_disconnect_banner: TemplateChild<gtk::Box>,
     #[template_child]
     pub main_disconnect_banner: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub routing_header_list: TemplateChild<gtk::ListBox>,
+    #[template_child]
+    pub routing_toggle: TemplateChild<gtk::ListBoxRow>,
+    #[template_child]
+    pub routing_add_button: TemplateChild<gtk::Button>,
+    #[template_child]
+    pub routing_badge: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub routing_chevron: TemplateChild<gtk::Image>,
+    #[template_child]
+    pub routing_revealer: TemplateChild<gtk::Revealer>,
+    #[template_child]
+    pub routing_body: TemplateChild<gtk::Box>,
 
     backend: RefCell<Option<PipeWireBackend>>,
     suppress_selected: Cell<bool>,
     aux_disconnected: Cell<bool>,
     main_disconnected: Cell<bool>,
+
+    routing_row_meters: RefCell<Vec<(gtk::LevelBar, Vec<u32>)>>,
+
+    // set while the Add Rule dialog is open
+    // the Add Rule dialog meters drain the same swap-to-zero peaks from the routing tile
+    stream_meters_paused: Cell<bool>,
+
+    routing_size_groups: RefCell<Vec<gtk::SizeGroup>>,
 
     volume_display: Cell<VolumeDisplay>,
     settings: OnceCell<gio::Settings>,
@@ -231,16 +255,40 @@ impl DashboardWindow {
             }
         ));
 
+        imp.routing_header_list.connect_row_activated(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_, _| w.toggle_routing_expanded()
+        ));
+
+        imp.routing_add_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.show_add_rule_dialog(&[])
+        ));
+
         backend.connect_sinks_ready(glib::clone!(
             #[weak(rename_to = w)]
             self,
-            move |_| w.populate_dropdowns()
+            move |_| {
+                w.populate_dropdowns();
+                w.refresh_routing_tile();
+            }
         ));
 
         backend.connect_sinks_changed(glib::clone!(
             #[weak(rename_to = w)]
             self,
-            move |_| w.populate_dropdowns()
+            move |_| {
+                w.populate_dropdowns();
+                w.refresh_routing_tile();
+            }
+        ));
+
+        backend.connect_streams_changed(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.refresh_routing_tile()
         ));
 
         backend.connect_default_changed(glib::clone!(
@@ -296,6 +344,10 @@ impl DashboardWindow {
                 (peak * SMOOTHING + bar.value() * (1.0 - SMOOTHING)).clamp(0.0, 1.0)
             };
             bar.set_value(val);
+        }
+
+        if !imp.stream_meters_paused.get() {
+            drive_stream_meters(&backend, &imp.routing_row_meters.borrow());
         }
     }
 

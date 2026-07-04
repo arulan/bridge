@@ -88,8 +88,8 @@ impl From<RuleTarget> for glib::Variant {
 #[derive(Clone, Debug, glib::Variant)]
 pub struct RoutingRule {
     pub display_name: String,
-    pub match_app_name: Option<String>,
-    pub match_binary: Option<String>,
+    pub match_app_names: Vec<String>,
+    pub match_binaries: Vec<String>,
     pub target: RuleTarget,
     pub enabled: bool,
 }
@@ -97,21 +97,24 @@ pub struct RoutingRule {
 impl RoutingRule {
     /// Higher specificity (more properties) wins ties
     pub fn specificity(&self) -> usize {
-        self.match_app_name.is_some() as usize + self.match_binary.is_some() as usize
+        (!self.match_app_names.is_empty()) as usize + (!self.match_binaries.is_empty()) as usize
     }
 
     pub fn matches(&self, info: &StreamInfo) -> bool {
-        if let Some(n) = &self.match_app_name
-            && info.app_name.as_deref() != Some(n.as_str())
-        {
+        if !self.match_app_names.is_empty() && !contains(&self.match_app_names, &info.app_name) {
             return false;
         }
-        if let Some(b) = &self.match_binary
-            && info.binary.as_deref() != Some(b.as_str())
-        {
+        if !self.match_binaries.is_empty() && !contains(&self.match_binaries, &info.binary) {
             return false;
         }
         self.specificity() > 0
+    }
+}
+
+fn contains(set: &[String], value: &Option<String>) -> bool {
+    match value {
+        Some(v) => set.iter().any(|s| s == v),
+        None => false,
     }
 }
 
@@ -125,10 +128,19 @@ pub struct StreamInfo {
 }
 
 pub fn winning_rule_index(rules: &[RoutingRule], info: &StreamInfo) -> Option<usize> {
+    best_match_index(rules, info, true)
+}
+
+// keeps streams attached to the disabled rule that would match it
+pub fn would_match_disabled_index(rules: &[RoutingRule], info: &StreamInfo) -> Option<usize> {
+    best_match_index(rules, info, false)
+}
+
+fn best_match_index(rules: &[RoutingRule], info: &StreamInfo, enabled: bool) -> Option<usize> {
     rules
         .iter()
         .enumerate()
-        .filter(|(_, r)| r.enabled)
+        .filter(|(_, r)| r.enabled == enabled)
         .filter(|(_, r)| r.matches(info))
         .max_by_key(|(_, r)| r.specificity())
         .map(|(idx, _)| idx)
