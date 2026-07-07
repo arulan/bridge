@@ -132,9 +132,28 @@ pub fn parse_default_name(value: &str) -> Option<String> {
     Some(rest[..close].to_owned())
 }
 
+/// GlobalShorcuts on GNOME replies with trigger_description
+/// e.g. "Press <Shift><Control>Left"
+/// Drop the leading verb
+/// TODO: Check if this holds true across other localizations
+pub fn accelerator_from_trigger_description(desc: &str) -> String {
+    let desc = desc.trim();
+    if desc.is_empty() {
+        return String::new();
+    }
+    if let Some(i) = desc.find('<') {
+        desc[i..].to_owned()
+    } else {
+        desc.rsplit(char::is_whitespace)
+            .next()
+            .unwrap_or(desc)
+            .to_owned()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::parse_default_name;
+    use super::{accelerator_from_trigger_description, parse_default_name};
 
     #[test]
     fn pulls_name_from_json() {

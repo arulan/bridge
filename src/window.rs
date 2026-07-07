@@ -28,14 +28,20 @@ use crate::audio::backend::PipeWireBackend;
 use crate::audio::hw_sink::HwSink;
 use crate::audio::{mixer, pw_config};
 use crate::config::{self, Side};
+use crate::shortcuts::ShortcutsPortal;
 use crate::util::{drive_stream_meters, hw_sink_factory, hw_sink_model, selected_hw_sink};
 use crate::volume::VolumeDisplay;
+
+// One step is 10% of the [-1, 1] crossfade range
+const STEP: f64 = 0.1;
 
 #[derive(CompositeTemplate, Default)]
 #[template(resource = "/io/github/arulan/Dashboard/ui/window.ui")]
 pub struct DashboardWindowImp {
     #[template_child]
     pub persist_banner: TemplateChild<adw::Banner>,
+    #[template_child]
+    pub shortcuts_banner: TemplateChild<adw::Banner>,
     #[template_child]
     pub aux_hw_dropdown: TemplateChild<gtk::DropDown>,
     #[template_child]
@@ -103,6 +109,8 @@ pub struct DashboardWindowImp {
     suppress_selected: Cell<bool>,
     aux_disconnected: Cell<bool>,
     main_disconnected: Cell<bool>,
+
+    shortcut_banner_dismissed: Cell<bool>,
 
     routing_row_meters: RefCell<Vec<(gtk::LevelBar, Vec<u32>)>>,
 
@@ -481,6 +489,52 @@ impl DashboardWindow {
 
         self.render_fill(imp.mix_scale.value());
         self.update_readout_labels();
+    }
+
+    pub fn bind_shortcuts(&self, portal: &ShortcutsPortal) {
+        let imp = self.imp();
+
+        imp.shortcuts_banner.connect_button_clicked(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |b| {
+                w.imp().shortcut_banner_dismissed.set(true);
+                b.set_revealed(false);
+            }
+        ));
+
+        portal.connect_active_changed(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |p| w.update_shortcuts_banner(p.is_active())
+        ));
+
+        portal.connect_shortcut_activated(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_, id| match id {
+                "step-left" => w.step(-STEP),
+                "step-right" => w.step(STEP),
+                "reset" => w.imp().mix_scale.set_value(0.0),
+                _ => {}
+            }
+        ));
+    }
+
+    fn step(&self, delta: f64) {
+        let scale = &self.imp().mix_scale;
+        scale.set_value(scale.value() + delta);
+    }
+
+    fn update_shortcuts_banner(&self, active: bool) {
+        let imp = self.imp();
+
+        if active {
+            imp.shortcut_banner_dismissed.set(false);
+            imp.shortcuts_banner.set_revealed(false);
+        } else if !imp.shortcut_banner_dismissed.get() {
+            imp.shortcuts_banner.set_revealed(true);
+        }
     }
 
     // fill bheavior center -> selection

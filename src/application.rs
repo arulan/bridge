@@ -26,6 +26,8 @@ use crate::audio::pw_config;
 use crate::config;
 use crate::dialogs::preferences;
 use crate::dialogs::setup::SetupDialog;
+use crate::shortcuts::{self, ShortcutsPortal};
+use crate::util;
 use crate::window::DashboardWindow;
 
 // fallback for cargo; comes from meson at build time now
@@ -45,6 +47,7 @@ pub fn settings() -> gio::Settings {
 pub struct DashboardApplicationImp {
     window: RefCell<Option<DashboardWindow>>,
     backend: RefCell<Option<PipeWireBackend>>,
+    shortcuts: RefCell<Option<ShortcutsPortal>>,
 }
 
 #[glib::object_subclass]
@@ -75,6 +78,14 @@ impl ApplicationImpl for DashboardApplicationImp {
         window.setup(&be);
         *self.window.borrow_mut() = Some(window.clone());
 
+        // Global shortcuts portal
+        let portal = ShortcutsPortal::new();
+        if let Some(conn) = app.dbus_connection() {
+            portal.start(conn);
+        }
+        window.bind_shortcuts(&portal);
+        *self.shortcuts.borrow_mut() = Some(portal);
+
         if config::is_configured() {
             window.present();
         } else {
@@ -87,6 +98,9 @@ impl ApplicationImpl for DashboardApplicationImp {
     }
 
     fn shutdown(&self) {
+        if let Some(portal) = self.shortcuts.borrow().as_ref() {
+            portal.stop();
+        }
         if let Some(be) = self.backend.borrow().as_ref() {
             be.stop();
         }
@@ -152,6 +166,49 @@ impl DashboardApplicationImp {
 
     fn show_shortcuts_dialog(&self) {
         let dialog = adw::ShortcutsDialog::new();
+
+        let active = self
+            .shortcuts
+            .borrow()
+            .as_ref()
+            .is_some_and(|p| p.is_active());
+        let global = adw::ShortcutsSection::new(Some("Global Shortcuts"));
+        let items: Vec<adw::ShortcutsItem> = shortcuts::SHORTCUTS
+            .iter()
+            .map(|(_, desc, _)| {
+                let item = adw::ShortcutsItem::new(desc, "");
+                item.set_subtitle(if active {
+                    "Set in your desktop's shortcut settings"
+                } else {
+                    "Unavailable"
+                });
+                global.add(item.clone());
+                item
+            })
+            .collect();
+        dialog.add(global);
+
+        if let Some(portal) = self.shortcuts.borrow().clone() {
+            portal.list_shortcuts(move |list| {
+                // GNOME implementation sends trigger descriptions per shortcut
+                // KDE unfortunately does not appear to do so
+                let map: std::collections::HashMap<String, String> = list
+                    .into_iter()
+                    .map(|(id, _desc, trigger)| (id, trigger))
+                    .collect();
+                for (i, (id, _, _)) in shortcuts::SHORTCUTS.iter().enumerate() {
+                    let Some(item) = items.get(i) else { continue };
+                    let accel = map
+                        .get(*id)
+                        .map(|t| util::accelerator_from_trigger_description(t))
+                        .unwrap_or_default();
+                    if !accel.is_empty() {
+                        item.set_accelerator(&accel);
+                        item.set_subtitle("");
+                    }
+                }
+            });
+        }
 
         let builder = gtk::Builder::from_resource("/io/github/arulan/Dashboard/ui/shortcuts.ui");
         for id in ["section_crossfader", "section_application"] {

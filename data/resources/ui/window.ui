@@ -56,6 +56,13 @@
               </object>
             </child>
             <child>
+              <object class="AdwBanner" id="shortcuts_banner">
+                <property name="title">Global shortcuts are inactive</property>
+                <property name="button-label">Dismiss</property>
+                <property name="revealed">False</property>
+              </object>
+            </child>
+            <child>
           <object class="GtkScrolledWindow">
             <property name="hscrollbar-policy">never</property>
             <property name="vexpand">true</property>
