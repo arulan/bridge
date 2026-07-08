@@ -18,3 +18,4 @@
 pub mod add_rule;
 pub mod preferences;
 pub mod setup;
+pub mod surround;

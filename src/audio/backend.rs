@@ -37,6 +37,7 @@ pub struct PipeWireBackendImp {
     // Mirrors the pw side state
     sinks: RefCell<HashMap<u32, HwSink>>,
     owned: RefCell<HashMap<Side, u32>>,
+    surround_id: RefCell<Option<u32>>,
     streams: RefCell<HashMap<u32, StreamInfo>>,
     // per-stream peaks, written by the capture meters on the pw thread
     stream_peaks: RefCell<HashMap<u32, Arc<AtomicU32>>>,
@@ -69,6 +70,8 @@ impl ObjectImpl for PipeWireBackendImp {
                 Signal::builder("streams-changed").build(),
                 Signal::builder("default-changed").build(),
                 Signal::builder("owned-changed").build(),
+                Signal::builder("surround-ready").build(),
+                Signal::builder("surround-removed").build(),
             ]
         })
     }
@@ -85,10 +88,10 @@ impl PipeWireBackend {
 
     pub fn start(&self) {
         let meters = LevelMeters::new();
-        let (aux_peak, main_peak) = meters.atoms();
+        let (aux_peak, main_peak, surround_peak) = meters.atoms();
         self.imp().level_meters.replace(Some(meters));
 
-        let (pw, evt_rx) = PwConnection::start(aux_peak, main_peak);
+        let (pw, evt_rx) = PwConnection::start(aux_peak, main_peak, surround_peak);
         self.imp().pw.replace(Some(pw));
 
         let weak = self.downgrade();
@@ -140,6 +143,14 @@ impl PipeWireBackend {
                 if imp.owned.borrow_mut().remove(&side).is_some() {
                     self.emit_by_name::<()>("owned-changed", &[]);
                 }
+            }
+            Event::SurroundReady { id } => {
+                imp.surround_id.replace(Some(id));
+                self.emit_by_name::<()>("surround-ready", &[]);
+            }
+            Event::SurroundRemoved => {
+                imp.surround_id.replace(None);
+                self.emit_by_name::<()>("surround-removed", &[]);
             }
             Event::StreamAdded { info, peak } => {
                 let live = imp.installed.get();
@@ -283,6 +294,27 @@ impl PipeWireBackend {
         }
     }
 
+    /// Volume on the surround sink
+    pub fn set_surround_volume(&self, volume: f64) {
+        if let Some(pw) = self.imp().pw.borrow().as_ref() {
+            pw.send(Request::SetSurroundVolume {
+                volume: volume as f32,
+            });
+        }
+    }
+
+    /// Mute on the surround sink
+    pub fn set_surround_mute(&self, muted: bool) {
+        if let Some(pw) = self.imp().pw.borrow().as_ref() {
+            pw.send(Request::SetSurroundMute { muted });
+        }
+    }
+
+    /// True once the surround sink is live
+    pub fn surround_present(&self) -> bool {
+        self.imp().surround_id.borrow().is_some()
+    }
+
     /// Play per-channel test tone through our virtual sinks. The layout comes
     /// from the saved config.
     pub fn play_test_tone(&self, side: Side, on_done: impl FnOnce() + Send + 'static) {
@@ -300,6 +332,15 @@ impl PipeWireBackend {
         test_tone::play_through_sink(sink_name, n_channels, positions, sweep, on_done);
     }
 
+    /// Sweep a 7.1 test tone through the surround sink
+    pub fn play_surround_test_tone(&self, on_done: impl FnOnce() + Send + 'static) {
+        // fixed layout
+        let positions = test_tone::pos_str_to_spa_ids("FL,FR,FC,LFE,RL,RR,SL,SR", 8);
+        let sweep = vec![0, 2, 1, 7, 5, 4, 6, 3];
+
+        test_tone::play_through_sink(pw_config::SURROUND_SINK, 8, positions, sweep, on_done);
+    }
+
     /// Get the latest peak level on each side's sink
     pub fn peak(&self, side: Side) -> f32 {
         self.imp()
@@ -307,6 +348,15 @@ impl PipeWireBackend {
             .borrow()
             .as_ref()
             .map_or(0.0, |m| m.peak(side))
+    }
+
+    /// Latest peak on the surround sink
+    pub fn surround_peak(&self) -> f32 {
+        self.imp()
+            .level_meters
+            .borrow()
+            .as_ref()
+            .map_or(0.0, |m| m.surround_peak())
     }
 
     /// Latest peak on one tracked app stream
@@ -318,10 +368,14 @@ impl PipeWireBackend {
             .map_or(0.0, |a| level_meter::take_peak(a))
     }
 
-    pub fn set_main_default(&self) {
+    pub fn set_default_sink(&self, name: &str) {
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
-            pw.send(Request::SetDefault(pw_config::MAIN_SINK.to_owned()));
+            pw.send(Request::SetDefault(name.to_owned()));
         }
+    }
+
+    pub fn set_main_default(&self) {
+        self.set_default_sink(pw_config::MAIN_SINK);
     }
 
     /// node.name of the current system default sink
@@ -329,9 +383,12 @@ impl PipeWireBackend {
         self.imp().default_name.borrow().clone()
     }
 
+    pub fn is_default(&self, name: &str) -> Option<bool> {
+        self.default_sink_name().map(|current| current == name)
+    }
+
     pub fn main_is_default(&self) -> Option<bool> {
-        self.default_sink_name()
-            .map(|name| name == pw_config::MAIN_SINK)
+        self.is_default(pw_config::MAIN_SINK)
     }
 
     pub fn connect_sinks_ready<F: Fn(&Self) + 'static>(&self, f: F) {
@@ -368,6 +425,22 @@ impl PipeWireBackend {
 
     pub fn connect_owned_changed<F: Fn(&Self) + 'static>(&self, f: F) {
         self.connect_local("owned-changed", false, move |args| {
+            let be = args[0].get::<PipeWireBackend>().unwrap();
+            f(&be);
+            None
+        });
+    }
+
+    pub fn connect_surround_ready<F: Fn(&Self) + 'static>(&self, f: F) {
+        self.connect_local("surround-ready", false, move |args| {
+            let be = args[0].get::<PipeWireBackend>().unwrap();
+            f(&be);
+            None
+        });
+    }
+
+    pub fn connect_surround_removed<F: Fn(&Self) + 'static>(&self, f: F) {
+        self.connect_local("surround-removed", false, move |args| {
             let be = args[0].get::<PipeWireBackend>().unwrap();
             f(&be);
             None

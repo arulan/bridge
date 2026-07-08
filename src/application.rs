@@ -26,6 +26,7 @@ use crate::audio::pw_config;
 use crate::config;
 use crate::dialogs::preferences;
 use crate::dialogs::setup::SetupDialog;
+use crate::dialogs::surround::SurroundDialog;
 use crate::shortcuts::{self, ShortcutsPortal};
 use crate::util;
 use crate::window::DashboardWindow;
@@ -159,6 +160,61 @@ impl DashboardApplicationImp {
         dialog.present();
     }
 
+    fn show_surround_dialog(&self) {
+        let Some(be) = self.backend.borrow().clone() else {
+            return;
+        };
+        let win = self.window.borrow().clone();
+        let current = config::load_surround();
+        let dialog = SurroundDialog::new(be.hw_sinks(), &current, win.as_ref());
+
+        let win_c = win.clone();
+        dialog.connect_closure(
+            "approved",
+            false,
+            glib::closure_local!(move |d: SurroundDialog| {
+                let (Some(sink), Some(source)) = (d.selected_sink(), d.hrir_source()) else {
+                    return;
+                };
+                let hrir_path = match pw_config::import_hrir(&source) {
+                    Ok(dest) => dest.to_string_lossy().into_owned(),
+                    Err(e) => {
+                        eprintln!("surround: failed to import HRIR: {e}");
+                        return;
+                    }
+                };
+                let old = config::load_surround();
+                config::store_surround(&config::SurroundConfig {
+                    hrir_path: hrir_path.clone(),
+                    hw_name: sink.name.clone(),
+                    display_name: sink.display_name.clone(),
+                });
+                pw_config::write_surround_config(&hrir_path, &sink.name);
+                if let Some(w) = &win_c {
+                    if old.hw_name != sink.name || old.hrir_path != hrir_path {
+                        w.note_surround_reconfig();
+                    }
+                    w.refresh_surround();
+                }
+            }),
+        );
+
+        let win_c = win.clone();
+        dialog.connect_closure(
+            "reset",
+            false,
+            glib::closure_local!(move |_d: SurroundDialog| {
+                config::clear_surround();
+                pw_config::remove_surround_config();
+                if let Some(w) = &win_c {
+                    w.refresh_surround();
+                }
+            }),
+        );
+
+        dialog.present();
+    }
+
     fn show_preferences_dialog(&self) {
         let parent = self.window.borrow().clone();
         preferences::show(parent.as_ref());
@@ -258,6 +314,11 @@ pub fn register_actions(app: &DashboardApplication) {
     let app_c = app.clone();
     setup.connect_activate(move |_, _| app_c.imp().show_setup_dialog(false));
     app.add_action(&setup);
+
+    let surround = gio::SimpleAction::new("surround", None);
+    let app_c = app.clone();
+    surround.connect_activate(move |_, _| app_c.imp().show_surround_dialog());
+    app.add_action(&surround);
 
     let preferences = gio::SimpleAction::new("preferences", None);
     let app_c = app.clone();

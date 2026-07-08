@@ -24,7 +24,9 @@ use gtk4::{self as gtk};
 use crate::audio::hw_sink::HwSink;
 use crate::audio::pw_config;
 use crate::config::{Side, SinkConfig};
-use crate::util::{hw_sink_factory, hw_sink_model, selected_hw_sink};
+use crate::util::{
+    hw_sink_factory, hw_sink_model, make_device_row, make_file_row, selected_hw_sink,
+};
 
 #[derive(Default)]
 pub struct SetupDialogImp {
@@ -275,70 +277,4 @@ impl SetupDialog {
         toolbar.set_content(Some(&outer_scroll));
         self.set_content(Some(&toolbar));
     }
-}
-
-fn make_device_row(label_text: &str, dropdown: &gtk::DropDown) -> gtk::Box {
-    let row = gtk::Box::builder()
-        .orientation(gtk::Orientation::Horizontal)
-        .spacing(12)
-        .valign(gtk::Align::Center)
-        .build();
-    let lbl = gtk::Label::builder()
-        .label(label_text)
-        .xalign(0.0)
-        .hexpand(true)
-        .build();
-    row.append(&lbl);
-    row.append(dropdown);
-    row
-}
-
-fn make_file_row(path: &str, content: &str) -> gtk::Box {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let display_path = path.replacen(&home, "~", 1);
-
-    // TODO: Check with GNOME HIG on EllipsizeMode recommendation
-    let lbl = gtk::Label::builder()
-        .label(&display_path)
-        .xalign(0.0)
-        .hexpand(true)
-        .max_width_chars(1)
-        .ellipsize(gtk::pango::EllipsizeMode::Middle)
-        .tooltip_text(&display_path)
-        .build();
-    lbl.add_css_class("monospace");
-    lbl.add_css_class("caption");
-
-    let expander = gtk::Expander::new(None);
-    expander.set_label_widget(Some(&lbl));
-
-    let tv = gtk::TextView::builder()
-        .editable(false)
-        .monospace(true)
-        .cursor_visible(false)
-        .top_margin(10)
-        .bottom_margin(10)
-        .left_margin(12)
-        .right_margin(12)
-        .build();
-    tv.buffer().set_text(content.trim());
-
-    let sw = gtk::ScrolledWindow::builder()
-        .min_content_height(180)
-        .max_content_height(300)
-        .hscrollbar_policy(gtk::PolicyType::Automatic)
-        .vscrollbar_policy(gtk::PolicyType::Automatic)
-        .child(&tv)
-        .build();
-
-    let frame = gtk::Frame::new(None);
-    frame.set_child(Some(&sw));
-    expander.set_child(Some(&frame));
-
-    let boxw = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .spacing(6)
-        .build();
-    boxw.append(&expander);
-    boxw
 }

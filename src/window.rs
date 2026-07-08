@@ -16,6 +16,7 @@
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
 mod routing_tile;
+mod surround_mode;
 
 use std::cell::{Cell, OnceCell, RefCell};
 use std::time::Duration;
@@ -67,6 +68,10 @@ pub struct DashboardWindowImp {
     #[template_child]
     pub main_channels_label: TemplateChild<gtk::Label>,
     #[template_child]
+    pub aux_status_row: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub main_status_row: TemplateChild<gtk::Box>,
+    #[template_child]
     pub mix_scale: TemplateChild<gtk::Scale>,
     #[template_child]
     pub aux_volume_box: TemplateChild<gtk::Box>,
@@ -86,6 +91,18 @@ pub struct DashboardWindowImp {
     pub main_default_button: TemplateChild<gtk::Button>,
     #[template_child]
     pub main_default_tag: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub main_subtitle_label: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub main_mode_toggle: TemplateChild<adw::ToggleGroup>,
+    #[template_child]
+    pub main_surround_setup_button: TemplateChild<gtk::Button>,
+    #[template_child]
+    pub main_surround_restart_banner: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub main_surround_restart_label: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub main_surround_error_banner: TemplateChild<gtk::Box>,
     #[template_child]
     pub aux_disconnect_banner: TemplateChild<gtk::Box>,
     #[template_child]
@@ -109,6 +126,14 @@ pub struct DashboardWindowImp {
     suppress_selected: Cell<bool>,
     aux_disconnected: Cell<bool>,
     main_disconnected: Cell<bool>,
+
+    // Virtual Surround is a mode that changes the virtual sink driving the Main card
+    surround_active: Cell<bool>,
+    main_muted: Cell<bool>,
+    surround_user_muted: Cell<bool>,
+    mode_swap_in_progress: Cell<bool>,
+    // conf was rewritten while the virtual surround node was live; applies next login
+    surround_pending: Cell<bool>,
 
     shortcut_banner_dismissed: Cell<bool>,
 
@@ -259,8 +284,42 @@ impl DashboardWindow {
                 let Some(backend) = w.imp().backend.borrow().clone() else {
                     return;
                 };
-                backend.set_main_default();
+                backend.set_default_sink(w.active_main_sink());
             }
+        ));
+
+        // virtual surround is persist only
+        imp.surround_active.set(config::surround_active());
+
+        imp.main_mode_toggle
+            .connect_active_name_notify(glib::clone!(
+                #[weak(rename_to = w)]
+                self,
+                move |tg| {
+                    let want_surround = tg.active_name().as_deref() == Some("surround");
+                    w.on_main_mode_toggled(want_surround);
+                }
+            ));
+
+        imp.main_surround_setup_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| {
+                let _ = gtk::prelude::WidgetExt::activate_action(&w, "app.surround", None);
+            }
+        ));
+
+        backend.connect_surround_ready(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.on_surround_ready()
+        ));
+
+        // the node dropping falls back to direct mode
+        backend.connect_surround_removed(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.on_surround_removed()
         ));
 
         imp.routing_header_list.connect_row_activated(glib::clone!(
@@ -312,6 +371,7 @@ impl DashboardWindow {
         ));
         *imp.backend.borrow_mut() = Some(backend.clone());
 
+        self.refresh_surround();
         self.start_activity_ticker();
     }
 
@@ -341,6 +401,7 @@ impl DashboardWindow {
             return;
         };
 
+        let surround_active = imp.surround_active.get();
         for (side, bar, mute_btn) in [
             (Side::Aux, &*imp.aux_level_bar, &*imp.aux_mute_button),
             (Side::Main, &*imp.main_level_bar, &*imp.main_mute_button),
@@ -348,7 +409,12 @@ impl DashboardWindow {
             let val = if mute_btn.is_active() {
                 0.0
             } else {
-                let peak = backend.peak(side) as f64;
+                // in surround mode the Main level meter follows the surround sink
+                let peak = if side == Side::Main && surround_active {
+                    backend.surround_peak()
+                } else {
+                    backend.peak(side)
+                } as f64;
                 (peak * SMOOTHING + bar.value() * (1.0 - SMOOTHING)).clamp(0.0, 1.0)
             };
             bar.set_value(val);
@@ -398,7 +464,22 @@ impl DashboardWindow {
             ),
         };
 
-        let def = cfg.side(side);
+        // in surround mode the hw output dropdown is disabled
+        // it's configured in the setup dialog
+        let surround_lock = side == Side::Main && imp.surround_active.get();
+        let surround_def;
+        let def = if surround_lock {
+            let sc = config::load_surround();
+            surround_def = config::SinkDef {
+                channels: 2,
+                position: "FL,FR".to_owned(),
+                hw_name: sc.hw_name,
+                display_name: sc.display_name,
+            };
+            &surround_def
+        } else {
+            cfg.side(side)
+        };
         let present = sinks.iter().any(|s| s.name == def.hw_name);
         let disconnected = !def.hw_name.is_empty() && !present;
 
@@ -435,6 +516,12 @@ impl DashboardWindow {
 
         disc_cell.set(disconnected);
         banner.set_visible(disconnected);
+
+        // the surround output can only be changed from its dialog
+        if side == Side::Main {
+            dropdown.set_sensitive(!surround_lock);
+            dropdown.set_tooltip_text(surround_lock.then_some("Configured in Virtual Surround"));
+        }
     }
 
     fn sync_controls(&self) {
@@ -462,7 +549,15 @@ impl DashboardWindow {
         if present {
             self.apply_mix();
             backend.set_mute(Side::Aux, imp.aux_mute_button.is_active());
-            backend.set_mute(Side::Main, imp.main_mute_button.is_active());
+            if imp.surround_active.get() {
+                backend.set_mute(Side::Main, true);
+                backend.set_surround_mute(imp.main_mute_button.is_active());
+            } else {
+                backend.set_mute(Side::Main, imp.main_mute_button.is_active());
+                if backend.surround_present() {
+                    backend.set_surround_mute(true);
+                }
+            }
         }
 
         let persistent = present && !backend.using_temp_sinks();
@@ -472,8 +567,9 @@ impl DashboardWindow {
         imp.persist_banner
             .set_revealed(config::is_configured() && !persistent);
 
-        // keep the default banner/tag in step with the disconnect state
+        // keep the default banner/tag + surround in step
         self.refresh_default_banner();
+        self.refresh_surround();
     }
 
     fn apply_mix(&self) {
@@ -486,6 +582,10 @@ impl DashboardWindow {
 
         backend.set_volume(Side::Aux, aux);
         backend.set_volume(Side::Main, main);
+
+        if backend.surround_present() {
+            backend.set_surround_volume(main);
+        }
 
         self.render_fill(imp.mix_scale.value());
         self.update_readout_labels();
@@ -558,6 +658,10 @@ impl DashboardWindow {
     fn on_mute_toggled(&self, side: Side, muted: bool) {
         let imp = self.imp();
 
+        if imp.mode_swap_in_progress.get() {
+            return;
+        }
+
         let (img, btn) = match side {
             Side::Aux => (&*imp.aux_mute_image, &*imp.aux_mute_button),
             Side::Main => (&*imp.main_mute_image, &*imp.main_mute_button),
@@ -574,7 +678,15 @@ impl DashboardWindow {
         }));
 
         if let Some(backend) = imp.backend.borrow().clone() {
-            backend.set_mute(side, muted);
+            if side == Side::Main && imp.surround_active.get() {
+                imp.surround_user_muted.set(muted);
+                backend.set_surround_mute(muted);
+            } else {
+                if side == Side::Main {
+                    imp.main_muted.set(muted);
+                }
+                backend.set_mute(side, muted);
+            }
         }
 
         self.update_readout_labels();
@@ -594,11 +706,17 @@ impl DashboardWindow {
 
         // re-enable once the sweep finishes
         let btn_send = glib::SendWeakRef::from(btn.downgrade());
-        backend.play_test_tone(side, move || {
+        let on_done = move || {
             if let Some(b) = btn_send.upgrade() {
                 b.set_sensitive(true);
             }
-        });
+        };
+
+        if side == Side::Main && imp.surround_active.get() {
+            backend.play_surround_test_tone(on_done);
+        } else {
+            backend.play_test_tone(side, on_done);
+        }
     }
 
     fn update_readout_labels(&self) {
@@ -654,8 +772,8 @@ impl DashboardWindow {
             return;
         }
 
-        let is_default = backend.main_is_default();
-        // only when Main isn't default sink, the tag confirms when it is
+        let is_default = backend.is_default(self.active_main_sink());
+        // only when the active virtual output isn't default; the tag confirms when it is
         imp.main_default_banner
             .set_visible(is_default == Some(false));
         imp.main_default_tag.set_visible(is_default == Some(true));
@@ -710,23 +828,27 @@ impl DashboardWindow {
 
     fn refresh_channels_label(&self, side: Side) {
         let imp = self.imp();
-        let (dropdown, label, disc) = match side {
+        let (dropdown, label, row, disc) = match side {
             Side::Aux => (
                 &*imp.aux_hw_dropdown,
                 &*imp.aux_channels_label,
+                &*imp.aux_status_row,
                 imp.aux_disconnected.get(),
             ),
             Side::Main => (
                 &*imp.main_hw_dropdown,
                 &*imp.main_channels_label,
+                &*imp.main_status_row,
                 imp.main_disconnected.get(),
             ),
         };
 
+        // remove the row when the hw is disconnected; no status to display
         if disc {
-            label.set_text("");
+            row.set_visible(false);
             return;
         }
+        row.set_visible(true);
 
         let text = selected_hw_sink(dropdown)
             .map(|s| {

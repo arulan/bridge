@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <requires lib="libadwaita" version="1.4"/>
+  <requires lib="libadwaita" version="1.7"/>
 
   <menu id="primary_menu">
     <section>
       <item>
         <attribute name="label" translatable="yes">_Set Up…</attribute>
         <attribute name="action">app.setup</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_Configure Virtual Surround…</attribute>
+        <attribute name="action">app.surround</attribute>
       </item>
       <item>
         <attribute name="label" translatable="yes">_Preferences</attribute>
@@ -152,21 +156,11 @@
                                     </child>
                                   </object>
                                 </child>
-                                <!-- Action row: channel layout + device type + test tone + mute -->
+                                <!-- Action row: test tone + mute -->
                                 <child>
                                   <object class="GtkBox">
                                     <property name="orientation">horizontal</property>
                                     <property name="spacing">6</property>
-                                    <property name="margin-top">8</property>
-                                    <child>
-                                      <object class="GtkLabel" id="aux_channels_label">
-                                        <property name="xalign">0</property>
-                                        <property name="valign">center</property>
-                                        <property name="ellipsize">end</property>
-                                        <style><class name="caption"/></style>
-                                        <style><class name="dim-label"/></style>
-                                      </object>
-                                    </child>
                                     <child>
                                       <object class="GtkBox">
                                         <property name="hexpand">True</property>
@@ -176,12 +170,10 @@
                                       <object class="GtkButton" id="aux_test_tone_button">
                                         <property name="tooltip-text">Play a test tone through this output</property>
                                         <property name="valign">center</property>
-                                        <style><class name="flat"/></style>
-                                        <style><class name="compact-icon-button"/></style>
+                                        <style><class name="flat"/><class name="compact-icon-button"/></style>
                                         <child>
                                           <object class="GtkImage">
                                             <property name="icon-name">audio-x-generic-symbolic</property>
-                                            <property name="pixel-size">14</property>
                                           </object>
                                         </child>
                                       </object>
@@ -190,12 +182,10 @@
                                       <object class="GtkToggleButton" id="aux_mute_button">
                                         <property name="tooltip-text">Mute this output</property>
                                         <property name="valign">center</property>
-                                        <style><class name="flat"/></style>
-                                        <style><class name="compact-icon-button"/></style>
+                                        <style><class name="flat"/><class name="compact-icon-button"/></style>
                                         <child>
                                           <object class="GtkImage" id="aux_mute_image">
                                             <property name="icon-name">audio-volume-high-symbolic</property>
-                                            <property name="pixel-size">14</property>
                                           </object>
                                         </child>
                                       </object>
@@ -205,6 +195,22 @@
                                 <child>
                                   <object class="GtkDropDown" id="aux_hw_dropdown">
                                     <property name="hexpand">True</property>
+                                  </object>
+                                </child>
+                                <!-- Status row: channel layout + device type -->
+                                <child>
+                                  <object class="GtkBox" id="aux_status_row">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">6</property>
+                                    <child>
+                                      <object class="GtkLabel" id="aux_channels_label">
+                                        <property name="xalign">0</property>
+                                        <property name="valign">center</property>
+                                        <property name="ellipsize">end</property>
+                                        <style><class name="caption"/></style>
+                                        <style><class name="dim-label"/></style>
+                                      </object>
+                                    </child>
                                   </object>
                                 </child>
                                 <child>
@@ -274,7 +280,7 @@
                                           </object>
                                         </child>
                                         <child>
-                                          <object class="GtkLabel">
+                                          <object class="GtkLabel" id="main_subtitle_label">
                                             <property name="label">Dashboard - Main</property>
                                             <property name="xalign">0</property>
                                             <property name="ellipsize">end</property>
@@ -311,12 +317,99 @@
                                     </child>
                                   </object>
                                 </child>
-                                <!-- Action row: channel layout + device type + default? + test tone + mute -->
+                                <!-- Action row: mode toggle / surround setup + test tone + mute -->
                                 <child>
                                   <object class="GtkBox">
                                     <property name="orientation">horizontal</property>
                                     <property name="spacing">6</property>
-                                    <property name="margin-top">8</property>
+                                    <child>
+                                      <object class="AdwToggleGroup" id="main_mode_toggle">
+                                        <property name="visible">False</property>
+                                        <property name="valign">center</property>
+                                        <style><class name="compact-toggle"/></style>
+                                        <child>
+                                          <object class="AdwToggle">
+                                            <property name="name">direct</property>
+                                            <property name="label">Direct</property>
+                                            <property name="icon-name">audio-speakers-symbolic</property>
+                                            <property name="tooltip">Direct audio playback</property>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="AdwToggle">
+                                            <property name="name">surround</property>
+                                            <property name="label">Surround</property>
+                                            <property name="icon-name">audio-headphones-symbolic</property>
+                                            <property name="tooltip">Virtual Surround playback</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkButton" id="main_surround_setup_button">
+                                        <property name="visible">False</property>
+                                        <property name="valign">center</property>
+                                        <property name="tooltip-text">Configure Virtual Surround</property>
+                                        <style><class name="flat"/><class name="compact-button"/></style>
+                                        <child>
+                                          <object class="GtkBox">
+                                            <property name="orientation">horizontal</property>
+                                            <property name="spacing">6</property>
+                                            <child>
+                                              <object class="GtkImage">
+                                                <property name="icon-name">audio-headphones-symbolic</property>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkLabel">
+                                                <property name="label">Configure Virtual Surround…</property>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkBox">
+                                        <property name="hexpand">True</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkButton" id="main_test_tone_button">
+                                        <property name="tooltip-text">Play a test tone through this output</property>
+                                        <property name="valign">center</property>
+                                        <style><class name="flat"/><class name="compact-icon-button"/></style>
+                                        <child>
+                                          <object class="GtkImage">
+                                            <property name="icon-name">audio-x-generic-symbolic</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkToggleButton" id="main_mute_button">
+                                        <property name="tooltip-text">Mute this output</property>
+                                        <property name="valign">center</property>
+                                        <style><class name="flat"/><class name="compact-icon-button"/></style>
+                                        <child>
+                                          <object class="GtkImage" id="main_mute_image">
+                                            <property name="icon-name">audio-volume-high-symbolic</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkDropDown" id="main_hw_dropdown">
+                                    <property name="hexpand">True</property>
+                                  </object>
+                                </child>
+                                <!-- Status row: channel layout + device type + default? -->
+                                <child>
+                                  <object class="GtkBox" id="main_status_row">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">6</property>
                                     <child>
                                       <object class="GtkLabel" id="main_channels_label">
                                         <property name="xalign">0</property>
@@ -337,44 +430,6 @@
                                         <style><class name="dim-label"/></style>
                                       </object>
                                     </child>
-                                    <child>
-                                      <object class="GtkBox">
-                                        <property name="hexpand">True</property>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkButton" id="main_test_tone_button">
-                                        <property name="tooltip-text">Play a test tone through this output</property>
-                                        <property name="valign">center</property>
-                                        <style><class name="flat"/></style>
-                                        <style><class name="compact-icon-button"/></style>
-                                        <child>
-                                          <object class="GtkImage">
-                                            <property name="icon-name">audio-x-generic-symbolic</property>
-                                            <property name="pixel-size">14</property>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkToggleButton" id="main_mute_button">
-                                        <property name="tooltip-text">Mute this output</property>
-                                        <property name="valign">center</property>
-                                        <style><class name="flat"/></style>
-                                        <style><class name="compact-icon-button"/></style>
-                                        <child>
-                                          <object class="GtkImage" id="main_mute_image">
-                                            <property name="icon-name">audio-volume-high-symbolic</property>
-                                            <property name="pixel-size">14</property>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                  </object>
-                                </child>
-                                <child>
-                                  <object class="GtkDropDown" id="main_hw_dropdown">
-                                    <property name="hexpand">True</property>
                                   </object>
                                 </child>
                                 <child>
@@ -438,6 +493,56 @@
                                         <property name="label">Set as default</property>
                                         <property name="valign">center</property>
                                         <style><class name="inline-banner-action"/></style>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkBox" id="main_surround_restart_banner">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">8</property>
+                                    <property name="visible">False</property>
+                                    <style><class name="inline-banner"/><class name="info"/></style>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="icon-name">emblem-synchronizing-symbolic</property>
+                                        <property name="valign">center</property>
+                                        <property name="pixel-size">10</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel" id="main_surround_restart_label">
+                                        <property name="label">Virtual Surround is available after your next login</property>
+                                        <property name="hexpand">True</property>
+                                        <property name="xalign">0</property>
+                                        <property name="valign">center</property>
+                                        <property name="wrap">False</property>
+                                        <property name="ellipsize">end</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkBox" id="main_surround_error_banner">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">8</property>
+                                    <property name="visible">False</property>
+                                    <style><class name="inline-banner"/><class name="error"/></style>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="icon-name">dialog-warning-symbolic</property>
+                                        <property name="valign">center</property>
+                                        <property name="pixel-size">10</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="label">Virtual Surround HRIR file not found</property>
+                                        <property name="hexpand">True</property>
+                                        <property name="xalign">0</property>
+                                        <property name="valign">center</property>
+                                        <property name="wrap">False</property>
+                                        <property name="ellipsize">end</property>
                                       </object>
                                     </child>
                                   </object>

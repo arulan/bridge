@@ -27,6 +27,7 @@ use crate::config::Side;
 pub struct LevelMeters {
     aux: Arc<AtomicU32>,
     main: Arc<AtomicU32>,
+    surround: Arc<AtomicU32>,
 }
 
 impl Default for LevelMeters {
@@ -40,12 +41,17 @@ impl LevelMeters {
         LevelMeters {
             aux: Arc::new(AtomicU32::new(0)),
             main: Arc::new(AtomicU32::new(0)),
+            surround: Arc::new(AtomicU32::new(0)),
         }
     }
 
-    /// clones of the (aux, main) atomics that the capture streams write into
-    pub fn atoms(&self) -> (Arc<AtomicU32>, Arc<AtomicU32>) {
-        (Arc::clone(&self.aux), Arc::clone(&self.main))
+    /// clones of the (aux, main, surround) atomics that the capture streams write into
+    pub fn atoms(&self) -> (Arc<AtomicU32>, Arc<AtomicU32>, Arc<AtomicU32>) {
+        (
+            Arc::clone(&self.aux),
+            Arc::clone(&self.main),
+            Arc::clone(&self.surround),
+        )
     }
 
     /// Peak observed since the last call
@@ -55,6 +61,10 @@ impl LevelMeters {
             Side::Main => &self.main,
         };
         take_peak(atomic)
+    }
+
+    pub fn surround_peak(&self) -> f32 {
+        take_peak(&self.surround)
     }
 }
 

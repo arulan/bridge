@@ -60,6 +60,13 @@ pub struct SinkConfig {
     pub main: SinkDef,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct SurroundConfig {
+    pub hrir_path: String,
+    pub hw_name: String,
+    pub display_name: String,
+}
+
 impl SinkConfig {
     pub fn side(&self, side: Side) -> &SinkDef {
         match side {
@@ -121,6 +128,43 @@ fn store_sink(s: &gio::Settings, def: &SinkDef) {
     let _ = s.set_string("position", &def.position);
     let _ = s.set_string("hw-name", &def.hw_name);
     let _ = s.set_string("display-name", &def.display_name);
+}
+
+pub fn surround_enabled() -> bool {
+    !settings().child("surround").string("hrir-path").is_empty()
+}
+
+pub fn load_surround() -> SurroundConfig {
+    let s = settings().child("surround");
+    SurroundConfig {
+        hrir_path: s.string("hrir-path").into(),
+        hw_name: s.string("hw-name").into(),
+        display_name: s.string("display-name").into(),
+    }
+}
+
+pub fn store_surround(cfg: &SurroundConfig) {
+    let s = settings().child("surround");
+    let _ = s.set_string("hrir-path", &cfg.hrir_path);
+    let _ = s.set_string("hw-name", &cfg.hw_name);
+    let _ = s.set_string("display-name", &cfg.display_name);
+}
+
+// Resets the virtual surround configuration
+pub fn clear_surround() {
+    let s = settings().child("surround");
+    s.reset("hrir-path");
+    s.reset("hw-name");
+    s.reset("display-name");
+    s.reset("active");
+}
+
+pub fn surround_active() -> bool {
+    settings().child("surround").boolean("active")
+}
+
+pub fn set_surround_active(active: bool) {
+    let _ = settings().child("surround").set_boolean("active", active);
 }
 
 // Routing rules live in a GVariant array key

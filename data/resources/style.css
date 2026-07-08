@@ -1,4 +1,7 @@
-button.compact-icon-button { min-width: 0; min-height: 0; padding: 2px 6px; }
+.compact-toggle { font-size: 12px; -gtk-icon-size: 12px; }
+
+button.compact-button { font-size: 12px; -gtk-icon-size: 12px; }
+button.compact-icon-button { -gtk-icon-size: 14px; }
 
 /* Card Volume Display */
 .card-volume { font-size: 1.55em; font-weight: 700; line-height: 1; }
@@ -38,6 +41,11 @@ levelbar.level-meter { min-height: 6px; }
 .inline-banner.error { background-color: alpha(@error_bg_color, 0.15); }
 .inline-banner.error > image { color: @error_bg_color; }
 .inline-banner.error > label { color: @error_color; }
+
+/* Info variant, e.g. virtual surround available after next login */
+.inline-banner.info { background-color: alpha(@accent_bg_color, 0.15); }
+.inline-banner.info > image { color: @accent_bg_color; }
+.inline-banner.info > label { color: @accent_color; }
 
 .inline-banner > button.inline-banner-action {
   background: @warning_bg_color;

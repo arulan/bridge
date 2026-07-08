@@ -20,9 +20,30 @@
     </key>
   </schema>
 
+  <!-- Optional virtual surround sink -->
+  <schema id="io.github.arulan.Dashboard.surround">
+    <key name="hrir-path" type="s">
+      <default>""</default>
+      <summary>Imported HRIR .wav path</summary>
+    </key>
+    <key name="hw-name" type="s">
+      <default>""</default>
+      <summary>Headphone output node.name</summary>
+    </key>
+    <key name="display-name" type="s">
+      <default>""</default>
+      <summary>Headphone output display name</summary>
+    </key>
+    <key name="active" type="b">
+      <default>false</default>
+      <summary>Virtual Surround toggle state on Main</summary>
+    </key>
+  </schema>
+
   <schema id="io.github.arulan.Dashboard" path="/io/github/arulan/Dashboard/">
     <child name="aux"  schema="io.github.arulan.Dashboard.sink"/>
     <child name="main" schema="io.github.arulan.Dashboard.sink"/>
+    <child name="surround" schema="io.github.arulan.Dashboard.surround"/>
 
     <!-- (display_name, app_names, binaries, target, enabled) per rule -->
     <key name="rules" type="a(sasassb)">

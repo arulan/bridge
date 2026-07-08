@@ -38,7 +38,7 @@ use pw::spa;
 use pw::types::ObjectType;
 
 use crate::audio::hw_sink::{HwSink, hw_sink_from_props};
-use crate::audio::pw_config::{AUX_SINK, MAIN_SINK};
+use crate::audio::pw_config::{AUX_SINK, MAIN_SINK, SURROUND_SINK};
 use crate::audio::routing::StreamInfo;
 use crate::config::Side;
 
@@ -52,6 +52,8 @@ const FLUSH_TIMEOUT: Duration = Duration::from_millis(250);
 pub enum Request {
     SetVolume { side: Side, volume: f32 },
     SetMute { side: Side, muted: bool },
+    SetSurroundVolume { volume: f32 },
+    SetSurroundMute { muted: bool },
     Retarget { side: Side, hw_name: Option<String> },
     RetargetStream { id: u32, target: Option<String> },
     SetDefault(String),
@@ -74,6 +76,10 @@ pub enum Event {
     OwnedRemoved {
         side: Side,
     },
+    SurroundReady {
+        id: u32,
+    },
+    SurroundRemoved,
     StreamAdded {
         info: StreamInfo,
         peak: Arc<AtomicU32>,
@@ -92,13 +98,14 @@ impl PwConnection {
     pub fn start(
         aux_peak: Arc<AtomicU32>,
         main_peak: Arc<AtomicU32>,
+        surround_peak: Arc<AtomicU32>,
     ) -> (Self, async_channel::Receiver<Event>) {
         let (cmd_tx, cmd_rx) = pw::channel::channel::<Request>();
         let (evt_tx, evt_rx) = async_channel::unbounded::<Event>();
         let (ack_tx, ack_rx) = mpsc::channel::<()>();
 
         let join = std::thread::spawn(move || {
-            if let Err(e) = pw_main(cmd_rx, evt_tx, ack_tx, aux_peak, main_peak) {
+            if let Err(e) = pw_main(cmd_rx, evt_tx, ack_tx, aux_peak, main_peak, surround_peak) {
                 eprintln!("pw_connection: exited with error: {e}");
             }
         });
@@ -135,6 +142,8 @@ struct State {
     bound: HashMap<u32, (pw::node::Node, pw::node::NodeListener)>,
     // Our owned capture nodes, the ones we set volume and mute on
     owned: HashMap<Side, OwnedSink>,
+    // The surround sink, when the node is live
+    surround: Option<OwnedSink>,
     // Owned playback node ids, the targets we change for live routing
     owned_pb: HashMap<Side, u32>,
     // The hardware sink ids we report with SinkAdded
@@ -156,6 +165,7 @@ impl State {
         State {
             bound: HashMap::new(),
             owned: HashMap::new(),
+            surround: None,
             owned_pb: HashMap::new(),
             hw: HashSet::new(),
             streams: HashSet::new(),
@@ -181,6 +191,7 @@ fn pw_main(
     ack_tx: mpsc::Sender<()>,
     aux_peak: Arc<AtomicU32>,
     main_peak: Arc<AtomicU32>,
+    surround_peak: Arc<AtomicU32>,
 ) -> Result<(), pw::Error> {
     pw::init();
 
@@ -256,8 +267,12 @@ fn pw_main(
 
     // capture meters run on this thread so they can be pinned in metadata
     // autoconnects when their target sinks appear
-    let mut meters = Vec::with_capacity(2);
-    for (sink, atomic) in [(AUX_SINK, aux_peak), (MAIN_SINK, main_peak)] {
+    let mut meters = Vec::with_capacity(3);
+    for (sink, atomic) in [
+        (AUX_SINK, aux_peak),
+        (MAIN_SINK, main_peak),
+        (SURROUND_SINK, surround_peak),
+    ] {
         match meter::open_sink_meter(&core, sink, atomic, &state) {
             Ok(pair) => meters.push(pair),
             Err(e) => eprintln!("pw_connection: meter stream for {sink} failed: {e}"),
@@ -291,6 +306,22 @@ fn handle_request(
             let st = state.borrow();
             if let Some(owned) = st.owned.get(&side)
                 && let Some((node, _)) = st.bound.get(&owned.id)
+            {
+                set_node_props(node, None, Some(muted));
+            }
+        }
+        Request::SetSurroundVolume { volume } => {
+            let st = state.borrow();
+            if let Some(s) = st.surround.as_ref()
+                && let Some((node, _)) = st.bound.get(&s.id)
+            {
+                set_node_props(node, Some((volume, s.channels)), None);
+            }
+        }
+        Request::SetSurroundMute { muted } => {
+            let st = state.borrow();
+            if let Some(s) = st.surround.as_ref()
+                && let Some((node, _)) = st.bound.get(&s.id)
             {
                 set_node_props(node, None, Some(muted));
             }
@@ -334,7 +365,7 @@ fn handle_request(
             // then sync so the writes flush before the 'done' handler quits
             {
                 let st = state.borrow();
-                for owned in st.owned.values() {
+                for owned in st.owned.values().chain(st.surround.as_ref()) {
                     if let Some((node, _)) = st.bound.get(&owned.id) {
                         set_node_props(node, Some((1.0, owned.channels)), Some(false));
                     }
@@ -468,7 +499,19 @@ fn classify_node(
     evt_tx: &async_channel::Sender<Event>,
     state: &Rc<RefCell<State>>,
 ) {
-    if let Some(side) = props.get("dashboard.role").and_then(Side::from_wire) {
+    let role = props.get("dashboard.role");
+
+    if role == Some("surround") {
+        let channels = props
+            .get("audio.channels")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(8);
+        state.borrow_mut().surround = Some(OwnedSink { id, channels });
+        let _ = evt_tx.try_send(Event::SurroundReady { id });
+        return;
+    }
+
+    if let Some(side) = role.and_then(Side::from_wire) {
         let channels = props
             .get("audio.channels")
             .and_then(|s| s.parse().ok())
@@ -515,7 +558,10 @@ fn handle_global_remove(
 ) {
     let mut st = state.borrow_mut();
 
-    if let Some(side) = side_for_owned(&st.owned, id) {
+    if st.surround.as_ref().is_some_and(|s| s.id == id) {
+        st.surround = None;
+        let _ = evt_tx.try_send(Event::SurroundRemoved);
+    } else if let Some(side) = side_for_owned(&st.owned, id) {
         st.owned.remove(&side);
         let _ = evt_tx.try_send(Event::OwnedRemoved { side });
     } else if let Some(side) = side_for_pb(&st.owned_pb, id) {
