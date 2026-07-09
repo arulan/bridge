@@ -48,6 +48,29 @@ pub fn show(parent: Option<&impl IsA<gtk::Widget>>) {
 
     general.add(&vol_row);
     page.add(&general);
+
+    let pipewire = adw::PreferencesGroup::builder()
+        .title("PipeWire Configuration")
+        .build();
+
+    let remove_row = adw::ActionRow::builder()
+        .title("Remove Configuration")
+        .subtitle("Virtual audio devices are removed after your next login")
+        .build();
+
+    let remove_btn = gtk::Button::builder()
+        .label("Remove")
+        .valign(gtk::Align::Center)
+        .action_name("app.remove-config")
+        .build();
+    remove_btn.add_css_class("destructive-action");
+
+    remove_row.add_suffix(&remove_btn);
+    remove_row.set_activatable_widget(Some(&remove_btn));
+
+    pipewire.add(&remove_row);
+    page.add(&pipewire);
+
     dialog.add(&page);
 
     dialog.present(parent);

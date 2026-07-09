@@ -130,6 +130,18 @@ fn store_sink(s: &gio::Settings, def: &SinkDef) {
     let _ = s.set_string("display-name", &def.display_name);
 }
 
+// Clears the Aux/Main output settings; next launch falls back to first-run setup
+pub fn clear_sinks() {
+    let s = settings();
+    for side in ["aux", "main"] {
+        let c = s.child(side);
+        c.reset("channels");
+        c.reset("position");
+        c.reset("hw-name");
+        c.reset("display-name");
+    }
+}
+
 pub fn surround_enabled() -> bool {
     !settings().child("surround").string("hrir-path").is_empty()
 }

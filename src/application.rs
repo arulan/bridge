@@ -220,6 +220,46 @@ impl DashboardApplicationImp {
         preferences::show(parent.as_ref());
     }
 
+    fn show_remove_config_dialog(&self) {
+        let win = self.window.borrow().clone();
+
+        let dialog = adw::AlertDialog::new(
+            Some("Remove PipeWire Configuration?"),
+            Some(
+                "This deletes the PipeWire configuration files Dashboard created and returns it \
+                 to first-run setup. Any imported HRIR files are left in place.\n\nThe changes \
+                 take effect after your next login.",
+            ),
+        );
+        dialog.add_response("cancel", "Cancel");
+        dialog.add_response("remove", "Remove");
+        dialog.set_response_appearance("remove", adw::ResponseAppearance::Destructive);
+        dialog.set_default_response(Some("cancel"));
+        dialog.set_close_response("cancel");
+
+        dialog.connect_response(
+            None,
+            glib::clone!(
+                #[strong]
+                win,
+                move |_: &adw::AlertDialog, response: &str| {
+                    if response != "remove" {
+                        return;
+                    }
+                    pw_config::remove_config();
+                    config::clear_sinks();
+                    config::clear_surround();
+                    pw_config::remove_surround_config();
+                    if let Some(w) = &win {
+                        w.refresh_surround();
+                    }
+                }
+            ),
+        );
+
+        dialog.present(win.as_ref());
+    }
+
     fn show_shortcuts_dialog(&self) {
         let dialog = adw::ShortcutsDialog::new();
 
@@ -325,6 +365,11 @@ pub fn register_actions(app: &DashboardApplication) {
     preferences.connect_activate(move |_, _| app_c.imp().show_preferences_dialog());
     app.add_action(&preferences);
     app.set_accels_for_action("app.preferences", &["<Ctrl>comma"]);
+
+    let remove_config = gio::SimpleAction::new("remove-config", None);
+    let app_c = app.clone();
+    remove_config.connect_activate(move |_, _| app_c.imp().show_remove_config_dialog());
+    app.add_action(&remove_config);
 
     let shortcuts = gio::SimpleAction::new("show-help-overlay", None);
     let app_c = app.clone();

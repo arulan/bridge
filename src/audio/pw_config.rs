@@ -149,6 +149,16 @@ pub fn write_config(cfg: &SinkConfig) {
     }
 }
 
+// Drops the Aux/Main conf; virtual sinks are removed after next login
+pub fn remove_config() {
+    let file = config_file();
+    if let Err(e) = std::fs::remove_file(&file)
+        && e.kind() != std::io::ErrorKind::NotFound
+    {
+        eprintln!("pw_config: failed to remove {}: {e}", file.display());
+    }
+}
+
 /// Previews the conf files created in setup
 pub fn preview_files(cfg: &SinkConfig) -> Vec<(String, String)> {
     vec![(
