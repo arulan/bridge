@@ -16,6 +16,7 @@
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
 use std::cell::RefCell;
+use std::process::Command;
 
 use adw::prelude::*;
 use adw::subclass::prelude::*;
@@ -318,8 +319,10 @@ impl DashboardApplicationImp {
     }
 
     fn show_about_dialog(&self) {
+        let debug_info = collect_diagnostic_info();
         let about = adw::AboutDialog::builder()
             .application_name("Dashboard")
+            .application_icon(APP_ID)
             .version(env!("CARGO_PKG_VERSION"))
             .developer_name("arulan")
             .developers(["arulan"])
@@ -327,6 +330,8 @@ impl DashboardApplicationImp {
             .license_type(gtk::License::Gpl30)
             .website("https://github.com/arulan/dashboard")
             .issue_url("https://github.com/arulan/dashboard/issues")
+            .debug_info(&debug_info)
+            .debug_info_filename("dashboard-diagnostic.txt")
             .build();
         let parent = self.window.borrow().clone();
         about.present(parent.as_ref().map(|w| w.upcast_ref::<gtk::Widget>()));
@@ -381,4 +386,98 @@ pub fn register_actions(app: &DashboardApplication) {
     let app_c = app.clone();
     about.connect_activate(move |_, _| app_c.imp().show_about_dialog());
     app.add_action(&about);
+}
+
+fn run_cmd(program: &str, args: &[&str]) -> String {
+    Command::new(program)
+        .args(args)
+        .output()
+        .map(|o| {
+            let mut s = String::from_utf8_lossy(&o.stdout).into_owned();
+            let err = String::from_utf8_lossy(&o.stderr);
+            if !err.is_empty() {
+                s.push_str(&err);
+            }
+            s.trim_end().to_owned()
+        })
+        .unwrap_or_else(|e| format!("(failed to run: {e})"))
+}
+
+fn read_file(path: &std::path::Path) -> String {
+    std::fs::read_to_string(path).unwrap_or_else(|_| "(not found)".to_owned())
+}
+
+fn collect_diagnostic_info() -> String {
+    let kernel = run_cmd("uname", &["-r"]);
+    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+        .or_else(|_| std::env::var("DESKTOP_SESSION"))
+        .unwrap_or_else(|_| "(unknown)".to_owned());
+
+    let pw_ver = run_cmd("pw-cli", &["--version"]);
+    let graph = run_cmd("pw-dump", &[]);
+
+    let pw_conf = read_file(&pw_config::config_file());
+    let surround_conf = {
+        let p = pw_config::surround_config_file();
+        if p.exists() {
+            read_file(&p)
+        } else {
+            "(not present)".to_owned()
+        }
+    };
+
+    let sinks = config::load();
+    let surround = config::load_surround();
+
+    let vol = crate::volume::VolumeDisplay::load();
+    let s = settings();
+
+    let sink_line = |def: &config::SinkDef| {
+        format!(
+            "\"{}\" [{}] {}ch {}",
+            def.display_name, def.hw_name, def.channels, def.position
+        )
+    };
+
+    format!(
+        "=== Dashboard Diagnostic Report ===\n\
+         App version: {ver}\n\
+         \n\
+         --- System ---\n\
+         Kernel:  {kernel}\n\
+         Desktop: {desktop}\n\
+         \n\
+         --- PipeWire ---\n\
+         {pw_ver}\n\
+         \n\
+         --- PipeWire graph (pw-dump) ---\n\
+         {graph}\n\
+         \n\
+         --- Dashboard Aux/Main config ({pw_path}) ---\n\
+         {pw_conf}\n\
+         \n\
+         --- Dashboard Surround config ---\n\
+         {surround_conf}\n\
+         \n\
+         --- Config summary ---\n\
+         Aux:  {aux}\n\
+         Main: {main}\n\
+         Surround: hrir=\"{hrir}\" hw=\"{s_hw}\" name=\"{s_name}\" active={s_active}\n\
+         Prefs: default-follows-main={follows_main} keep-routing-open={open_routing} volume-display={vol}\n\
+         Window: {w}x{h} maximized={max}",
+        ver = env!("CARGO_PKG_VERSION"),
+        pw_path = pw_config::config_file().display(),
+        aux = sink_line(&sinks.aux),
+        main = sink_line(&sinks.main),
+        hrir = surround.hrir_path,
+        s_hw = surround.hw_name,
+        s_name = surround.display_name,
+        s_active = config::surround_active(),
+        follows_main = config::default_follows_main(),
+        open_routing = config::keep_routing_open(),
+        vol = vol.as_key(),
+        w = s.int("window-width"),
+        h = s.int("window-height"),
+        max = s.boolean("is-maximized"),
+    )
 }
