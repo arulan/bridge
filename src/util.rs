@@ -200,15 +200,15 @@ pub fn make_file_row(path: &str, content: &str) -> gtk::Box {
     tv.buffer().set_text(content.trim());
 
     let sw = gtk::ScrolledWindow::builder()
-        .min_content_height(180)
-        .max_content_height(300)
+        .propagate_natural_height(true)
         .hscrollbar_policy(gtk::PolicyType::Automatic)
-        .vscrollbar_policy(gtk::PolicyType::Automatic)
+        .vscrollbar_policy(gtk::PolicyType::Never)
         .child(&tv)
         .build();
 
     let frame = gtk::Frame::new(None);
     frame.set_child(Some(&sw));
+    frame.set_margin_top(6);
     expander.set_child(Some(&frame));
 
     let boxw = gtk::Box::builder()

@@ -51,6 +51,24 @@
       <summary>Routing rules</summary>
     </key>
 
+    <key name="window-width" type="i">
+      <default>720</default>
+      <summary>Last window width</summary>
+    </key>
+    <key name="window-height" type="i">
+      <default>640</default>
+      <summary>Last window height</summary>
+    </key>
+    <key name="is-maximized" type="b">
+      <default>false</default>
+      <summary>Last window maximized state</summary>
+    </key>
+
+    <key name="keep-routing-open" type="b">
+      <default>true</default>
+      <summary>Expand the Routing tile on launch</summary>
+    </key>
+
     <key name="default-follows-main" type="b">
       <default>false</default>
       <summary>The system default follows the virtual output driving Main</summary>

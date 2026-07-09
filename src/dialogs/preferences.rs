@@ -60,6 +60,18 @@ pub fn show(parent: Option<&impl IsA<gtk::Widget>>) {
     });
 
     general.add(&follow_row);
+
+    let routing_row = adw::SwitchRow::builder()
+        .title("Open Routing on Startup")
+        .subtitle("Expand the Routing tile when Dashboard starts")
+        .active(config::keep_routing_open())
+        .build();
+
+    routing_row.connect_active_notify(|row| {
+        config::set_keep_routing_open(row.is_active());
+    });
+
+    general.add(&routing_row);
     page.add(&general);
 
     let pipewire = adw::PreferencesGroup::builder()

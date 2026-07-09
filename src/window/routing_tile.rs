@@ -40,8 +40,12 @@ struct RowBuild<'a> {
 
 impl DashboardWindow {
     pub(super) fn toggle_routing_expanded(&self) {
+        let expanded = !self.imp().routing_revealer.reveals_child();
+        self.set_routing_expanded(expanded);
+    }
+
+    pub(super) fn set_routing_expanded(&self, expanded: bool) {
         let imp = self.imp();
-        let expanded = !imp.routing_revealer.reveals_child();
         imp.routing_revealer.set_reveal_child(expanded);
         let icon = if expanded {
             "pan-down-symbolic"

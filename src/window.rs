@@ -192,6 +192,18 @@ impl DashboardWindow {
         // TODO: Look into GResource later
         add_css();
 
+        self.restore_window_state();
+        self.connect_close_request(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            #[upgrade_or]
+            glib::Propagation::Proceed,
+            move |_| {
+                w.save_window_state();
+                glib::Propagation::Proceed
+            }
+        ));
+
         // Override slider fill bheavior (center -> selection)
         if let Some(display) = gtk::gdk::Display::default() {
             let provider = gtk::CssProvider::new();
@@ -238,6 +250,22 @@ impl DashboardWindow {
             self,
             move |_| w.apply_mix()
         ));
+
+        // Double-click the crossfade mixer to return to balanced (0.0)
+        let reset_gesture = gtk::GestureClick::new();
+        reset_gesture.set_button(gtk::gdk::BUTTON_PRIMARY);
+        reset_gesture.set_propagation_phase(gtk::PropagationPhase::Capture);
+        reset_gesture.connect_pressed(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |g, n_press, _, _| {
+                if n_press == 2 {
+                    w.imp().mix_scale.set_value(0.0);
+                    g.set_state(gtk::EventSequenceState::Claimed);
+                }
+            }
+        ));
+        imp.mix_scale.add_controller(reset_gesture);
 
         imp.aux_mute_button.connect_toggled(glib::clone!(
             #[weak(rename_to = w)]
@@ -371,8 +399,25 @@ impl DashboardWindow {
         ));
         *imp.backend.borrow_mut() = Some(backend.clone());
 
+        self.set_routing_expanded(config::keep_routing_open());
         self.refresh_surround();
         self.start_activity_ticker();
+    }
+
+    fn restore_window_state(&self) {
+        let settings = crate::application::settings();
+        self.set_default_size(settings.int("window-width"), settings.int("window-height"));
+        if settings.boolean("is-maximized") {
+            self.maximize();
+        }
+    }
+
+    fn save_window_state(&self) {
+        let settings = crate::application::settings();
+        let (width, height) = self.default_size();
+        let _ = settings.set_int("window-width", width);
+        let _ = settings.set_int("window-height", height);
+        let _ = settings.set_boolean("is-maximized", self.is_maximized());
     }
 
     // Target ~40ms to avoid running into the PW quantum, causing ghosting/flickering
