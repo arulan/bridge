@@ -179,6 +179,14 @@ pub fn set_surround_active(active: bool) {
     let _ = settings().child("surround").set_boolean("active", active);
 }
 
+pub fn default_follows_main() -> bool {
+    settings().boolean("default-follows-main")
+}
+
+pub fn set_default_follows_main(follows: bool) {
+    let _ = settings().set_boolean("default-follows-main", follows);
+}
+
 // Routing rules live in a GVariant array key
 pub fn load_rules() -> Vec<RoutingRule> {
     settings()

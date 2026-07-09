@@ -144,9 +144,17 @@ impl DashboardWindow {
             self.force_toggle_to(false);
             return;
         }
+
+        let carry_default = config::default_follows_main()
+            && backend.is_default(self.active_main_sink()) == Some(true);
+
         imp.surround_active.set(want_surround);
         config::set_surround_active(want_surround);
         self.apply_main_mode_swap(&backend, want_surround);
+
+        if carry_default {
+            backend.set_default_sink(self.active_main_sink());
+        }
     }
 
     /// Switch the Main card's controls over to the active mode

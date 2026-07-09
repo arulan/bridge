@@ -51,6 +51,11 @@
       <summary>Routing rules</summary>
     </key>
 
+    <key name="default-follows-main" type="b">
+      <default>false</default>
+      <summary>The system default follows the virtual output driving Main</summary>
+    </key>
+
     <key name="volume-display" type="s">
       <choices>
         <choice value="db"/>

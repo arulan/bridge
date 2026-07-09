@@ -18,6 +18,7 @@
 use adw::prelude::*;
 use gtk4::{self as gtk};
 
+use crate::config;
 use crate::volume::VolumeDisplay;
 
 pub fn show(parent: Option<&impl IsA<gtk::Widget>>) {
@@ -47,6 +48,18 @@ pub fn show(parent: Option<&impl IsA<gtk::Widget>>) {
     });
 
     general.add(&vol_row);
+
+    let follow_row = adw::SwitchRow::builder()
+        .title("System Default Follows Main")
+        .subtitle("When Main is your default output, automatically change the system default to follow Direct and Virtual Surround states")
+        .active(config::default_follows_main())
+        .build();
+
+    follow_row.connect_active_notify(|row| {
+        config::set_default_follows_main(row.is_active());
+    });
+
+    general.add(&follow_row);
     page.add(&general);
 
     let pipewire = adw::PreferencesGroup::builder()
