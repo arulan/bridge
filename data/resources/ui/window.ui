@@ -13,12 +13,12 @@
         <attribute name="label" translatable="yes">_Configure Virtual Surround…</attribute>
         <attribute name="action">app.surround</attribute>
       </item>
+    </section>
+    <section>
       <item>
         <attribute name="label" translatable="yes">_Preferences</attribute>
         <attribute name="action">app.preferences</attribute>
       </item>
-    </section>
-    <section>
       <item>
         <attribute name="label" translatable="yes">_Keyboard Shortcuts</attribute>
         <attribute name="action">app.show-help-overlay</attribute>

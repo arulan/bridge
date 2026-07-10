@@ -124,6 +124,31 @@ impl SurroundDialog {
         self.emit_by_name::<()>(signal, &[]);
     }
 
+    fn confirm_reset(&self) {
+        let dialog = adw::AlertDialog::new(
+            Some("Reset Virtual Surround?"),
+            Some(
+                "This removes the virtual surround configuration and returns it to the unconfigured state. \
+                 Your imported HRIR files are left in place.\n\nThe change takes effect after your \
+                 next login.",
+            ),
+        );
+        dialog.add_response("cancel", "Cancel");
+        dialog.add_response("reset", "Reset");
+        dialog.set_response_appearance("reset", adw::ResponseAppearance::Destructive);
+        dialog.set_default_response(Some("cancel"));
+        dialog.set_close_response("cancel");
+
+        let obj_c = self.clone();
+        dialog.connect_response(None, move |_, response| {
+            if response == "reset" {
+                obj_c.respond("reset");
+            }
+        });
+
+        dialog.present(Some(self));
+    }
+
     fn preview_hrir_path(&self) -> Option<String> {
         self.imp().hrir_source.borrow().as_ref().and_then(|src| {
             src.file_name()
@@ -233,7 +258,7 @@ impl SurroundDialog {
             let reset_btn = gtk::Button::with_label("Reset");
             reset_btn.add_css_class("destructive-action");
             let obj_c = self.clone();
-            reset_btn.connect_clicked(move |_| obj_c.respond("reset"));
+            reset_btn.connect_clicked(move |_| obj_c.confirm_reset());
             header.pack_start(&reset_btn);
         }
 
