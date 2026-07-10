@@ -91,7 +91,6 @@ pub fn show(parent: Option<&impl IsA<gtk::Widget>>) {
     remove_btn.add_css_class("destructive-action");
 
     remove_row.add_suffix(&remove_btn);
-    remove_row.set_activatable_widget(Some(&remove_btn));
 
     pipewire.add(&remove_row);
     page.add(&pipewire);

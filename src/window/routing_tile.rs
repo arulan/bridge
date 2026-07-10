@@ -142,19 +142,15 @@ impl DashboardWindow {
         for (key, ids) in unruled {
             items.push(Item::Stream(key, ids));
         }
+        // Group by live activity, sorted alphabetically
         items.sort_by_key(|item| match item {
             Item::Rule(idx) => {
-                let tier = match (rules[*idx].enabled, !matched[*idx].is_empty()) {
-                    (true, true) => 0,
-                    (false, true) => 1,
-                    (true, false) => 3,
-                    (false, false) => 4,
-                };
-                (tier, rules[*idx].display_name.to_lowercase())
+                let group = if matched[*idx].is_empty() { 1 } else { 0 };
+                (group, rules[*idx].display_name.to_lowercase())
             }
             Item::Stream((app, binary), _) => {
                 let title = app.clone().or_else(|| binary.clone()).unwrap_or_default();
-                (2, title.to_lowercase())
+                (0, title.to_lowercase())
             }
         });
         for item in items {

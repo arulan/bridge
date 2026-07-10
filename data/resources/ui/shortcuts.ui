@@ -19,13 +19,13 @@
     <child>
       <object class="AdwShortcutsItem">
         <property name="title">Jump Towards Aux</property>
-        <property name="accelerator">Page_Up</property>
+        <property name="accelerator">Page_Down</property>
       </object>
     </child>
     <child>
       <object class="AdwShortcutsItem">
         <property name="title">Jump Towards Main</property>
-        <property name="accelerator">Page_Down</property>
+        <property name="accelerator">Page_Up</property>
       </object>
     </child>
     <child>
