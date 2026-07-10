@@ -39,6 +39,8 @@ pub struct PipeWireBackendImp {
     owned: RefCell<HashMap<Side, u32>>,
     surround_id: RefCell<Option<u32>>,
     streams: RefCell<HashMap<u32, StreamInfo>>,
+    // stream ids the pw thread reports as linked to the Aux sink
+    aux_stream_ids: RefCell<HashSet<u32>>,
     // per-stream peaks, written by the capture meters on the pw thread
     stream_peaks: RefCell<HashMap<u32, Arc<AtomicU32>>>,
     // stream ids that we've changed target.object on
@@ -68,6 +70,7 @@ impl ObjectImpl for PipeWireBackendImp {
                 Signal::builder("sinks-ready").build(),
                 Signal::builder("sinks-changed").build(),
                 Signal::builder("streams-changed").build(),
+                Signal::builder("aux-streams-changed").build(),
                 Signal::builder("default-changed").build(),
                 Signal::builder("owned-changed").build(),
                 Signal::builder("surround-ready").build(),
@@ -171,6 +174,10 @@ impl PipeWireBackend {
                     self.emit_by_name::<()>("streams-changed", &[]);
                 }
             }
+            Event::AuxStreamsChanged(ids) => {
+                imp.aux_stream_ids.replace(ids.into_iter().collect());
+                self.emit_by_name::<()>("aux-streams-changed", &[]);
+            }
             Event::DefaultSink(raw) => {
                 let name = raw.and_then(|v| crate::util::parse_default_name(&v));
                 imp.default_name.replace(name);
@@ -188,6 +195,20 @@ impl PipeWireBackend {
 
     pub fn output_streams(&self) -> Vec<StreamInfo> {
         self.imp().streams.borrow().values().cloned().collect()
+    }
+
+    pub fn aux_streams(&self) -> Vec<StreamInfo> {
+        let imp = self.imp();
+        let streams = imp.streams.borrow();
+        imp.aux_stream_ids
+            .borrow()
+            .iter()
+            .filter_map(|id| streams.get(id).cloned())
+            .collect()
+    }
+
+    pub fn aux_stream_count(&self) -> usize {
+        self.imp().aux_stream_ids.borrow().len()
     }
 
     pub fn owned_sinks_present(&self) -> bool {
@@ -409,6 +430,14 @@ impl PipeWireBackend {
 
     pub fn connect_streams_changed<F: Fn(&Self) + 'static>(&self, f: F) {
         self.connect_local("streams-changed", false, move |args| {
+            let be = args[0].get::<PipeWireBackend>().unwrap();
+            f(&be);
+            None
+        });
+    }
+
+    pub fn connect_aux_streams_changed<F: Fn(&Self) + 'static>(&self, f: F) {
+        self.connect_local("aux-streams-changed", false, move |args| {
             let be = args[0].get::<PipeWireBackend>().unwrap();
             f(&be);
             None

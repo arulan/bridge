@@ -16,6 +16,7 @@
 // along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
 
 mod routing_tile;
+mod stream_list;
 mod surround_mode;
 
 use std::cell::{Cell, OnceCell, RefCell};
@@ -30,7 +31,9 @@ use crate::audio::hw_sink::HwSink;
 use crate::audio::{mixer, pw_config};
 use crate::config::{self, Side};
 use crate::shortcuts::ShortcutsPortal;
-use crate::util::{drive_stream_meters, hw_sink_factory, hw_sink_model, selected_hw_sink};
+use crate::util::{
+    drive_stream_meters, hw_sink_factory, hw_sink_model, selected_hw_sink, stream_count,
+};
 use crate::volume::VolumeDisplay;
 
 // One step is 10% of the [-1, 1] crossfade range
@@ -55,6 +58,10 @@ pub struct DashboardWindowImp {
     pub aux_mute_image: TemplateChild<gtk::Image>,
     #[template_child]
     pub main_mute_image: TemplateChild<gtk::Image>,
+    #[template_child]
+    pub aux_streams_button: TemplateChild<gtk::MenuButton>,
+    #[template_child]
+    pub aux_streams_label: TemplateChild<gtk::Label>,
     #[template_child]
     pub aux_test_tone_button: TemplateChild<gtk::Button>,
     #[template_child]
@@ -150,6 +157,8 @@ pub struct DashboardWindowImp {
 
     activity_tick_id: RefCell<Option<glib::SourceId>>,
     scale_css: RefCell<Option<gtk::CssProvider>>,
+
+    aux_streams_list: RefCell<Option<gtk::ListBox>>,
 }
 
 #[glib::object_subclass]
@@ -289,6 +298,15 @@ impl DashboardWindow {
             move |_| w.on_test_clicked(Side::Main)
         ));
 
+        let (aux_popover, aux_list) = stream_list::streams_popover("Streams on Aux");
+        imp.aux_streams_button.set_popover(Some(&aux_popover));
+        imp.aux_streams_list.replace(Some(aux_list));
+        aux_popover.connect_map(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.populate_aux_streams_list()
+        ));
+
         imp.volume_display.set(VolumeDisplay::load());
         let settings = crate::application::settings();
         settings.connect_changed(
@@ -368,6 +386,7 @@ impl DashboardWindow {
             move |_| {
                 w.populate_dropdowns();
                 w.refresh_routing_tile();
+                w.refresh_aux_stream_button();
             }
         ));
 
@@ -384,6 +403,12 @@ impl DashboardWindow {
             #[weak(rename_to = w)]
             self,
             move |_| w.refresh_routing_tile()
+        ));
+
+        backend.connect_aux_streams_changed(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.refresh_aux_stream_button()
         ));
 
         backend.connect_default_changed(glib::clone!(
@@ -909,6 +934,44 @@ impl DashboardWindow {
             })
             .unwrap_or_default();
         label.set_text(&text);
+    }
+
+    // Aux card stream-count button
+    fn refresh_aux_stream_button(&self) {
+        let imp = self.imp();
+        let count = imp
+            .backend
+            .borrow()
+            .as_ref()
+            .map_or(0, |b| b.aux_stream_count());
+        imp.aux_streams_label.set_label(&stream_count(count));
+        imp.aux_streams_button.set_sensitive(count > 0);
+        if count > 0 {
+            imp.aux_streams_button.remove_css_class("flat");
+        } else {
+            imp.aux_streams_button.add_css_class("flat");
+        }
+        if imp
+            .aux_streams_button
+            .popover()
+            .is_some_and(|p| p.is_visible())
+        {
+            self.populate_aux_streams_list();
+        }
+    }
+
+    fn populate_aux_streams_list(&self) {
+        let imp = self.imp();
+        let Some(list) = imp.aux_streams_list.borrow().clone() else {
+            return;
+        };
+        let streams = imp
+            .backend
+            .borrow()
+            .as_ref()
+            .map(|b| b.aux_streams())
+            .unwrap_or_default();
+        stream_list::fill_streams(&list, &streams);
     }
 }
 

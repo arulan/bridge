@@ -17,16 +17,17 @@
 
 // The Routing tile
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk4::{self as gtk};
 
 use super::DashboardWindow;
+use super::stream_list::{fill_streams, streams_popover};
 use crate::audio::hw_sink::HwSink;
 use crate::audio::routing::{
-    RoutingRule, RuleTarget, winning_rule_index, would_match_disabled_index,
+    RoutingRule, RuleTarget, StreamInfo, winning_rule_index, would_match_disabled_index,
 };
 use crate::config;
 use crate::dialogs::add_rule;
@@ -36,6 +37,7 @@ struct RowBuild<'a> {
     text_group: &'a gtk::SizeGroup,
     action_group: &'a gtk::SizeGroup,
     meters: &'a mut Vec<(gtk::LevelBar, Vec<u32>)>,
+    by_id: &'a HashMap<u32, StreamInfo>,
 }
 
 impl DashboardWindow {
@@ -122,10 +124,13 @@ impl DashboardWindow {
         // horizontal size groups to keep alignment between entries stable
         let text_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         let action_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+        let by_id: HashMap<u32, StreamInfo> =
+            streams.iter().map(|s| (s.node_id, s.clone())).collect();
         let mut build = RowBuild {
             text_group: &text_group,
             action_group: &action_group,
             meters: &mut row_meters,
+            by_id: &by_id,
         };
 
         // rules and streams share one list ordered by live activity
@@ -187,7 +192,8 @@ impl DashboardWindow {
         };
         let row = row_shell(glyph, dot_class);
 
-        let text = row_text_block(&rule.display_name, &rule_subtitle(rule, count));
+        let subtitle = count_subtitle(&rule_subtitle(rule), group_streams(ids, build.by_id));
+        let text = row_text_block(&rule.display_name, &subtitle);
         build.text_group.add_widget(&text);
         if !rule.enabled {
             text.set_opacity(0.55);
@@ -311,14 +317,17 @@ impl DashboardWindow {
         ids: Vec<u32>,
         build: &mut RowBuild,
     ) -> gtk::ListBoxRow {
+        let had_app_name = app_name.is_some();
         let title = app_name.or_else(|| binary.clone()).unwrap_or_default();
 
-        let mut subtitle = stream_count(ids.len());
-        if let Some(b) = binary {
-            subtitle = format!("{b} · {subtitle}");
-        }
+        let prefix = if had_app_name {
+            binary.unwrap_or_default()
+        } else {
+            String::new()
+        };
 
         let row = row_shell("○", "rule-dot-live");
+        let subtitle = count_subtitle(&prefix, group_streams(&ids, build.by_id));
         let text = row_text_block(&title, &subtitle);
         build.text_group.add_widget(&text);
         row.append(&text);
@@ -378,7 +387,7 @@ impl DashboardWindow {
     }
 }
 
-fn rule_subtitle(rule: &RoutingRule, count: usize) -> String {
+fn rule_subtitle(rule: &RoutingRule) -> String {
     let mut parts: Vec<String> = Vec::new();
     if let Some(p) = match_summary(&rule.match_app_names) {
         parts.push(p);
@@ -386,16 +395,15 @@ fn rule_subtitle(rule: &RoutingRule, count: usize) -> String {
     if let Some(p) = match_summary(&rule.match_binaries) {
         parts.push(p);
     }
-    let mut out = if parts.is_empty() {
+    if parts.is_empty() {
         "(no constraints)".to_owned()
     } else {
         parts.join(" · ")
-    };
-    if count > 0 {
-        out.push_str(" · ");
-        out.push_str(&stream_count(count));
     }
-    out
+}
+
+fn group_streams(ids: &[u32], by_id: &HashMap<u32, StreamInfo>) -> Vec<StreamInfo> {
+    ids.iter().filter_map(|id| by_id.get(id).cloned()).collect()
 }
 
 fn match_summary(values: &[String]) -> Option<String> {
@@ -475,7 +483,7 @@ fn row_shell(dot_glyph: &str, dot_class: &str) -> gtk::Box {
     row
 }
 
-fn row_text_block(title: &str, subtitle: &str) -> gtk::Box {
+fn row_text_block(title: &str, subtitle: &impl IsA<gtk::Widget>) -> gtk::Box {
     let text = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .valign(gtk::Align::Center)
@@ -487,16 +495,54 @@ fn row_text_block(title: &str, subtitle: &str) -> gtk::Box {
         .max_width_chars(20)
         .build();
     text.append(&name);
-    let sub = gtk::Label::builder()
-        .label(subtitle)
-        .xalign(0.0)
-        .ellipsize(gtk::pango::EllipsizeMode::End)
-        .max_width_chars(28)
-        .build();
-    sub.add_css_class("dim-label");
-    sub.add_css_class("caption");
-    text.append(&sub);
+    text.append(subtitle);
     text
+}
+
+// The subtitle line constructor
+fn count_subtitle(prefix: &str, streams: Vec<StreamInfo>) -> gtk::Box {
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+
+    if !prefix.is_empty() {
+        let p = gtk::Label::builder()
+            .label(prefix)
+            .xalign(0.0)
+            .ellipsize(gtk::pango::EllipsizeMode::End)
+            .max_width_chars(24)
+            .build();
+        p.add_css_class("dim-label");
+        p.add_css_class("caption");
+        row.append(&p);
+    }
+
+    if streams.is_empty() {
+        return row;
+    }
+
+    if !prefix.is_empty() {
+        let sep = gtk::Label::new(Some(" · "));
+        sep.add_css_class("dim-label");
+        sep.add_css_class("caption");
+        row.append(&sep);
+    }
+
+    let (popover, list) = streams_popover("Streams Playing");
+    let label = gtk::Label::new(Some(&stream_count(streams.len())));
+    label.add_css_class("caption");
+
+    popover.connect_map(move |_| fill_streams(&list, &streams));
+
+    let button = gtk::MenuButton::builder()
+        .child(&label)
+        .valign(gtk::Align::Center)
+        .always_show_arrow(false)
+        .popover(&popover)
+        .build();
+    button.add_css_class("flat");
+    button.add_css_class("count-button");
+    row.append(&button);
+
+    row
 }
 
 fn route_arrow() -> gtk::Label {

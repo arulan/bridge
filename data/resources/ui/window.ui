@@ -156,11 +156,35 @@
                                     </child>
                                   </object>
                                 </child>
-                                <!-- Action row: test tone + mute -->
+                                <!-- Action row: stream count + test tone + mute -->
                                 <child>
                                   <object class="GtkBox">
                                     <property name="orientation">horizontal</property>
                                     <property name="spacing">6</property>
+                                    <child>
+                                      <object class="GtkMenuButton" id="aux_streams_button">
+                                        <property name="sensitive">False</property>
+                                        <property name="valign">center</property>
+                                        <property name="always-show-arrow">False</property>
+                                        <style><class name="compact-button"/><class name="flat"/></style>
+                                        <property name="child">
+                                          <object class="GtkBox">
+                                            <property name="orientation">horizontal</property>
+                                            <property name="spacing">6</property>
+                                            <child>
+                                              <object class="GtkImage">
+                                                <property name="icon-name">view-list-symbolic</property>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkLabel" id="aux_streams_label">
+                                                <property name="label">No streams</property>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </property>
+                                      </object>
+                                    </child>
                                     <child>
                                       <object class="GtkBox">
                                         <property name="hexpand">True</property>

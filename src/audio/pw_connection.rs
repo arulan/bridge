@@ -24,7 +24,7 @@ mod meter;
 mod pod;
 
 use std::cell::{Cell, RefCell};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
@@ -85,6 +85,8 @@ pub enum Event {
         peak: Arc<AtomicU32>,
     },
     StreamRemoved(u32),
+    // The app streams currently linked to the Aux sink
+    AuxStreamsChanged(Vec<u32>),
     DefaultSink(Option<String>),
 }
 
@@ -150,6 +152,10 @@ struct State {
     hw: HashSet<u32>,
     // streams for routing rules
     streams: HashSet<u32>,
+    // every link in the graph
+    links: HashMap<u32, (u32, u32)>,
+    // last set of streams we reported as linked to Aux
+    aux_stream_ids: BTreeSet<u32>,
     // per-stream capture meters, keyed by the stream
     meters: HashMap<u32, meter::StreamMeter>,
 
@@ -169,6 +175,8 @@ impl State {
             owned_pb: HashMap::new(),
             hw: HashSet::new(),
             streams: HashSet::new(),
+            links: HashMap::new(),
+            aux_stream_ids: BTreeSet::new(),
             meters: HashMap::new(),
             metadata: None,
             meta_cache: HashMap::new(),
@@ -488,8 +496,51 @@ fn handle_global(
             state.borrow_mut().bound.insert(id, (node, listener));
         }
 
+        ObjectType::Link => {
+            let Some(props) = global.props else { return };
+            let out = props.get("link.output.node").and_then(|s| s.parse().ok());
+            let inp = props.get("link.input.node").and_then(|s| s.parse().ok());
+            let (Some(out), Some(inp)) = (out, inp) else {
+                return;
+            };
+
+            let touches_aux = aux_sink_id(state) == Some(inp);
+            state.borrow_mut().links.insert(global.id, (out, inp));
+            if touches_aux {
+                refresh_aux_streams(evt_tx, state);
+            }
+        }
+
         _ => {}
     }
+}
+
+fn aux_sink_id(state: &Rc<RefCell<State>>) -> Option<u32> {
+    state.borrow().owned.get(&Side::Aux).map(|o| o.id)
+}
+
+fn refresh_aux_streams(evt_tx: &async_channel::Sender<Event>, state: &Rc<RefCell<State>>) {
+    let mut st = state.borrow_mut();
+    let ids: BTreeSet<u32> = match st.owned.get(&Side::Aux).map(|o| o.id) {
+        Some(aux_id) => {
+            let outs: Vec<u32> = st
+                .links
+                .values()
+                .filter(|(_, inp)| *inp == aux_id)
+                .map(|(out, _)| *out)
+                .collect();
+            outs.into_iter()
+                .filter(|out| st.streams.contains(out))
+                .collect()
+        }
+        None => BTreeSet::new(),
+    };
+
+    if ids == st.aux_stream_ids {
+        return;
+    }
+    st.aux_stream_ids = ids.clone();
+    let _ = evt_tx.try_send(Event::AuxStreamsChanged(ids.into_iter().collect()));
 }
 
 fn classify_node(
@@ -521,6 +572,7 @@ fn classify_node(
             .owned
             .insert(side, OwnedSink { id, channels });
         let _ = evt_tx.try_send(Event::OwnedAdded { side, id });
+        refresh_aux_streams(evt_tx, state);
         return;
     }
 
@@ -542,6 +594,7 @@ fn classify_node(
         }
         state.borrow_mut().streams.insert(id);
         let _ = evt_tx.try_send(Event::StreamAdded { info, peak });
+        refresh_aux_streams(evt_tx, state);
         return;
     }
 
@@ -556,24 +609,35 @@ fn handle_global_remove(
     evt_tx: &async_channel::Sender<Event>,
     state: &Rc<RefCell<State>>,
 ) {
-    let mut st = state.borrow_mut();
+    let mut refresh = false;
+    {
+        let mut st = state.borrow_mut();
 
-    if st.surround.as_ref().is_some_and(|s| s.id == id) {
-        st.surround = None;
-        let _ = evt_tx.try_send(Event::SurroundRemoved);
-    } else if let Some(side) = side_for_owned(&st.owned, id) {
-        st.owned.remove(&side);
-        let _ = evt_tx.try_send(Event::OwnedRemoved { side });
-    } else if let Some(side) = side_for_pb(&st.owned_pb, id) {
-        st.owned_pb.remove(&side);
-    } else if st.hw.remove(&id) {
-        let _ = evt_tx.try_send(Event::SinkRemoved(id));
-    } else if st.streams.remove(&id) {
-        st.meters.remove(&id);
-        let _ = evt_tx.try_send(Event::StreamRemoved(id));
+        if st.surround.as_ref().is_some_and(|s| s.id == id) {
+            st.surround = None;
+            let _ = evt_tx.try_send(Event::SurroundRemoved);
+        } else if let Some(side) = side_for_owned(&st.owned, id) {
+            st.owned.remove(&side);
+            let _ = evt_tx.try_send(Event::OwnedRemoved { side });
+            refresh = side == Side::Aux;
+        } else if let Some(side) = side_for_pb(&st.owned_pb, id) {
+            st.owned_pb.remove(&side);
+        } else if st.hw.remove(&id) {
+            let _ = evt_tx.try_send(Event::SinkRemoved(id));
+        } else if st.streams.remove(&id) {
+            st.meters.remove(&id);
+            let _ = evt_tx.try_send(Event::StreamRemoved(id));
+            refresh = true;
+        } else if let Some((_, inp)) = st.links.remove(&id) {
+            refresh = st.owned.get(&Side::Aux).map(|o| o.id) == Some(inp);
+        }
+
+        st.bound.remove(&id);
     }
 
-    st.bound.remove(&id);
+    if refresh {
+        refresh_aux_streams(evt_tx, state);
+    }
 }
 
 fn stream_info_from_props(id: u32, props: &spa::utils::dict::DictRef) -> Option<StreamInfo> {

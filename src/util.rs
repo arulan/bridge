@@ -74,10 +74,10 @@ pub fn drive_stream_meters(backend: &PipeWireBackend, meters: &[(gtk::LevelBar, 
 }
 
 pub fn stream_count(n: usize) -> String {
-    if n == 1 {
-        "1 stream".to_owned()
-    } else {
-        format!("{n} streams")
+    match n {
+        0 => "No streams".to_owned(),
+        1 => "1 stream".to_owned(),
+        _ => format!("{n} streams"),
     }
 }
 

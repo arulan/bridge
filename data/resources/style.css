@@ -1,7 +1,16 @@
 .compact-toggle { font-size: 12px; -gtk-icon-size: 12px; }
 
-button.compact-button { font-size: 12px; -gtk-icon-size: 12px; }
+.compact-button { font-size: 12px; -gtk-icon-size: 12px; }
 button.compact-icon-button { -gtk-icon-size: 14px; }
+
+/* inline stream-count button for the routing tile subtitle */
+.count-button, .count-button > button {
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+}
+.count-button > button { padding: 0px 5px; }
+.count-button > button label { font-weight: bold; }
 
 /* Card Volume Display */
 .card-volume { font-size: 1.55em; font-weight: 700; line-height: 1; }
