@@ -195,6 +195,17 @@ pub fn set_keep_routing_open(open: bool) {
     let _ = settings().set_boolean("keep-routing-open", open);
 }
 
+pub const CROSSFADE_STEP_MIN: i32 = 2;
+pub const CROSSFADE_STEP_MAX: i32 = 25;
+
+pub fn crossfade_step() -> i32 {
+    settings().int("crossfade-step")
+}
+
+pub fn set_crossfade_step(percent: i32) {
+    let _ = settings().set_int("crossfade-step", percent);
+}
+
 // Routing rules live in a GVariant array key
 pub fn load_rules() -> Vec<RoutingRule> {
     settings()

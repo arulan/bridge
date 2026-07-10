@@ -74,6 +74,12 @@
       <summary>The system default follows the virtual output driving Main</summary>
     </key>
 
+    <key name="crossfade-step" type="i">
+      <range min="2" max="25"/>
+      <default>5</default>
+      <summary>Crossfader travel in percentage</summary>
+    </key>
+
     <key name="volume-display" type="s">
       <choices>
         <choice value="db"/>

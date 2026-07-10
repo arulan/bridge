@@ -36,9 +36,6 @@ use crate::util::{
 };
 use crate::volume::VolumeDisplay;
 
-// One step is 10% of the [-1, 1] crossfade range
-const STEP: f64 = 0.1;
-
 #[derive(CompositeTemplate, Default)]
 #[template(resource = "/io/github/arulan/Dashboard/ui/window.ui")]
 pub struct DashboardWindowImp {
@@ -153,6 +150,8 @@ pub struct DashboardWindowImp {
     routing_size_groups: RefCell<Vec<gtk::SizeGroup>>,
 
     volume_display: Cell<VolumeDisplay>,
+    // crossfader step as the delta value on [-1, 1]
+    crossfade_step: Cell<f64>,
     settings: OnceCell<gio::Settings>,
 
     activity_tick_id: RefCell<Option<glib::SourceId>>,
@@ -308,6 +307,7 @@ impl DashboardWindow {
         ));
 
         imp.volume_display.set(VolumeDisplay::load());
+        self.apply_crossfade_step();
         let settings = crate::application::settings();
         settings.connect_changed(
             Some("volume-display"),
@@ -318,6 +318,14 @@ impl DashboardWindow {
                     w.imp().volume_display.set(VolumeDisplay::load());
                     w.update_readout_labels();
                 }
+            ),
+        );
+        settings.connect_changed(
+            Some("crossfade-step"),
+            glib::clone!(
+                #[weak(rename_to = w)]
+                self,
+                move |_, _| w.apply_crossfade_step()
             ),
         );
         let _ = imp.settings.set(settings);
@@ -683,17 +691,23 @@ impl DashboardWindow {
             #[weak(rename_to = w)]
             self,
             move |_, id| match id {
-                "step-left" => w.step(-STEP),
-                "step-right" => w.step(STEP),
+                "step-left" => w.step(-1.0),
+                "step-right" => w.step(1.0),
                 "reset" => w.imp().mix_scale.set_value(0.0),
                 _ => {}
             }
         ));
     }
 
-    fn step(&self, delta: f64) {
+    fn step(&self, dir: f64) {
         let scale = &self.imp().mix_scale;
-        scale.set_value(scale.value() + delta);
+        scale.set_value(scale.value() + dir * self.imp().crossfade_step.get());
+    }
+
+    fn apply_crossfade_step(&self) {
+        let delta = config::crossfade_step() as f64 / 50.0;
+        self.imp().crossfade_step.set(delta);
+        self.imp().mix_scale.adjustment().set_step_increment(delta);
     }
 
     fn update_shortcuts_banner(&self, active: bool) {

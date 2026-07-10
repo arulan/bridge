@@ -49,6 +49,24 @@ pub fn show(parent: Option<&impl IsA<gtk::Widget>>) {
 
     general.add(&vol_row);
 
+    let step_adj = gtk::Adjustment::new(
+        config::crossfade_step() as f64,
+        config::CROSSFADE_STEP_MIN as f64,
+        config::CROSSFADE_STEP_MAX as f64,
+        1.0,
+        1.0,
+        0.0,
+    );
+    let step_row = adw::SpinRow::builder()
+        .title("Crossfader Step")
+        .subtitle("Percent of travel per key press")
+        .adjustment(&step_adj)
+        .build();
+
+    step_row.connect_value_notify(|row| config::set_crossfade_step(row.value() as i32));
+
+    general.add(&step_row);
+
     let follow_row = adw::SwitchRow::builder()
         .title("System Default Follows Main")
         .subtitle("When Main is your default output, automatically change the system default to follow Direct and Virtual Surround states")
