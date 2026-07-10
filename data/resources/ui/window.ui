@@ -173,7 +173,7 @@
                                             <property name="spacing">6</property>
                                             <child>
                                               <object class="GtkImage">
-                                                <property name="icon-name">view-list-symbolic</property>
+                                                <property name="icon-name">list-symbolic</property>
                                               </object>
                                             </child>
                                             <child>
@@ -197,7 +197,7 @@
                                         <style><class name="flat"/><class name="compact-icon-button"/></style>
                                         <child>
                                           <object class="GtkImage">
-                                            <property name="icon-name">audio-x-generic-symbolic</property>
+                                            <property name="icon-name">sound-symbolic</property>
                                           </object>
                                         </child>
                                       </object>
@@ -209,7 +209,7 @@
                                         <style><class name="flat"/><class name="compact-icon-button"/></style>
                                         <child>
                                           <object class="GtkImage" id="aux_mute_image">
-                                            <property name="icon-name">audio-volume-high-symbolic</property>
+                                            <property name="icon-name">speaker-3-symbolic</property>
                                           </object>
                                         </child>
                                       </object>
@@ -226,6 +226,14 @@
                                   <object class="GtkBox" id="aux_status_row">
                                     <property name="orientation">horizontal</property>
                                     <property name="spacing">6</property>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="icon-name">speaker-symbolic</property>
+                                        <property name="valign">center</property>
+                                        <property name="pixel-size">12</property>
+                                        <style><class name="dim-label"/></style>
+                                      </object>
+                                    </child>
                                     <child>
                                       <object class="GtkLabel" id="aux_channels_label">
                                         <property name="xalign">0</property>
@@ -355,7 +363,7 @@
                                           <object class="AdwToggle">
                                             <property name="name">direct</property>
                                             <property name="label">Direct</property>
-                                            <property name="icon-name">audio-speakers-symbolic</property>
+                                            <property name="icon-name">stereo-jack-symbolic</property>
                                             <property name="tooltip">Direct audio playback</property>
                                           </object>
                                         </child>
@@ -363,7 +371,7 @@
                                           <object class="AdwToggle">
                                             <property name="name">surround</property>
                                             <property name="label">Surround</property>
-                                            <property name="icon-name">audio-headphones-symbolic</property>
+                                            <property name="icon-name">headphones-symbolic</property>
                                             <property name="tooltip">Virtual Surround playback</property>
                                           </object>
                                         </child>
@@ -381,7 +389,7 @@
                                             <property name="spacing">6</property>
                                             <child>
                                               <object class="GtkImage">
-                                                <property name="icon-name">audio-headphones-symbolic</property>
+                                                <property name="icon-name">headphones-symbolic</property>
                                               </object>
                                             </child>
                                             <child>
@@ -405,7 +413,7 @@
                                         <style><class name="flat"/><class name="compact-icon-button"/></style>
                                         <child>
                                           <object class="GtkImage">
-                                            <property name="icon-name">audio-x-generic-symbolic</property>
+                                            <property name="icon-name">sound-symbolic</property>
                                           </object>
                                         </child>
                                       </object>
@@ -417,7 +425,7 @@
                                         <style><class name="flat"/><class name="compact-icon-button"/></style>
                                         <child>
                                           <object class="GtkImage" id="main_mute_image">
-                                            <property name="icon-name">audio-volume-high-symbolic</property>
+                                            <property name="icon-name">speaker-3-symbolic</property>
                                           </object>
                                         </child>
                                       </object>
@@ -434,6 +442,14 @@
                                   <object class="GtkBox" id="main_status_row">
                                     <property name="orientation">horizontal</property>
                                     <property name="spacing">6</property>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="icon-name">speaker-symbolic</property>
+                                        <property name="valign">center</property>
+                                        <property name="pixel-size">12</property>
+                                        <style><class name="dim-label"/></style>
+                                      </object>
+                                    </child>
                                     <child>
                                       <object class="GtkLabel" id="main_channels_label">
                                         <property name="xalign">0</property>

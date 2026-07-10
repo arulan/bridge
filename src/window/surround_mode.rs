@@ -180,9 +180,9 @@ impl DashboardWindow {
         imp.main_mute_button.set_active(active_muted);
         imp.mode_swap_in_progress.set(false);
         imp.main_mute_image.set_icon_name(Some(if active_muted {
-            "audio-volume-muted-symbolic"
+            "speaker-0-symbolic"
         } else {
-            "audio-volume-high-symbolic"
+            "speaker-3-symbolic"
         }));
         imp.main_mute_button.set_tooltip_text(Some(if active_muted {
             "Unmute this output"

@@ -5,4 +5,13 @@
     <file preprocess="xml-stripblanks">ui/shortcuts.ui</file>
     <file>style.css</file>
   </gresource>
+  <gresource prefix="/io/github/arulan/Dashboard/icons/scalable/actions">
+    <file preprocess="xml-stripblanks" alias="sound-symbolic.svg">icons/scalable/actions/sound-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="speaker-symbolic.svg">icons/scalable/actions/speaker-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="speaker-3-symbolic.svg">icons/scalable/actions/speaker-3-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="speaker-0-symbolic.svg">icons/scalable/actions/speaker-0-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="stereo-jack-symbolic.svg">icons/scalable/actions/stereo-jack-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="headphones-symbolic.svg">icons/scalable/actions/headphones-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="list-symbolic.svg">icons/scalable/actions/list-symbolic.svg</file>
+  </gresource>
 </gresources>

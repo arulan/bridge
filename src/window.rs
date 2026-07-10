@@ -737,9 +737,9 @@ impl DashboardWindow {
             Side::Main => (&*imp.main_mute_image, &*imp.main_mute_button),
         };
         img.set_icon_name(Some(if muted {
-            "audio-volume-muted-symbolic"
+            "speaker-0-symbolic"
         } else {
-            "audio-volume-high-symbolic"
+            "speaker-3-symbolic"
         }));
         btn.set_tooltip_text(Some(if muted {
             "Unmute this output"
