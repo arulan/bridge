@@ -106,6 +106,8 @@ pub struct DashboardWindowImp {
     #[template_child]
     pub main_surround_restart_label: TemplateChild<gtk::Label>,
     #[template_child]
+    pub main_surround_restart_dismiss: TemplateChild<gtk::Button>,
+    #[template_child]
     pub main_surround_error_banner: TemplateChild<gtk::Box>,
     #[template_child]
     pub aux_disconnect_banner: TemplateChild<gtk::Box>,
@@ -138,6 +140,8 @@ pub struct DashboardWindowImp {
     mode_swap_in_progress: Cell<bool>,
     // conf was rewritten while the virtual surround node was live; applies next login
     surround_pending: Cell<bool>,
+    // hides the restart banner until a new pending change triggers it
+    surround_restart_dismissed: Cell<bool>,
 
     shortcut_banner_dismissed: Cell<bool>,
 
@@ -360,6 +364,15 @@ impl DashboardWindow {
             self,
             move |_| {
                 let _ = gtk::prelude::WidgetExt::activate_action(&w, "app.surround", None);
+            }
+        ));
+
+        imp.main_surround_restart_dismiss.connect_clicked(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| {
+                w.imp().surround_restart_dismissed.set(true);
+                w.imp().main_surround_restart_banner.set_visible(false);
             }
         ));
 

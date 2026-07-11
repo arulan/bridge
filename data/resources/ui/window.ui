@@ -560,6 +560,18 @@
                                         <property name="ellipsize">end</property>
                                       </object>
                                     </child>
+                                    <child>
+                                      <object class="GtkButton" id="main_surround_restart_dismiss">
+                                        <property name="icon-name">window-close-symbolic</property>
+                                        <property name="valign">center</property>
+                                        <property name="has-frame">False</property>
+                                        <property name="tooltip-text">Dismiss</property>
+                                        <accessibility>
+                                          <property name="label">Dismiss</property>
+                                        </accessibility>
+                                        <style><class name="inline-banner-dismiss"/><class name="flat"/></style>
+                                      </object>
+                                    </child>
                                   </object>
                                 </child>
                                 <child>

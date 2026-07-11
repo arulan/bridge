@@ -51,6 +51,8 @@ impl DashboardWindow {
             .is_some_and(|b| b.surround_present())
         {
             imp.surround_pending.set(true);
+            // a new change triggers the banner again
+            imp.surround_restart_dismissed.set(false);
         }
     }
 
@@ -83,8 +85,12 @@ impl DashboardWindow {
         }
         let node_absent = show_toggle && !present;
         let reconfig_pending = show_toggle && present && imp.surround_pending.get();
+        let pending = node_absent || reconfig_pending;
+        if !pending {
+            imp.surround_restart_dismissed.set(false);
+        }
         imp.main_surround_restart_banner
-            .set_visible(node_absent || reconfig_pending);
+            .set_visible(pending && !imp.surround_restart_dismissed.get());
         if node_absent {
             imp.main_surround_restart_label
                 .set_text("Virtual Surround is available after your next login");

@@ -76,6 +76,21 @@ levelbar.level-meter { min-height: 6px; }
   background: mix(@warning_bg_color, black, 0.10);
 }
 
+.inline-banner > button.inline-banner-dismiss {
+  min-height: 0;
+  min-width: 0;
+  padding: 2px;
+  margin: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: @accent_color;
+  opacity: 0.7;
+}
+
+.inline-banner > button.inline-banner-dismiss:hover { opacity: 1; }
+.inline-banner > button.inline-banner-dismiss > image { -gtk-icon-size: 12px; }
+
 .routing-header-list { background: none; }
 .routing-header-list > row { border-radius: 12px; }
 
