@@ -29,11 +29,21 @@ pub(super) fn streams_popover(title: &str) -> (gtk::Popover, gtk::ListBox) {
         .build();
     list.add_css_class("boxed-list");
 
+    // wrap the card in a box to avoid clipping the shadows
+    let list_wrap = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .margin_top(3)
+        .margin_bottom(3)
+        .margin_start(3)
+        .margin_end(3)
+        .build();
+    list_wrap.append(&list);
+
     let scrolled = gtk::ScrolledWindow::builder()
         .hscrollbar_policy(gtk::PolicyType::Never)
         .propagate_natural_height(true)
         .max_content_height(420)
-        .child(&list)
+        .child(&list_wrap)
         .build();
 
     let content = gtk::Box::builder()
