@@ -51,6 +51,17 @@
       <summary>Routing rules</summary>
     </key>
 
+    <!-- Quick Switch presets. Decided to use a vardict 
+      so fields can be added later without invalidating presets  -->
+    <key name="presets" type="aa{sv}">
+      <default>[]</default>
+      <summary>Quick Switch presets</summary>
+    </key>
+    <key name="presets-version" type="i">
+      <default>1</default>
+      <summary>Preset storage schema version</summary>
+    </key>
+
     <key name="window-width" type="i">
       <default>720</default>
       <summary>Last window width</summary>

@@ -218,3 +218,73 @@ pub fn load_rules() -> Vec<RoutingRule> {
 pub fn store_rules(rules: &[RoutingRule]) {
     let _ = settings().set_value("rules", &rules.to_variant());
 }
+
+// Quick Switch presets
+// A preset saves the hardware target of both Aux and Main
+// and is given a name
+// "" for aux_hw/main_hw means leave side unchanged on switch
+// id for future reference if this expands beyond Quick Switch
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Preset {
+    pub id: String,
+    pub name: String,
+    pub aux_hw: String,
+    pub main_hw: String,
+}
+
+impl Preset {
+    pub fn new() -> Self {
+        Preset {
+            id: glib::uuid_string_random().into(),
+            ..Default::default()
+        }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        !self.aux_hw.is_empty() || !self.main_hw.is_empty()
+    }
+
+    pub fn matches(&self, aux_hw: &str, main_hw: &str) -> bool {
+        (self.aux_hw.is_empty() || self.aux_hw == aux_hw)
+            && (self.main_hw.is_empty() || self.main_hw == main_hw)
+    }
+
+    fn to_dict(&self) -> glib::VariantDict {
+        let dict = glib::VariantDict::new(None);
+        dict.insert_value("id", &self.id.to_variant());
+        dict.insert_value("name", &self.name.to_variant());
+        dict.insert_value("aux-hw", &self.aux_hw.to_variant());
+        dict.insert_value("main-hw", &self.main_hw.to_variant());
+        dict
+    }
+
+    fn from_variant(v: &glib::Variant) -> Option<Self> {
+        let dict = glib::VariantDict::new(Some(v));
+        let get = |key| dict.lookup::<String>(key).ok().flatten().unwrap_or_default();
+        Some(Preset {
+            id: get("id"),
+            name: get("name"),
+            aux_hw: get("aux-hw"),
+            main_hw: get("main-hw"),
+        })
+    }
+}
+
+pub fn load_presets() -> Vec<Preset> {
+    settings()
+        .value("presets")
+        .iter()
+        .filter_map(|v| Preset::from_variant(&v))
+        .collect()
+}
+
+pub fn store_presets(presets: &[Preset]) {
+    let dicts: Vec<glib::VariantDict> = presets.iter().map(Preset::to_dict).collect();
+    let _ = settings().set_value("presets", &dicts.to_variant());
+}
+
+// True if at two presets exist, meaning Quick Switch is configured
+// TODO: If we add other writers of presets later, this will have to change
+pub fn presets_configured() -> bool {
+    load_presets().iter().filter(|p| p.is_valid()).count() >= 2
+}
