@@ -136,17 +136,12 @@ pub fn loopback_module_args(side: Side, def: &SinkDef) -> String {
 }
 
 /// Writes the pipewire.conf.d that persists the virtual sinks
-pub fn write_config(cfg: &SinkConfig) {
+pub fn write_config(cfg: &SinkConfig) -> std::io::Result<()> {
     let file = config_file();
-    if let Some(dir) = file.parent()
-        && let Err(e) = std::fs::create_dir_all(dir)
-    {
-        eprintln!("pw_config: failed to create {}: {e}", dir.display());
-        return;
+    if let Some(dir) = file.parent() {
+        std::fs::create_dir_all(dir)?;
     }
-    if let Err(e) = std::fs::write(&file, build_pw_config(cfg)) {
-        eprintln!("pw_config: failed to write {}: {e}", file.display());
-    }
+    std::fs::write(&file, build_pw_config(cfg))
 }
 
 // Drops the Aux/Main conf; virtual sinks are removed after next login
@@ -294,17 +289,12 @@ pub fn surround_preview_files(hrir_path: &str, hw_name: &str) -> Vec<(String, St
     )]
 }
 
-pub fn write_surround_config(hrir_path: &str, hw_name: &str) {
+pub fn write_surround_config(hrir_path: &str, hw_name: &str) -> std::io::Result<()> {
     let file = surround_config_file();
-    if let Some(dir) = file.parent()
-        && let Err(e) = std::fs::create_dir_all(dir)
-    {
-        eprintln!("pw_config: failed to create {}: {e}", dir.display());
-        return;
+    if let Some(dir) = file.parent() {
+        std::fs::create_dir_all(dir)?;
     }
-    if let Err(e) = std::fs::write(&file, build_surround_pw_config(hrir_path, hw_name)) {
-        eprintln!("pw_config: failed to write {}: {e}", file.display());
-    }
+    std::fs::write(&file, build_surround_pw_config(hrir_path, hw_name))
 }
 
 pub fn remove_surround_config() {

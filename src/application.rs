@@ -46,6 +46,14 @@ pub fn settings() -> gio::Settings {
     gio::Settings::new(APP_ID)
 }
 
+fn show_error_alert(parent: Option<&DashboardWindow>, heading: &str, body: &str) {
+    let dialog = adw::AlertDialog::new(Some(heading), Some(body));
+    dialog.add_response("ok", "OK");
+    dialog.set_default_response(Some("ok"));
+    dialog.set_close_response("ok");
+    dialog.present(parent);
+}
+
 #[derive(Default)]
 pub struct DashboardApplicationImp {
     window: RefCell<Option<DashboardWindow>>,
@@ -137,7 +145,17 @@ impl DashboardApplicationImp {
             glib::closure_local!(move |d: SetupDialog| {
                 let cfg = d.sink_config();
                 config::store(&cfg);
-                pw_config::write_config(&cfg);
+                if let Err(e) = pw_config::write_config(&cfg) {
+                    eprintln!("setup: failed to write config: {e}");
+                    show_error_alert(
+                        win_c.as_ref(),
+                        "Error Writing Configuration",
+                        &format!(
+                            "The virtual outputs will work for this session, but Dashboard couldn't write the \
+                             PipeWire configuration, so they won't come back after you log out.\n\n{e}"
+                        ),
+                    );
+                }
 
                 be_c.recreate_temp_sinks();
                 if let Some(w) = &win_c {
@@ -182,6 +200,14 @@ impl DashboardApplicationImp {
                     Ok(dest) => dest.to_string_lossy().into_owned(),
                     Err(e) => {
                         eprintln!("surround: failed to import HRIR: {e}");
+                        show_error_alert(
+                            win_c.as_ref(),
+                            "Error Importing HRIR File",
+                            &format!(
+                                "Dashboard couldn't import the HRIR file into place, so Virtual \
+                                 Surround was not enabled.\n\n{e}"
+                            ),
+                        );
                         return;
                     }
                 };
@@ -191,7 +217,18 @@ impl DashboardApplicationImp {
                     hw_name: sink.name.clone(),
                     display_name: sink.display_name.clone(),
                 });
-                pw_config::write_surround_config(&hrir_path, &sink.name);
+                if let Err(e) = pw_config::write_surround_config(&hrir_path, &sink.name) {
+                    eprintln!("surround: failed to write config: {e}");
+                    show_error_alert(
+                        win_c.as_ref(),
+                        "Error Writing Surround Configuration",
+                        &format!(
+                            "The HRIR file was imported, but Dashboard couldn't write the PipeWire \
+                             configuration, so Virtual Surround was not enabled.\n\n{e}"
+                        ),
+                    );
+                    return;
+                }
                 if let Some(w) = &win_c {
                     if old.hw_name != sink.name || old.hrir_path != hrir_path {
                         w.note_surround_reconfig();
@@ -439,7 +476,9 @@ fn collect_diagnostic_info() -> String {
         .unwrap_or_else(|_| "(unknown)".to_owned());
 
     let pw_ver = run_cmd("pw-cli", &["--version"]);
-    let graph = run_cmd("pw-dump", &[]);
+    let defaults = run_cmd("pw-metadata", &["-n", "default"]);
+    let links = run_cmd("pw-link", &["-l"]);
+    let nodes = run_cmd("pw-cli", &["ls", "Node"]);
 
     let pw_conf = read_file(&pw_config::config_file());
     let surround_conf = {
@@ -475,8 +514,14 @@ fn collect_diagnostic_info() -> String {
          --- PipeWire ---\n\
          {pw_ver}\n\
          \n\
-         --- PipeWire graph (pw-dump) ---\n\
-         {graph}\n\
+         --- Default sink/source (pw-metadata) ---\n\
+         {defaults}\n\
+         \n\
+         --- Links (pw-link -l) ---\n\
+         {links}\n\
+         \n\
+         --- Nodes (pw-cli ls Node) ---\n\
+         {nodes}\n\
          \n\
          --- Dashboard Aux/Main config ({pw_path}) ---\n\
          {pw_conf}\n\

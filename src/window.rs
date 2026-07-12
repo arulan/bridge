@@ -913,7 +913,9 @@ impl DashboardWindow {
         let mut cfg = config::load();
         *cfg.side_mut(side) = sink.into();
         config::store(&cfg);
-        pw_config::write_config(&cfg);
+        if let Err(e) = pw_config::write_config(&cfg) {
+            eprintln!("routing: failed to persist config: {e}");
+        }
 
         // route live now; the new conf write is the default for next session
         let Some(backend) = imp.backend.borrow().clone() else {
