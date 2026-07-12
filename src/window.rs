@@ -721,6 +721,7 @@ impl DashboardWindow {
                 "step-left" => w.step(-1.0),
                 "step-right" => w.step(1.0),
                 "reset" => w.imp().mix_scale.set_value(0.0),
+                "quick-switch-outputs" => w.quick_switch_execute(),
                 _ => {}
             }
         ));
@@ -950,9 +951,11 @@ impl DashboardWindow {
         imp.qs_configure_button.set_visible(false);
         imp.qs_switch_button.set_visible(true);
 
-        // disable quick switch toggle in Surround mode
         if imp.surround_active.get() {
-            imp.qs_switch_button.set_sensitive(false);
+            self.qs_disable(
+                "Unavailable in Surround",
+                "Quick Switch is unavailable in Virtual Surround",
+            );
             return;
         }
 
@@ -968,23 +971,65 @@ impl DashboardWindow {
         let name_a = if a.name.is_empty() { "A" } else { &a.name };
         let name_b = if b.name.is_empty() { "B" } else { &b.name };
 
-        if a.matches(&aux_hw, &main_hw) {
-            imp.qs_switch_content.set_label(name_a);
-            imp.qs_switch_button
-                .set_tooltip_text(Some(&format!("Switch to {name_b}")));
-            imp.qs_switch_button.set_sensitive(true);
+        let (target, icon, label, tooltip) = if a.matches(&aux_hw, &main_hw) {
+            (
+                b,
+                "horizontal-arrows-symbolic",
+                format!("Switch to {name_b}"),
+                format!("Currently on {name_a}"),
+            )
         } else if b.matches(&aux_hw, &main_hw) {
-            imp.qs_switch_content.set_label(name_b);
-            imp.qs_switch_button
-                .set_tooltip_text(Some(&format!("Switch to {name_a}")));
-            imp.qs_switch_button.set_sensitive(true);
+            (
+                a,
+                "horizontal-arrows-symbolic",
+                format!("Switch to {name_a}"),
+                format!("Currently on {name_b}"),
+            )
         } else {
-            // disable Quick Switch toggle if current output doesn't match a preset
-            imp.qs_switch_button.set_sensitive(false);
+            (
+                a,
+                "arrow-turn-right-horizontal2-symbolic",
+                format!("Switch to {name_a}"),
+                "Current outputs match no preset".to_owned(),
+            )
+        };
+
+        // hardware unavailable/disconnected path
+        let sinks = imp
+            .backend
+            .borrow()
+            .as_ref()
+            .map(|be| be.hw_sinks())
+            .unwrap_or_default();
+        if !preset_devices_present(target, &sinks) {
+            let target_name = if target.name.is_empty() {
+                "The target preset"
+            } else {
+                &target.name
+            };
+            self.qs_disable(
+                "Output Unavailable",
+                &format!("{target_name} uses a disconnected output"),
+            );
+            return;
         }
+
+        imp.qs_switch_content.set_icon_name(icon);
+        imp.qs_switch_content.set_label(&label);
+        imp.qs_switch_button.set_tooltip_text(Some(&tooltip));
+        imp.qs_switch_button.set_sensitive(true);
     }
 
-    // toggle switches to the preset not currently active
+    fn qs_disable(&self, label: &str, tooltip: &str) {
+        let imp = self.imp();
+        imp.qs_switch_content
+            .set_icon_name("horizontal-arrows-disabled-symbolic");
+        imp.qs_switch_content.set_label(label);
+        imp.qs_switch_button.set_tooltip_text(Some(tooltip));
+        imp.qs_switch_button.set_sensitive(false);
+    }
+
+    // switch to the other preset; matching neither jumps to the first
     pub fn quick_switch_execute(&self) {
         let imp = self.imp();
         if imp.surround_active.get() {
@@ -1003,13 +1048,17 @@ impl DashboardWindow {
         let aux_hw = cfg.aux.hw_name;
         let main_hw = cfg.main.hw_name;
 
-        let target = if a.matches(&aux_hw, &main_hw) {
-            b
-        } else if b.matches(&aux_hw, &main_hw) {
-            a
-        } else {
+        let target = if a.matches(&aux_hw, &main_hw) { b } else { a };
+
+        let sinks = imp
+            .backend
+            .borrow()
+            .as_ref()
+            .map(|be| be.hw_sinks())
+            .unwrap_or_default();
+        if !preset_devices_present(target, &sinks) {
             return;
-        };
+        }
 
         if !target.aux_hw.is_empty() {
             self.select_side_hw(Side::Aux, &target.aux_hw);
@@ -1121,6 +1170,11 @@ impl DashboardWindow {
             .unwrap_or_default();
         stream_list::fill_streams(&list, &streams);
     }
+}
+
+fn preset_devices_present(preset: &config::Preset, sinks: &[HwSink]) -> bool {
+    let present = |name: &str| name.is_empty() || sinks.iter().any(|s| s.name == name);
+    present(&preset.aux_hw) && present(&preset.main_hw)
 }
 
 fn add_css() {

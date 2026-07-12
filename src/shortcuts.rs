@@ -30,6 +30,11 @@ pub const SHORTCUTS: &[(&str, &str, &str)] = &[
     ("step-left", "Step Towards Aux", "CTRL+SHIFT+Left"),
     ("step-right", "Step Towards Main", "CTRL+SHIFT+Right"),
     ("reset", "Reset Balance", "CTRL+SHIFT+Down"),
+    (
+        "quick-switch-outputs",
+        "Switch Output Preset",
+        "CTRL+SHIFT+p",
+    ),
 ];
 
 const PORTAL_BUS: &str = "org.freedesktop.portal.Desktop";

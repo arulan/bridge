@@ -14,5 +14,7 @@
     <file preprocess="xml-stripblanks" alias="headphones-symbolic.svg">icons/scalable/actions/headphones-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="list-symbolic.svg">icons/scalable/actions/list-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="horizontal-arrows-symbolic.svg">icons/scalable/actions/horizontal-arrows-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="horizontal-arrows-disabled-symbolic.svg">icons/scalable/actions/horizontal-arrows-disabled-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="arrow-turn-right-horizontal2-symbolic.svg">icons/scalable/actions/arrow-turn-right-horizontal2-symbolic.svg</file>
   </gresource>
 </gresources>
