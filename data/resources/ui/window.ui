@@ -13,6 +13,10 @@
         <attribute name="label" translatable="yes">_Configure Virtual Surround…</attribute>
         <attribute name="action">app.surround</attribute>
       </item>
+      <item>
+        <attribute name="label" translatable="yes">Configure _Quick Switch…</attribute>
+        <attribute name="action">app.quick-switch</attribute>
+      </item>
     </section>
     <section>
       <item>
@@ -45,6 +49,37 @@
                 <property name="menu-model">primary_menu</property>
                 <property name="primary">true</property>
                 <property name="tooltip-text">Menu</property>
+              </object>
+            </child>
+            <child type="end">
+              <object class="GtkButton" id="qs_switch_button">
+                <property name="visible">False</property>
+                <property name="tooltip-text">Switch output preset</property>
+                <child>
+                  <object class="AdwButtonContent" id="qs_switch_content">
+                    <property name="icon-name">horizontal-arrows-symbolic</property>
+                    <property name="label">A</property>
+                  </object>
+                </child>
+                <style>
+                  <class name="flat"/>
+                </style>
+              </object>
+            </child>
+            <child type="end">
+              <object class="GtkButton" id="qs_configure_button">
+                <property name="visible">False</property>
+                <property name="tooltip-text">Configure Quick Switch presets</property>
+                <property name="action-name">app.quick-switch</property>
+                <child>
+                  <object class="AdwButtonContent">
+                    <property name="icon-name">horizontal-arrows-symbolic</property>
+                    <property name="label">Quick Switch…</property>
+                  </object>
+                </child>
+                <style>
+                  <class name="flat"/>
+                </style>
               </object>
             </child>
           </object>

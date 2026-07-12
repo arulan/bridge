@@ -17,5 +17,6 @@
 
 pub mod add_rule;
 pub mod preferences;
+pub mod quick_switch;
 pub mod setup;
 pub mod surround;

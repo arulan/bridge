@@ -260,7 +260,12 @@ impl Preset {
 
     fn from_variant(v: &glib::Variant) -> Option<Self> {
         let dict = glib::VariantDict::new(Some(v));
-        let get = |key| dict.lookup::<String>(key).ok().flatten().unwrap_or_default();
+        let get = |key| {
+            dict.lookup::<String>(key)
+                .ok()
+                .flatten()
+                .unwrap_or_default()
+        };
         Some(Preset {
             id: get("id"),
             name: get("name"),

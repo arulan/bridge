@@ -127,6 +127,12 @@ pub struct DashboardWindowImp {
     pub routing_revealer: TemplateChild<gtk::Revealer>,
     #[template_child]
     pub routing_body: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub qs_switch_button: TemplateChild<gtk::Button>,
+    #[template_child]
+    pub qs_switch_content: TemplateChild<adw::ButtonContent>,
+    #[template_child]
+    pub qs_configure_button: TemplateChild<gtk::Button>,
 
     backend: RefCell<Option<PipeWireBackend>>,
     suppress_selected: Cell<bool>,
@@ -367,14 +373,15 @@ impl DashboardWindow {
             }
         ));
 
-        imp.main_surround_restart_dismiss.connect_clicked(glib::clone!(
-            #[weak(rename_to = w)]
-            self,
-            move |_| {
-                w.imp().surround_restart_dismissed.set(true);
-                w.imp().main_surround_restart_banner.set_visible(false);
-            }
-        ));
+        imp.main_surround_restart_dismiss
+            .connect_clicked(glib::clone!(
+                #[weak(rename_to = w)]
+                self,
+                move |_| {
+                    w.imp().surround_restart_dismissed.set(true);
+                    w.imp().main_surround_restart_banner.set_visible(false);
+                }
+            ));
 
         backend.connect_surround_ready(glib::clone!(
             #[weak(rename_to = w)]
@@ -399,6 +406,12 @@ impl DashboardWindow {
             #[weak(rename_to = w)]
             self,
             move |_| w.show_add_rule_dialog(&[])
+        ));
+
+        imp.qs_switch_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.quick_switch_execute()
         ));
 
         backend.connect_sinks_ready(glib::clone!(
@@ -661,6 +674,7 @@ impl DashboardWindow {
         // keep the default banner/tag + surround in step
         self.refresh_default_banner();
         self.refresh_surround();
+        self.update_qs_toggle();
     }
 
     fn apply_mix(&self) {
@@ -921,6 +935,113 @@ impl DashboardWindow {
         }
 
         self.refresh_channels_label(side);
+        self.update_qs_toggle();
+    }
+
+    pub fn update_qs_toggle(&self) {
+        let imp = self.imp();
+
+        if !config::presets_configured() {
+            imp.qs_switch_button.set_visible(false);
+            imp.qs_configure_button.set_visible(true);
+            return;
+        }
+
+        imp.qs_configure_button.set_visible(false);
+        imp.qs_switch_button.set_visible(true);
+
+        // disable quick switch toggle in Surround mode
+        if imp.surround_active.get() {
+            imp.qs_switch_button.set_sensitive(false);
+            return;
+        }
+
+        let presets = config::load_presets();
+        let (Some(a), Some(b)) = (presets.first(), presets.get(1)) else {
+            return;
+        };
+
+        let cfg = config::load();
+        let aux_hw = cfg.aux.hw_name;
+        let main_hw = cfg.main.hw_name;
+
+        let name_a = if a.name.is_empty() { "A" } else { &a.name };
+        let name_b = if b.name.is_empty() { "B" } else { &b.name };
+
+        if a.matches(&aux_hw, &main_hw) {
+            imp.qs_switch_content.set_label(name_a);
+            imp.qs_switch_button
+                .set_tooltip_text(Some(&format!("Switch to {name_b}")));
+            imp.qs_switch_button.set_sensitive(true);
+        } else if b.matches(&aux_hw, &main_hw) {
+            imp.qs_switch_content.set_label(name_b);
+            imp.qs_switch_button
+                .set_tooltip_text(Some(&format!("Switch to {name_a}")));
+            imp.qs_switch_button.set_sensitive(true);
+        } else {
+            // disable Quick Switch toggle if current output doesn't match a preset
+            imp.qs_switch_button.set_sensitive(false);
+        }
+    }
+
+    // toggle switches to the preset not currently active
+    pub fn quick_switch_execute(&self) {
+        let imp = self.imp();
+        if imp.surround_active.get() {
+            return;
+        }
+        if !config::presets_configured() {
+            return;
+        }
+
+        let presets = config::load_presets();
+        let (Some(a), Some(b)) = (presets.first(), presets.get(1)) else {
+            return;
+        };
+
+        let cfg = config::load();
+        let aux_hw = cfg.aux.hw_name;
+        let main_hw = cfg.main.hw_name;
+
+        let target = if a.matches(&aux_hw, &main_hw) {
+            b
+        } else if b.matches(&aux_hw, &main_hw) {
+            a
+        } else {
+            return;
+        };
+
+        if !target.aux_hw.is_empty() {
+            self.select_side_hw(Side::Aux, &target.aux_hw);
+        }
+        if !target.main_hw.is_empty() {
+            self.select_side_hw(Side::Main, &target.main_hw);
+        }
+    }
+
+    fn select_side_hw(&self, side: Side, hw_name: &str) {
+        let imp = self.imp();
+        let dropdown = match side {
+            Side::Aux => &*imp.aux_hw_dropdown,
+            Side::Main => &*imp.main_hw_dropdown,
+        };
+        let Some(model) = dropdown.model() else {
+            return;
+        };
+
+        for i in 0..model.n_items() {
+            let Some(sink) = model
+                .item(i)
+                .and_downcast::<glib::BoxedAnyObject>()
+                .map(|b| b.borrow::<HwSink>().clone())
+            else {
+                continue;
+            };
+            if sink.node_id != 0 && sink.name == hw_name {
+                dropdown.set_selected(i);
+                return;
+            }
+        }
     }
 
     fn refresh_channels_label(&self, side: Side) {

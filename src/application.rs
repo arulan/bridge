@@ -26,6 +26,7 @@ use crate::audio::backend::PipeWireBackend;
 use crate::audio::pw_config;
 use crate::config;
 use crate::dialogs::preferences;
+use crate::dialogs::quick_switch;
 use crate::dialogs::setup::SetupDialog;
 use crate::dialogs::surround::SurroundDialog;
 use crate::shortcuts::{self, ShortcutsPortal};
@@ -216,6 +217,25 @@ impl DashboardApplicationImp {
         dialog.present();
     }
 
+    fn show_quick_switch_dialog(&self) {
+        let Some(be) = self.backend.borrow().clone() else {
+            return;
+        };
+        let win = self.window.borrow().clone();
+        let refresh_win = win.clone();
+        quick_switch::show(
+            win.as_ref(),
+            be.hw_sinks(),
+            config::load_presets(),
+            move |presets| {
+                config::store_presets(&presets);
+                if let Some(w) = &refresh_win {
+                    w.update_qs_toggle();
+                }
+            },
+        );
+    }
+
     fn show_preferences_dialog(&self) {
         let parent = self.window.borrow().clone();
         preferences::show(parent.as_ref());
@@ -364,6 +384,11 @@ pub fn register_actions(app: &DashboardApplication) {
     let app_c = app.clone();
     surround.connect_activate(move |_, _| app_c.imp().show_surround_dialog());
     app.add_action(&surround);
+
+    let quick_switch = gio::SimpleAction::new("quick-switch", None);
+    let app_c = app.clone();
+    quick_switch.connect_activate(move |_, _| app_c.imp().show_quick_switch_dialog());
+    app.add_action(&quick_switch);
 
     let preferences = gio::SimpleAction::new("preferences", None);
     let app_c = app.clone();

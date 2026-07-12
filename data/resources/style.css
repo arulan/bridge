@@ -91,6 +91,17 @@ levelbar.level-meter { min-height: 6px; }
 .inline-banner > button.inline-banner-dismiss:hover { opacity: 1; }
 .inline-banner > button.inline-banner-dismiss > image { -gtk-icon-size: 12px; }
 
+/* Quick Switch preset badges */
+.qs-badge {
+  min-width: 24px;
+  min-height: 24px;
+  border-radius: 9999px;
+  font-weight: bold;
+  font-size: 0.85em;
+}
+.qs-badge-a { background-color: @accent_bg_color; color: @accent_fg_color; }
+.qs-badge-b { background-color: @card_shade_color; color: @card_fg_color; }
+
 .routing-header-list { background: none; }
 .routing-header-list > row { border-radius: 12px; }
 
