@@ -208,6 +208,21 @@ impl DashboardWindow {
     pub fn setup(&self, backend: &PipeWireBackend) {
         let imp = self.imp();
 
+        self.wire_shell();
+        self.wire_card_controls();
+        self.wire_backend_signals(backend);
+
+        *imp.backend.borrow_mut() = Some(backend.clone());
+
+        self.set_routing_expanded(config::keep_routing_open());
+        self.refresh_surround();
+        self.start_activity_ticker();
+    }
+
+    // CSS, window-state restore/save, crossfader fill, and the level meters
+    fn wire_shell(&self) {
+        let imp = self.imp();
+
         // TODO: Look into GResource later
         add_css();
 
@@ -243,6 +258,11 @@ impl DashboardWindow {
             bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_FULL));
             bar.add_css_class("level-meter");
         }
+    }
+
+    // Wire the per-card controls
+    fn wire_card_controls(&self) {
+        let imp = self.imp();
 
         imp.aux_hw_dropdown.set_factory(Some(&hw_sink_factory()));
         imp.main_hw_dropdown.set_factory(Some(&hw_sink_factory()));
@@ -384,19 +404,6 @@ impl DashboardWindow {
                 }
             ));
 
-        backend.connect_surround_ready(glib::clone!(
-            #[weak(rename_to = w)]
-            self,
-            move |_| w.on_surround_ready()
-        ));
-
-        // the node dropping falls back to direct mode
-        backend.connect_surround_removed(glib::clone!(
-            #[weak(rename_to = w)]
-            self,
-            move |_| w.on_surround_removed()
-        ));
-
         imp.routing_header_list.connect_row_activated(glib::clone!(
             #[weak(rename_to = w)]
             self,
@@ -413,6 +420,21 @@ impl DashboardWindow {
             #[weak(rename_to = w)]
             self,
             move |_| w.quick_switch_execute()
+        ));
+    }
+
+    fn wire_backend_signals(&self, backend: &PipeWireBackend) {
+        backend.connect_surround_ready(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.on_surround_ready()
+        ));
+
+        // the node dropping falls back to direct mode
+        backend.connect_surround_removed(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.on_surround_removed()
         ));
 
         backend.connect_sinks_ready(glib::clone!(
@@ -457,11 +479,6 @@ impl DashboardWindow {
             self,
             move |_| w.sync_controls()
         ));
-        *imp.backend.borrow_mut() = Some(backend.clone());
-
-        self.set_routing_expanded(config::keep_routing_open());
-        self.refresh_surround();
-        self.start_activity_ticker();
     }
 
     fn restore_window_state(&self) {
