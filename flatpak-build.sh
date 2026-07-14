@@ -6,8 +6,8 @@ set -eu
 
 cd "$(dirname "$0")"
 
-flatpak-builder --user --install --force-clean builddir io.github.arulan.Dashboard-dev.json
+flatpak-builder --user --install --force-clean builddir io.github.arulan.Bridge-dev.json
 
 if [ "${1:-}" = "run" ]; then
-    flatpak run io.github.arulan.Dashboard
+    flatpak run io.github.arulan.Bridge
 fi

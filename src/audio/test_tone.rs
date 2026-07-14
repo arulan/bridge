@@ -1,19 +1,19 @@
 // Copyright (C) 2026 arulan
 //
-// This file is part of Dashboard.
+// This file is part of Bridge.
 //
-// Dashboard is free software: you can redistribute it and/or modify
+// Bridge is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Dashboard is distributed in the hope that it will be useful,
+// Bridge is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
+// along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
 // A per-side test tone; Useful to verify routing and crossfade mixing levels
 // Opens a pw_stream and plays a short sine wave on each channel
@@ -83,16 +83,16 @@ fn run(
     let ch_str = n_channels.to_string();
     let stream = pw::stream::StreamBox::new(
         &core,
-        "dashboard-test-tone",
+        "bridge-test-tone",
         properties! {
             *pw::keys::MEDIA_TYPE     => "Audio",
             *pw::keys::MEDIA_ROLE     => "Test",
             *pw::keys::MEDIA_CATEGORY => "Playback",
             *pw::keys::TARGET_OBJECT  => sink_name,
-            *pw::keys::NODE_NAME      => "dashboard-test-tone",
+            *pw::keys::NODE_NAME      => "bridge-test-tone",
             *pw::keys::AUDIO_CHANNELS => ch_str.as_str(),
             // used to filter out test tone streams from stream tracking
-            "dashboard.role"          => "test",
+            "bridge.role"          => "test",
         },
     )?;
 

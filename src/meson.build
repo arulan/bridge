@@ -22,7 +22,7 @@ custom_target(
   env: {
     'CARGO_HOME': meson.project_build_root() / 'cargo-home',
     'APP_ID': application_id,
-    'RESOURCES_FILE': pkgdatadir / 'dashboard.gresource',
+    'RESOURCES_FILE': pkgdatadir / 'bridge.gresource',
   },
   command: [
     cargo, 'build',

@@ -1,5 +1,5 @@
 {
-    "app-id": "io.github.arulan.Dashboard",
+    "app-id": "io.github.arulan.Bridge",
     "runtime": "org.gnome.Platform",
     "runtime-version": "50",
     "sdk": "org.gnome.Sdk",
@@ -7,7 +7,7 @@
         "org.freedesktop.Sdk.Extension.rust-stable",
         "org.freedesktop.Sdk.Extension.llvm22"
     ],
-    "command": "dashboard",
+    "command": "bridge",
     "finish-args": [
         "--socket=wayland",
         "--socket=fallback-x11",
@@ -30,7 +30,7 @@
     ],
     "modules": [
         {
-            "name": "dashboard",
+            "name": "bridge",
             "builddir": true,
             "buildsystem": "meson",
             "config-opts": [

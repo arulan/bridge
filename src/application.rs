@@ -1,19 +1,19 @@
 // Copyright (C) 2026 arulan
 //
-// This file is part of Dashboard.
+// This file is part of Bridge.
 //
-// Dashboard is free software: you can redistribute it and/or modify
+// Bridge is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Dashboard is distributed in the hope that it will be useful,
+// Bridge is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
+// along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
 use std::cell::RefCell;
 use std::process::Command;
@@ -31,12 +31,12 @@ use crate::dialogs::setup::SetupDialog;
 use crate::dialogs::surround::SurroundDialog;
 use crate::shortcuts::{self, ShortcutsPortal};
 use crate::util;
-use crate::window::DashboardWindow;
+use crate::window::BridgeWindow;
 
 // fallback for cargo; comes from meson at build time now
 pub const APP_ID: &str = match option_env!("APP_ID") {
     Some(id) => id,
-    None => "io.github.arulan.Dashboard",
+    None => "io.github.arulan.Bridge",
 };
 
 pub const RESOURCES_FILE: Option<&str> = option_env!("RESOURCES_FILE");
@@ -46,7 +46,7 @@ pub fn settings() -> gio::Settings {
     gio::Settings::new(APP_ID)
 }
 
-fn show_error_alert(parent: Option<&DashboardWindow>, heading: &str, body: &str) {
+fn show_error_alert(parent: Option<&BridgeWindow>, heading: &str, body: &str) {
     let dialog = adw::AlertDialog::new(Some(heading), Some(body));
     dialog.add_response("ok", "OK");
     dialog.set_default_response(Some("ok"));
@@ -55,22 +55,22 @@ fn show_error_alert(parent: Option<&DashboardWindow>, heading: &str, body: &str)
 }
 
 #[derive(Default)]
-pub struct DashboardApplicationImp {
-    window: RefCell<Option<DashboardWindow>>,
+pub struct BridgeApplicationImp {
+    window: RefCell<Option<BridgeWindow>>,
     backend: RefCell<Option<PipeWireBackend>>,
     shortcuts: RefCell<Option<ShortcutsPortal>>,
 }
 
 #[glib::object_subclass]
-impl ObjectSubclass for DashboardApplicationImp {
-    const NAME: &'static str = "DashboardApplication";
-    type Type = DashboardApplication;
+impl ObjectSubclass for BridgeApplicationImp {
+    const NAME: &'static str = "BridgeApplication";
+    type Type = BridgeApplication;
     type ParentType = adw::Application;
 }
 
-impl ObjectImpl for DashboardApplicationImp {}
+impl ObjectImpl for BridgeApplicationImp {}
 
-impl ApplicationImpl for DashboardApplicationImp {
+impl ApplicationImpl for BridgeApplicationImp {
     fn activate(&self) {
         self.parent_activate();
 
@@ -85,7 +85,7 @@ impl ApplicationImpl for DashboardApplicationImp {
         be.start();
         *self.backend.borrow_mut() = Some(be.clone());
 
-        let window = DashboardWindow::new(app.upcast_ref::<adw::Application>());
+        let window = BridgeWindow::new(app.upcast_ref::<adw::Application>());
         window.setup(&be);
         *self.window.borrow_mut() = Some(window.clone());
 
@@ -119,10 +119,10 @@ impl ApplicationImpl for DashboardApplicationImp {
     }
 }
 
-impl GtkApplicationImpl for DashboardApplicationImp {}
-impl AdwApplicationImpl for DashboardApplicationImp {}
+impl GtkApplicationImpl for BridgeApplicationImp {}
+impl AdwApplicationImpl for BridgeApplicationImp {}
 
-impl DashboardApplicationImp {
+impl BridgeApplicationImp {
     fn show_setup_dialog(&self, first_run: bool) {
         let Some(be) = self.backend.borrow().clone() else {
             return;
@@ -151,7 +151,7 @@ impl DashboardApplicationImp {
                         win_c.as_ref(),
                         "Error Writing Configuration",
                         &format!(
-                            "The virtual outputs will work for this session, but Dashboard couldn't write the \
+                            "The virtual outputs will work for this session, but Bridge couldn't write the \
                              PipeWire configuration, so they won't come back after you log out.\n\n{e}"
                         ),
                     );
@@ -204,7 +204,7 @@ impl DashboardApplicationImp {
                             win_c.as_ref(),
                             "Error Importing HRIR File",
                             &format!(
-                                "Dashboard couldn't import the HRIR file into place, so Virtual \
+                                "Bridge couldn't import the HRIR file into place, so Virtual \
                                  Surround was not enabled.\n\n{e}"
                             ),
                         );
@@ -223,7 +223,7 @@ impl DashboardApplicationImp {
                         win_c.as_ref(),
                         "Error Writing Surround Configuration",
                         &format!(
-                            "The HRIR file was imported, but Dashboard couldn't write the PipeWire \
+                            "The HRIR file was imported, but Bridge couldn't write the PipeWire \
                              configuration, so Virtual Surround was not enabled.\n\n{e}"
                         ),
                     );
@@ -284,7 +284,7 @@ impl DashboardApplicationImp {
         let dialog = adw::AlertDialog::new(
             Some("Remove PipeWire Configuration?"),
             Some(
-                "This deletes the PipeWire configuration files Dashboard created and returns it \
+                "This deletes the PipeWire configuration files Bridge created and returns it \
                  to first-run setup. Any imported HRIR files are left in place.\n\nThe changes \
                  take effect after your next login.",
             ),
@@ -364,7 +364,7 @@ impl DashboardApplicationImp {
             });
         }
 
-        let builder = gtk::Builder::from_resource("/io/github/arulan/Dashboard/ui/shortcuts.ui");
+        let builder = gtk::Builder::from_resource("/io/github/arulan/Bridge/ui/shortcuts.ui");
         for id in ["section_crossfader", "section_application"] {
             if let Some(section) = builder.object::<adw::ShortcutsSection>(id) {
                 dialog.add(section);
@@ -378,17 +378,17 @@ impl DashboardApplicationImp {
     fn show_about_dialog(&self) {
         let debug_info = collect_diagnostic_info();
         let about = adw::AboutDialog::builder()
-            .application_name("Dashboard")
+            .application_name("Bridge")
             .application_icon(APP_ID)
             .version(env!("CARGO_PKG_VERSION"))
             .developer_name("arulan")
             .developers(["arulan"])
             .copyright("© 2026 arulan")
             .license_type(gtk::License::Gpl30)
-            .website("https://github.com/arulan/dashboard")
-            .issue_url("https://github.com/arulan/dashboard/issues")
+            .website("https://github.com/arulan/bridge")
+            .issue_url("https://github.com/arulan/bridge/issues")
             .debug_info(&debug_info)
-            .debug_info_filename("dashboard-diagnostic.txt")
+            .debug_info_filename("bridge-diagnostic.txt")
             .build();
         let parent = self.window.borrow().clone();
         about.present(parent.as_ref().map(|w| w.upcast_ref::<gtk::Widget>()));
@@ -397,12 +397,12 @@ impl DashboardApplicationImp {
 
 // cannot be dereferenced?
 glib::wrapper! {
-    pub struct DashboardApplication(ObjectSubclass<DashboardApplicationImp>)
+    pub struct BridgeApplication(ObjectSubclass<BridgeApplicationImp>)
         @extends adw::Application, gtk::Application, gio::Application,
         @implements gio::ActionGroup, gio::ActionMap;
 }
 
-impl DashboardApplication {
+impl BridgeApplication {
     pub fn new() -> Self {
         glib::Object::builder()
             .property("application-id", APP_ID)
@@ -411,7 +411,7 @@ impl DashboardApplication {
     }
 }
 
-pub fn register_actions(app: &DashboardApplication) {
+pub fn register_actions(app: &BridgeApplication) {
     let setup = gio::SimpleAction::new("setup", None);
     let app_c = app.clone();
     setup.connect_activate(move |_, _| app_c.imp().show_setup_dialog(false));
@@ -504,7 +504,7 @@ fn collect_diagnostic_info() -> String {
     };
 
     format!(
-        "=== Dashboard Diagnostic Report ===\n\
+        "=== Bridge Diagnostic Report ===\n\
          App version: {ver}\n\
          \n\
          --- System ---\n\
@@ -523,10 +523,10 @@ fn collect_diagnostic_info() -> String {
          --- Nodes (pw-cli ls Node) ---\n\
          {nodes}\n\
          \n\
-         --- Dashboard Aux/Main config ({pw_path}) ---\n\
+         --- Bridge Aux/Main config ({pw_path}) ---\n\
          {pw_conf}\n\
          \n\
-         --- Dashboard Surround config ---\n\
+         --- Bridge Surround config ---\n\
          {surround_conf}\n\
          \n\
          --- Config summary ---\n\

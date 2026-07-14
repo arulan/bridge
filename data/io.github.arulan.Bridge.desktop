@@ -1,13 +1,13 @@
 [Desktop Entry]
 Type=Application
 
-Name=Dashboard
+Name=Bridge
 Comment=PipeWire crossfade mixer
 Categories=AudioVideo;Audio;Mixer;
 Keywords=PipeWire;Audio;Mixer;Crossfade;Volume;
 
-Exec=dashboard
-Icon=io.github.arulan.Dashboard
+Exec=bridge
+Icon=io.github.arulan.Bridge
 Terminal=false
 
 

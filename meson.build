@@ -1,4 +1,4 @@
-project('dashboard', 'rust',
+project('bridge', 'rust',
   version: '0.4.0',
   meson_version: '>= 1.0',
   default_options: ['warning_level=2'],
@@ -6,7 +6,7 @@ project('dashboard', 'rust',
 
 gnome = import('gnome')
 
-application_id = 'io.github.arulan.Dashboard'
+application_id = 'io.github.arulan.Bridge'
 
 prefix = get_option('prefix')
 bindir = prefix / get_option('bindir')

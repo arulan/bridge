@@ -1,19 +1,19 @@
 // Copyright (C) 2026 arulan
 //
-// This file is part of Dashboard.
+// This file is part of Bridge.
 //
-// Dashboard is free software: you can redistribute it and/or modify
+// Bridge is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Dashboard is distributed in the hope that it will be useful,
+// Bridge is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
+// along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -66,7 +66,7 @@ pub struct ShortcutsPortalImp {
 
 #[glib::object_subclass]
 impl ObjectSubclass for ShortcutsPortalImp {
-    const NAME: &'static str = "DashboardShortcutsPortal";
+    const NAME: &'static str = "BridgeShortcutsPortal";
     type Type = ShortcutsPortal;
 }
 
@@ -124,7 +124,7 @@ impl ShortcutsPortal {
     fn create_session(&self, conn: &gio::DBusConnection) {
         let attempt = self.imp().create_attempts.get();
         let sender = sender_from_conn(conn);
-        let cs_token = format!("dashboard_cs_{attempt}");
+        let cs_token = format!("bridge_cs_{attempt}");
         let cs_path = format!("/org/freedesktop/portal/desktop/request/{sender}/{cs_token}");
         self.subscribe(
             conn,
@@ -140,7 +140,7 @@ impl ShortcutsPortal {
         options.insert("handle_token".to_owned(), cs_token.to_variant());
         options.insert(
             "session_handle_token".to_owned(),
-            format!("dashboard_sh_{attempt}").to_variant(),
+            format!("bridge_sh_{attempt}").to_variant(),
         );
         dbus_call(conn, "CreateSession", (options,).to_variant(), "(o)");
 
@@ -219,7 +219,7 @@ impl ShortcutsPortal {
             .replace(Some(session_handle.clone()));
 
         let sender = sender_from_conn(conn);
-        let bs_token = "dashboard_bs";
+        let bs_token = "bridge_bs";
         let bs_path = format!("/org/freedesktop/portal/desktop/request/{sender}/{bs_token}");
         self.imp().bind_attempts.set(0);
         self.subscribe(
@@ -253,7 +253,7 @@ impl ShortcutsPortal {
                     let Some(portal) = weak.upgrade() else { return };
                     let session = portal.imp().session_handle.borrow().clone();
                     let Some(session) = session else { return };
-                    let token = format!("dashboard_bs_{next}");
+                    let token = format!("bridge_bs_{next}");
                     let bs_path = format!(
                         "/org/freedesktop/portal/desktop/request/{}/{}",
                         sender_from_conn(&conn_c),
@@ -367,7 +367,7 @@ impl ShortcutsPortal {
         };
 
         let sender = sender_from_conn(&conn);
-        let token = "dashboard_ls";
+        let token = "bridge_ls";
         let ls_path = format!("/org/freedesktop/portal/desktop/request/{sender}/{token}");
 
         let f_cell = Rc::new(RefCell::new(Some(f)));

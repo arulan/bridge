@@ -1,19 +1,19 @@
 // Copyright (C) 2026 arulan
 //
-// This file is part of Dashboard.
+// This file is part of Bridge.
 //
-// Dashboard is free software: you can redistribute it and/or modify
+// Bridge is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Dashboard is distributed in the hope that it will be useful,
+// Bridge is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
+// along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
 use gio::prelude::*;
 
@@ -28,7 +28,7 @@ pub enum Side {
 }
 
 impl Side {
-    /// Parse dashboard.role from the loopback conf
+    /// Parse bridge.role from the loopback conf
     pub fn from_wire(s: &str) -> Option<Side> {
         match s {
             "aux" => Some(Side::Aux),
@@ -37,7 +37,7 @@ impl Side {
         }
     }
 
-    /// dashboard.role string for the loopback conf
+    /// bridge.role string for the loopback conf
     pub fn as_wire(&self) -> &'static str {
         match self {
             Side::Aux => "aux",

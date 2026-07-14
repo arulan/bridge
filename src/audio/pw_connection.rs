@@ -1,19 +1,19 @@
 // Copyright (C) 2026 arulan
 //
-// This file is part of Dashboard.
+// This file is part of Bridge.
 //
-// Dashboard is free software: you can redistribute it and/or modify
+// Bridge is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Dashboard is distributed in the hope that it will be useful,
+// Bridge is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
+// along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
 // The PW connection on its own thread. One (pw::channel) for outgoing commands
 // and the async-channel for events coming back. This replaces the libwireplumber
@@ -461,7 +461,7 @@ fn handle_global(
             // Filter out the nodes we don't care about
             let ours = props
                 .get("node.name")
-                .is_some_and(|n| n.starts_with("dashboard_"));
+                .is_some_and(|n| n.starts_with("bridge_"));
             let class = props.get("media.class");
             if class != Some("Audio/Sink") && class != Some("Stream/Output/Audio") && !ours {
                 return;
@@ -550,7 +550,7 @@ fn classify_node(
     evt_tx: &async_channel::Sender<Event>,
     state: &Rc<RefCell<State>>,
 ) {
-    let role = props.get("dashboard.role");
+    let role = props.get("bridge.role");
 
     if role == Some("surround") {
         let channels = props
@@ -576,7 +576,7 @@ fn classify_node(
         return;
     }
 
-    if let Some(side) = props.get("dashboard.pb-role").and_then(Side::from_wire) {
+    if let Some(side) = props.get("bridge.pb-role").and_then(Side::from_wire) {
         state.borrow_mut().owned_pb.insert(side, id);
         return;
     }
@@ -644,7 +644,7 @@ fn stream_info_from_props(id: u32, props: &spa::utils::dict::DictRef) -> Option<
     if props.get("media.class") != Some("Stream/Output/Audio") {
         return None;
     }
-    if props.get("dashboard.role").is_some() || props.get("dashboard.pb-role").is_some() {
+    if props.get("bridge.role").is_some() || props.get("bridge.pb-role").is_some() {
         return None;
     }
 

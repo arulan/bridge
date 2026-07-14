@@ -1,30 +1,30 @@
 // Copyright (C) 2026 arulan
 //
-// This file is part of Dashboard.
+// This file is part of Bridge.
 //
-// Dashboard is free software: you can redistribute it and/or modify
+// Bridge is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Dashboard is distributed in the hope that it will be useful,
+// Bridge is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
+// along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
 use std::path::{Path, PathBuf};
 
 use crate::config::{Side, SinkConfig, SinkDef};
 
-pub const AUX_SINK: &str = "dashboard_aux";
-pub const MAIN_SINK: &str = "dashboard_main";
-pub const AUX_PB: &str = "dashboard_aux_pb";
-pub const MAIN_PB: &str = "dashboard_main_pb";
+pub const AUX_SINK: &str = "bridge_aux";
+pub const MAIN_SINK: &str = "bridge_main";
+pub const AUX_PB: &str = "bridge_aux_pb";
+pub const MAIN_PB: &str = "bridge_main_pb";
 
-pub const SURROUND_SINK: &str = "dashboard_surround";
+pub const SURROUND_SINK: &str = "bridge_surround";
 
 // Flatpak will need --filesystem=xdg-config/pipewire:create
 pub fn config_dir() -> PathBuf {
@@ -32,12 +32,12 @@ pub fn config_dir() -> PathBuf {
 }
 
 pub fn config_file() -> PathBuf {
-    config_dir().join("10-dashboard.conf")
+    config_dir().join("10-bridge.conf")
 }
 
 // Separate conf from the Main/Aux virtual sinks
 pub fn surround_config_file() -> PathBuf {
-    config_dir().join("10-dashboard-surround.conf")
+    config_dir().join("10-bridge-surround.conf")
 }
 
 pub fn hrir_dir() -> PathBuf {
@@ -83,8 +83,8 @@ pub fn build_pw_config(cfg: &SinkConfig) -> String {
 
 fn side_spec(side: Side) -> (&'static str, &'static str, &'static str) {
     match side {
-        Side::Aux => (AUX_SINK, AUX_PB, "Dashboard - Aux"),
-        Side::Main => (MAIN_SINK, MAIN_PB, "Dashboard - Main"),
+        Side::Aux => (AUX_SINK, AUX_PB, "Bridge - Aux"),
+        Side::Main => (MAIN_SINK, MAIN_PB, "Bridge - Main"),
     }
 }
 
@@ -116,7 +116,7 @@ fn loopback_body(side: Side, def: &SinkDef, temp: bool) -> String {
         audio.channels   = {channels}
         audio.position   = "[ {position} ]"
         node.virtual     = true{restore}
-        dashboard.role  = {role}
+        bridge.role  = {role}
       }}
       playback.props = {{
         node.name           = {pb_name}
@@ -124,7 +124,7 @@ fn loopback_body(side: Side, def: &SinkDef, temp: bool) -> String {
         audio.position      = "[ {position} ]"
         node.dont-fallback  = true
         node.linger         = true
-        dashboard.pb-role  = {role}{target}
+        bridge.pb-role  = {role}{target}
       }}"#
     )
 }
@@ -177,8 +177,8 @@ const SURROUND_TEMPLATE: &str = r#"context.modules = [
     name = libpipewire-module-filter-chain
     flags = [ nofail ]
     args = {
-      node.description = "Dashboard - Virtual Surround"
-      media.name       = "Dashboard - Virtual Surround"
+      node.description = "Bridge - Virtual Surround"
+      media.name       = "Bridge - Virtual Surround"
       filter.graph = {
         nodes = [
           { type = builtin label = copy name = copyFL  }
@@ -250,21 +250,21 @@ const SURROUND_TEMPLATE: &str = r#"context.modules = [
         outputs = [ "mixL:Out" "mixR:Out" ]
       }
       capture.props = {
-        node.name        = dashboard_surround
-        node.description = "Dashboard - Virtual Surround"
+        node.name        = bridge_surround
+        node.description = "Bridge - Virtual Surround"
         media.class      = Audio/Sink
         audio.channels   = 8
         audio.position   = "[ FL FR FC LFE RL RR SL SR ]"
         node.virtual     = true
-        dashboard.role  = surround
+        bridge.role  = surround
       }
       playback.props = {
-        node.name           = dashboard_surround_pb
+        node.name           = bridge_surround_pb
         audio.channels      = 2
         audio.position      = "[ FL FR ]"
         node.dont-fallback  = true
         node.linger         = true
-        dashboard.pb-role  = surround{hw_target}
+        bridge.pb-role  = surround{hw_target}
       }
     }
   }

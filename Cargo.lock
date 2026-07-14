@@ -71,6 +71,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4388bee8683e3d04af747c73422af53102d2bd24d9eadb6cbc100baef4b43f8"
 
 [[package]]
+name = "bridge"
+version = "0.4.0"
+dependencies = [
+ "async-channel",
+ "gio",
+ "glib",
+ "gtk4",
+ "libadwaita",
+ "pipewire",
+]
+
+[[package]]
 name = "cairo-rs"
 version = "0.21.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -159,18 +171,6 @@ name = "crossbeam-utils"
 version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
-
-[[package]]
-name = "dashboard"
-version = "0.4.0"
-dependencies = [
- "async-channel",
- "gio",
- "glib",
- "gtk4",
- "libadwaita",
- "pipewire",
-]
 
 [[package]]
 name = "either"

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.arulan.Dashboard</id>
-  <name>Dashboard</name>
+  <id>io.github.arulan.Bridge</id>
+  <name>Bridge</name>
   <summary>A crossfade mixer</summary>
 
   <metadata_license>CC0-1.0</metadata_license>
@@ -13,23 +13,23 @@
 
   <description>
     <p>
-      A PipeWire crossfade mixer. Dashboard creates two virtual outputs that 
+      A PipeWire crossfade mixer. Bridge creates two virtual outputs that 
       you can route your audio to, and mix between them with a single control. 
       For example: send chat audio to one side, and game audio to the other.
     </p>
   </description>
 
-  <launchable type="desktop-id">io.github.arulan.Dashboard.desktop</launchable>
+  <launchable type="desktop-id">io.github.arulan.Bridge.desktop</launchable>
 
-  <url type="homepage">https://github.com/arulan/dashboard</url>
-  <url type="bugtracker">https://github.com/arulan/dashboard/issues</url>
-  <url type="vcs-browser">https://github.com/arulan/dashboard</url>
+  <url type="homepage">https://github.com/arulan/bridge</url>
+  <url type="bugtracker">https://github.com/arulan/bridge/issues</url>
+  <url type="vcs-browser">https://github.com/arulan/bridge</url>
 
   <content_rating type="oars-1.1"/>
 
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/arulan/dashboard/main/data/screenshots/main-window.png</image>
+      <image>https://raw.githubusercontent.com/arulan/bridge/main/data/screenshots/main-window.png</image>
       <caption>The crossfade mixer</caption>
     </screenshot>
   </screenshots>

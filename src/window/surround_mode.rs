@@ -1,19 +1,19 @@
 // Copyright (C) 2026 arulan
 //
-// This file is part of Dashboard.
+// This file is part of Bridge.
 //
-// Dashboard is free software: you can redistribute it and/or modify
+// Bridge is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Dashboard is distributed in the hope that it will be useful,
+// Bridge is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
+// along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
 // Direct <-> Surround handling for the Main card
 // The surround sink is a separate conf-created sink
@@ -25,12 +25,12 @@ use std::path::Path;
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 
-use super::DashboardWindow;
+use super::BridgeWindow;
 use crate::audio::backend::PipeWireBackend;
 use crate::audio::pw_config::{MAIN_SINK, SURROUND_SINK};
 use crate::config::{self, Side};
 
-impl DashboardWindow {
+impl BridgeWindow {
     /// The sink the Main card currently drives, for the default-sink banner
     pub(super) fn active_main_sink(&self) -> &'static str {
         if self.imp().surround_active.get() {
@@ -197,9 +197,9 @@ impl DashboardWindow {
         }));
 
         imp.main_subtitle_label.set_label(if want_surround {
-            "Dashboard - Virtual Surround"
+            "Bridge - Virtual Surround"
         } else {
-            "Dashboard - Main"
+            "Bridge - Main"
         });
 
         // rebuilds the Main dropdown for the mode

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <!-- One sink definition, mounted at /aux/ and /main/ -->
-  <schema id="io.github.arulan.Dashboard.sink">
+  <schema id="io.github.arulan.Bridge.sink">
     <key name="channels" type="i">
       <default>2</default>
       <summary>Channel count</summary>
@@ -21,7 +21,7 @@
   </schema>
 
   <!-- Optional virtual surround sink -->
-  <schema id="io.github.arulan.Dashboard.surround">
+  <schema id="io.github.arulan.Bridge.surround">
     <key name="hrir-path" type="s">
       <default>""</default>
       <summary>Imported HRIR .wav path</summary>
@@ -40,10 +40,10 @@
     </key>
   </schema>
 
-  <schema id="io.github.arulan.Dashboard" path="/io/github/arulan/Dashboard/">
-    <child name="aux"  schema="io.github.arulan.Dashboard.sink"/>
-    <child name="main" schema="io.github.arulan.Dashboard.sink"/>
-    <child name="surround" schema="io.github.arulan.Dashboard.surround"/>
+  <schema id="io.github.arulan.Bridge" path="/io/github/arulan/Bridge/">
+    <child name="aux"  schema="io.github.arulan.Bridge.sink"/>
+    <child name="main" schema="io.github.arulan.Bridge.sink"/>
+    <child name="surround" schema="io.github.arulan.Bridge.surround"/>
 
     <!-- (display_name, app_names, binaries, target, enabled) per rule -->
     <key name="rules" type="a(sasassb)">

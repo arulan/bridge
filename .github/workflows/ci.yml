@@ -34,16 +34,16 @@ jobs:
           flatpak remote-add --if-not-exists --user \
             flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak-builder --user --disable-rofiles-fuse --force-clean \
-            --keep-build-dirs --install-deps-from=flathub --stop-at=dashboard \
-            _build io.github.arulan.Dashboard-dev.json
+            --keep-build-dirs --install-deps-from=flathub --stop-at=bridge \
+            _build io.github.arulan.Bridge-dev.json
       - name: Clippy
         run: |
-          flatpak-builder --run _build io.github.arulan.Dashboard-dev.json \
-            sh -c 'export CARGO_HOME=/run/build/dashboard/cargo CARGO_TARGET_DIR=/run/build/dashboard/target && cargo clippy --all-targets -- -D warnings'
+          flatpak-builder --run _build io.github.arulan.Bridge-dev.json \
+            sh -c 'export CARGO_HOME=/run/build/bridge/cargo CARGO_TARGET_DIR=/run/build/bridge/target && cargo clippy --all-targets -- -D warnings'
       - name: Test
         run: |
-          flatpak-builder --run _build io.github.arulan.Dashboard-dev.json \
-            sh -c 'export CARGO_HOME=/run/build/dashboard/cargo CARGO_TARGET_DIR=/run/build/dashboard/target && cargo test'
+          flatpak-builder --run _build io.github.arulan.Bridge-dev.json \
+            sh -c 'export CARGO_HOME=/run/build/bridge/cargo CARGO_TARGET_DIR=/run/build/bridge/target && cargo test'
 
   flatpak:
     name: Flatpak
@@ -55,6 +55,6 @@ jobs:
       - uses: actions/checkout@v5
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          bundle: dashboard.flatpak
-          manifest-path: io.github.arulan.Dashboard-dev.json
+          bundle: bridge.flatpak
+          manifest-path: io.github.arulan.Bridge-dev.json
           cache-key: flatpak-builder-${{ github.sha }}

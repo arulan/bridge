@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/io/github/arulan/Dashboard">
+  <gresource prefix="/io/github/arulan/Bridge">
     <file preprocess="xml-stripblanks">ui/window.ui</file>
     <file preprocess="xml-stripblanks">ui/shortcuts.ui</file>
     <file>style.css</file>
   </gresource>
-  <gresource prefix="/io/github/arulan/Dashboard/icons/scalable/actions">
+  <gresource prefix="/io/github/arulan/Bridge/icons/scalable/actions">
     <file preprocess="xml-stripblanks" alias="sound-symbolic.svg">icons/scalable/actions/sound-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="speaker-symbolic.svg">icons/scalable/actions/speaker-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="speaker-3-symbolic.svg">icons/scalable/actions/speaker-3-symbolic.svg</file>

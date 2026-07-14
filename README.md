@@ -1,10 +1,10 @@
-# Dashboard
+# Bridge
 
-A PipeWire crossfade mixer. Dashboard creates two virtual outputs that you can
+A PipeWire crossfade mixer. Bridge creates two virtual outputs that you can
 route your audio to, and mix between them with a single control. For example: 
 send chat to one side, and game audio to the other.
 
-![Dashboard](data/screenshots/main-window.png)
+![Bridge](data/screenshots/main-window.png)
 
 ## Building with Meson
 
@@ -39,8 +39,8 @@ A generated `cargo-sources.json` has to be available first:
 Then build and install:
 
 ```
-flatpak-builder --user --install --force-clean builddir io.github.arulan.Dashboard.json
-flatpak run io.github.arulan.Dashboard
+flatpak-builder --user --install --force-clean builddir io.github.arulan.Bridge.json
+flatpak run io.github.arulan.Bridge
 ```
 
 Run `generate-cargo-sources.sh` again whenever `Cargo.lock` changes.

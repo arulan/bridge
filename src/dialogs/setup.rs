@@ -1,19 +1,19 @@
 // Copyright (C) 2026 arulan
 //
-// This file is part of Dashboard.
+// This file is part of Bridge.
 //
-// Dashboard is free software: you can redistribute it and/or modify
+// Bridge is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Dashboard is distributed in the hope that it will be useful,
+// Bridge is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
+// along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
 use std::cell::{Cell, RefCell};
 
@@ -38,7 +38,7 @@ pub struct SetupDialogImp {
 
 #[glib::object_subclass]
 impl ObjectSubclass for SetupDialogImp {
-    const NAME: &'static str = "DashboardSetupDialog";
+    const NAME: &'static str = "BridgeSetupDialog";
     type Type = SetupDialog;
     type ParentType = adw::Window;
 }
@@ -85,7 +85,7 @@ impl SetupDialog {
         transient_for: Option<&impl IsA<gtk::Window>>,
     ) -> Self {
         let obj: Self = glib::Object::builder()
-            .property("title", "Set Up Dashboard")
+            .property("title", "Set Up Bridge")
             .property("default-width", 520i32)
             .property("modal", true)
             .property("resizable", true)
@@ -201,7 +201,7 @@ impl SetupDialog {
 
         let desc = gtk::Label::new(None);
         desc.set_markup(
-            "Dashboard creates two virtual outputs — \
+            "Bridge creates two virtual outputs — \
              <b>Aux</b> and <b>Main</b> — that you can mix independently. \
              Each mirrors the channel layout of the configured output device.\n\n\
              You must login again to persist the outputs beyond the current session.",

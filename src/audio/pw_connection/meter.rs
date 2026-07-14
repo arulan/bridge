@@ -1,19 +1,19 @@
 // Copyright (C) 2026 arulan
 //
-// This file is part of Dashboard.
+// This file is part of Bridge.
 //
-// Dashboard is free software: you can redistribute it and/or modify
+// Bridge is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Dashboard is distributed in the hope that it will be useful,
+// Bridge is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Dashboard. If not, see <https://www.gnu.org/licenses/>.
+// along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
 // capture streams feeding the level meters: one per virtual sink, plus one
 // per tracked app stream for the routing tile rows
@@ -56,7 +56,7 @@ pub(super) fn open_sink_meter<'c>(
     ),
     pw::Error,
 > {
-    let stream_name = format!("dashboard-meter-{sink_name}");
+    let stream_name = format!("bridge-meter-{sink_name}");
     let stream = pw::stream::StreamBox::new(
         core,
         &stream_name,
@@ -110,7 +110,7 @@ pub(super) fn open_stream_meter(
     serial: &str,
     atomic: Arc<AtomicU32>,
 ) -> Result<StreamMeter, pw::Error> {
-    let stream_name = format!("dashboard-meter-stream-{node_id}");
+    let stream_name = format!("bridge-meter-stream-{node_id}");
     let stream = pw::stream::StreamRc::new(
         core.clone(),
         &stream_name,
