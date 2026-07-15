@@ -91,13 +91,11 @@ impl ApplicationImpl for BridgeApplicationImp {
 
         // Global shortcuts portal
         let portal = ShortcutsPortal::new();
-        if let Some(conn) = app.dbus_connection() {
-            portal.start(conn);
-        }
         window.bind_shortcuts(&portal);
         *self.shortcuts.borrow_mut() = Some(portal);
 
         if config::is_configured() {
+            self.start_shortcuts();
             window.present();
         } else {
             // Setup on first-run/!is_configured state; Do not show main window until after setup
@@ -123,6 +121,15 @@ impl GtkApplicationImpl for BridgeApplicationImp {}
 impl AdwApplicationImpl for BridgeApplicationImp {}
 
 impl BridgeApplicationImp {
+    fn start_shortcuts(&self) {
+        let Some(conn) = self.obj().dbus_connection() else {
+            return;
+        };
+        if let Some(portal) = self.shortcuts.borrow().as_ref() {
+            portal.start(conn);
+        }
+    }
+
     fn show_setup_dialog(&self, first_run: bool) {
         let Some(be) = self.backend.borrow().clone() else {
             return;
@@ -139,6 +146,7 @@ impl BridgeApplicationImp {
 
         let win_c = win.clone();
         let be_c = be.clone();
+        let app_c = self.obj().clone();
         dialog.connect_closure(
             "approved",
             false,
@@ -161,6 +169,9 @@ impl BridgeApplicationImp {
                 if let Some(w) = &win_c {
                     w.populate_dropdowns();
                     w.present();
+                }
+                if first_run {
+                    app_c.imp().start_shortcuts();
                 }
             }),
         );

@@ -255,6 +255,7 @@ impl Ui {
         }
 
         let total = self.streams.len();
+        self.preview_list.set_visible(total > 0);
         self.preview_group.set_description(Some(&format!(
             "{matched} of {total} streams playing right now match this rule"
         )));

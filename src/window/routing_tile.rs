@@ -65,11 +65,11 @@ impl BridgeWindow {
             return;
         };
 
-        imp.routing_add_button.set_sensitive(true);
-
         let rules = config::load_rules();
         let streams = backend.output_streams();
         let hw_sinks = backend.hw_sinks();
+
+        imp.routing_add_button.set_sensitive(!streams.is_empty());
 
         // which live streams each rule governs
         // also the stremas without a governing rule
@@ -106,12 +106,18 @@ impl BridgeWindow {
         let mut row_meters: Vec<(gtk::LevelBar, Vec<u32>)> = Vec::new();
 
         if rules.is_empty() && unruled.is_empty() {
-            let placeholder = gtk::Label::new(Some("No rules created yet"));
-            placeholder.add_css_class("dim-label");
-            placeholder.set_halign(gtk::Align::Center);
-            placeholder.set_margin_top(8);
-            placeholder.set_margin_bottom(8);
-            imp.routing_body.append(&placeholder);
+            let empty = adw::ActionRow::new();
+            empty.set_title("No streams playing right now");
+            empty.set_subtitle("Start audio in an app to route it");
+            empty.set_activatable(false);
+
+            let card = gtk::ListBox::builder()
+                .selection_mode(gtk::SelectionMode::None)
+                .build();
+            card.add_css_class("boxed-list");
+            card.append(&empty);
+
+            imp.routing_body.append(&card);
             imp.routing_row_meters.replace(row_meters);
             return;
         }
