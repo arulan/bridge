@@ -94,9 +94,10 @@ impl ApplicationImpl for BridgeApplicationImp {
         window.bind_shortcuts(&portal);
         *self.shortcuts.borrow_mut() = Some(portal);
 
+        window.present();
+
         if config::is_configured() {
             self.start_shortcuts();
-            window.present();
         } else {
             // Setup on first-run/!is_configured state; Do not show main window until after setup
             let app_c = app.clone();
@@ -142,7 +143,7 @@ impl BridgeApplicationImp {
             let find_id = |name: &str| hw_sinks.iter().find(|s| s.name == name).map(|s| s.node_id);
             (find_id(&cfg.aux.hw_name), find_id(&cfg.main.hw_name))
         };
-        let dialog = SetupDialog::new(hw_sinks, aux_id, main_id, win.as_ref());
+        let dialog = SetupDialog::new(hw_sinks, aux_id, main_id);
 
         let win_c = win.clone();
         let be_c = be.clone();
@@ -188,7 +189,7 @@ impl BridgeApplicationImp {
             );
         }
 
-        dialog.present();
+        dialog.present(win.as_ref());
     }
 
     fn show_surround_dialog(&self) {
@@ -197,7 +198,7 @@ impl BridgeApplicationImp {
         };
         let win = self.window.borrow().clone();
         let current = config::load_surround();
-        let dialog = SurroundDialog::new(be.hw_sinks(), &current, win.as_ref());
+        let dialog = SurroundDialog::new(be.hw_sinks(), &current);
 
         let win_c = win.clone();
         dialog.connect_closure(
@@ -262,7 +263,7 @@ impl BridgeApplicationImp {
             }),
         );
 
-        dialog.present();
+        dialog.present(win.as_ref());
     }
 
     fn show_quick_switch_dialog(&self) {

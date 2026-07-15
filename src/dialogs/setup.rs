@@ -40,7 +40,7 @@ pub struct SetupDialogImp {
 impl ObjectSubclass for SetupDialogImp {
     const NAME: &'static str = "BridgeSetupDialog";
     type Type = SetupDialog;
-    type ParentType = adw::Window;
+    type ParentType = adw::Dialog;
 }
 
 impl ObjectImpl for SetupDialogImp {
@@ -58,23 +58,17 @@ impl ObjectImpl for SetupDialogImp {
 }
 
 impl WidgetImpl for SetupDialogImp {}
-impl WindowImpl for SetupDialogImp {
-    fn close_request(&self) -> glib::Propagation {
-        if !self.responded.get() {
-            self.obj().respond(false);
-            glib::Propagation::Stop
-        } else {
-            glib::Propagation::Proceed
-        }
+impl AdwDialogImpl for SetupDialogImp {
+    fn closed(&self) {
+        self.obj().respond(false);
     }
 }
-impl AdwWindowImpl for SetupDialogImp {}
 
 glib::wrapper! {
     pub struct SetupDialog(ObjectSubclass<SetupDialogImp>)
-        @extends adw::Window, gtk::Window, gtk::Widget,
+        @extends adw::Dialog, gtk::Widget,
         @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget,
-                    gtk::Native, gtk::Root, gtk::ShortcutManager;
+                    gtk::ShortcutManager;
 }
 
 impl SetupDialog {
@@ -82,18 +76,11 @@ impl SetupDialog {
         hw_sinks: Vec<HwSink>,
         aux_default_id: Option<u32>,
         main_default_id: Option<u32>,
-        transient_for: Option<&impl IsA<gtk::Window>>,
     ) -> Self {
         let obj: Self = glib::Object::builder()
             .property("title", "Set Up Bridge")
-            .property("default-width", 520i32)
-            .property("modal", true)
-            .property("resizable", true)
+            .property("content-width", 520i32)
             .build();
-
-        if let Some(parent) = transient_for {
-            obj.set_transient_for(Some(parent));
-        }
 
         obj.build_ui(&hw_sinks, aux_default_id, main_default_id);
         obj
@@ -275,6 +262,6 @@ impl SetupDialog {
         clamp.set_child(Some(&body));
         outer_scroll.set_child(Some(&clamp));
         toolbar.set_content(Some(&outer_scroll));
-        self.set_content(Some(&toolbar));
+        self.set_child(Some(&toolbar));
     }
 }
