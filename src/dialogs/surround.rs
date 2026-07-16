@@ -112,7 +112,7 @@ impl SurroundDialog {
         let dialog = adw::AlertDialog::new(
             Some("Reset Virtual Surround?"),
             Some(
-                "This removes the virtual surround configuration and returns it to the unconfigured state. \
+                "This removes the Virtual Surround configuration and returns it to the unconfigured state. \
                  Your imported HRIR files are left in place.\n\nThe change takes effect after your \
                  next login.",
             ),

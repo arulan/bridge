@@ -98,7 +98,7 @@ pub fn show(parent: Option<&impl IsA<gtk::Widget>>) {
 
     let remove_row = adw::ActionRow::builder()
         .title("Remove Configuration")
-        .subtitle("Virtual audio devices are removed after your next login")
+        .subtitle("Virtual audio devices and their configuration are removed after your next login")
         .build();
 
     let remove_btn = gtk::Button::builder()

@@ -89,7 +89,7 @@
             <property name="orientation">vertical</property>
             <child>
               <object class="AdwBanner" id="persist_banner">
-                <property name="title">Virtual outputs will persist after your next login</property>
+                <property name="title">Virtual outputs are temporary until your next login</property>
                 <property name="button-label">Dismiss</property>
                 <property name="revealed">False</property>
               </object>
@@ -587,7 +587,7 @@
                                     </child>
                                     <child>
                                       <object class="GtkLabel" id="main_surround_restart_label">
-                                        <property name="label">Virtual Surround is available after your next login</property>
+                                        <property name="label">Virtual Surround is inactive until your next login</property>
                                         <property name="hexpand">True</property>
                                         <property name="xalign">0</property>
                                         <property name="valign">center</property>
@@ -630,6 +630,14 @@
                                         <property name="valign">center</property>
                                         <property name="wrap">False</property>
                                         <property name="ellipsize">end</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkButton">
+                                        <property name="label">Configure…</property>
+                                        <property name="valign">center</property>
+                                        <property name="action-name">app.surround</property>
+                                        <style><class name="inline-banner-action"/></style>
                                       </object>
                                     </child>
                                   </object>

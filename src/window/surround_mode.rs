@@ -93,10 +93,10 @@ impl BridgeWindow {
             .set_visible(pending && !imp.surround_restart_dismissed.get());
         if node_absent {
             imp.main_surround_restart_label
-                .set_text("Virtual Surround is available after your next login");
+                .set_text("Virtual Surround is inactive until your next login");
         } else if reconfig_pending {
             imp.main_surround_restart_label
-                .set_text("Changes take effect after your next login");
+                .set_text("Changes are pending until your next login");
         }
 
         if imp.surround_active.get() && !(configured && hrir_ok) {

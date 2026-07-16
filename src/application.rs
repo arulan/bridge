@@ -296,9 +296,9 @@ impl BridgeApplicationImp {
         let dialog = adw::AlertDialog::new(
             Some("Remove PipeWire Configuration?"),
             Some(
-                "This deletes the PipeWire configuration files Bridge created and returns it \
-                 to first-run setup. Any imported HRIR files are left in place.\n\nThe changes \
-                 take effect after your next login.",
+                "This removes the configuration files Bridge created, including any Virtual \
+                 Surround setup, and returns Bridge to first-run setup. Your imported HRIR files \
+                 are left in place.\n\nThe changes take effect after your next login.",
             ),
         );
         dialog.add_response("cancel", "Cancel");
