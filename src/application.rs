@@ -398,7 +398,7 @@ impl BridgeApplicationImp {
             .copyright("© 2026 arulan")
             .license_type(gtk::License::Gpl30)
             .website("https://github.com/arulan/bridge")
-            .issue_url("https://github.com/arulan/bridge/issues")
+            .issue_url("https://github.com/arulan/bridge/issues/new?template=bug_report.yml")
             .debug_info(&debug_info)
             .debug_info_filename("bridge-diagnostic.txt")
             .build();

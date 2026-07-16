@@ -1,0 +1,53 @@
+name: Bug Report
+description: Something isn't working right in Bridge
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this issue. In addition to the diagnostic report, 
+        please be as detailed as you can when submitting a bug report. 
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect Bridge to do, and what did it do instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps that cause the issue to occur
+    validations:
+      required: false
+
+  - type: textarea
+    id: diagnostic
+    attributes:
+      label: Diagnostic report
+      description: |
+        In Bridge open the Menu and select About Bridge -> Troubleshooting -> Debugging 
+        Information. Select Copy Text and paste it in here. This includes your PipeWire
+        graph and the configuration files Bridge uses.
+
+        Before you paste: the report lists the running apps playing audio, and the config
+        paths. This includes your system username. If you prefer to keep this information 
+        private, remove it from the report as issues here are public.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed Bridge
+      options:
+        - The flatpak bundle from a release
+        - Manually via flatpak-builder
+        - Manually via meson
+        - Not sure
+    validations:
+      required: false

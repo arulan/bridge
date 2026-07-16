@@ -40,9 +40,16 @@
   </supports>
 
   <releases>
-    <release version="0.4.0" date="2026-07-07">
+    <release version="0.5.0" date="2026-07-16">
       <description>
-        <p>Early development release</p>
+        <p>Initial beta release</p>
+        <ul>
+          <li>A crossfade mixer between two virtual outputs, Aux and Main, to play audio through</li>
+          <li>Create routing rules that automatically route audio to your chosen output</li>
+          <li>Provide a HeSuVi HRIR file for a user-friendly setup of headphone virtual surround</li>
+          <li>Create output presets and easily switch between them at the press of a button</li>
+          <li>Support of the Global Shortcuts portal, allowing you to control your audio while in a fullscreen app</li>
+        </ul>
       </description>
     </release>
   </releases>
