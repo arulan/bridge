@@ -25,11 +25,6 @@ jobs:
             exit 1
           fi
 
-      - name: Generate cargo sources
-        run: |
-          pip install --quiet aiohttp tomlkit PyYAML
-          ./generate-cargo-sources.sh
-
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: bridge.flatpak

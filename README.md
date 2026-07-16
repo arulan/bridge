@@ -32,13 +32,12 @@ flatpak install --user ./bridge.flatpak
 Flatpak:
 
 ```
-./generate-cargo-sources.sh
 flatpak-builder --user --install --force-clean --install-deps-from=flathub \
     builddir io.github.arulan.Bridge.json
 flatpak run io.github.arulan.Bridge
 ```
 
-Rerun `generate-cargo-sources.sh` whenever `Cargo.lock` changes.
+Rerun `generate-cargo-sources.sh` whenever `Cargo.lock` changes. `cargo-sources.json` is committed.
 
 Building natively requires GTK4, libadwaita, PipeWire, and a Rust toolchain
 (edition 2024, rustc ≥1.96):
