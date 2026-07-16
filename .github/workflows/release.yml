@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:gnome-nightly
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check that tag version and Cargo.toml version are the same
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if ! grep -q "^version = \"$version\"$" Cargo.toml; then
+            echo "tag $GITHUB_REF_NAME does not match Cargo.toml" >&2
+            exit 1
+          fi
+
+      - name: Generate cargo sources
+        run: |
+          pip install --quiet aiohttp tomlkit PyYAML
+          ./generate-cargo-sources.sh
+
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: bridge.flatpak
+          manifest-path: io.github.arulan.Bridge.json
+          cache-key: flatpak-release-${{ github.sha }}
+          upload-artifact: false
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: bridge.flatpak
+          draft: true

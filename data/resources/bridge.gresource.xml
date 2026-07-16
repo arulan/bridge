@@ -5,6 +5,7 @@
     <file preprocess="xml-stripblanks">ui/shortcuts.ui</file>
     <file>style.css</file>
   </gresource>
+  <!-- Symbolic icons are from GNOME's Icon Library, CC0 -->
   <gresource prefix="/io/github/arulan/Bridge/icons/scalable/actions">
     <file preprocess="xml-stripblanks" alias="sound-symbolic.svg">icons/scalable/actions/sound-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="speaker-symbolic.svg">icons/scalable/actions/speaker-symbolic.svg</file>
