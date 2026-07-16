@@ -39,6 +39,9 @@ pub const APP_ID: &str = match option_env!("APP_ID") {
     None => "io.github.arulan.Bridge",
 };
 
+// ko-fi support page
+const SUPPORT_URL: &str = "https://ko-fi.com/arulan";
+
 pub const RESOURCES_FILE: Option<&str> = option_env!("RESOURCES_FILE");
 
 // The GSettings SCHEMA_ID == APP_ID
@@ -405,6 +408,16 @@ impl BridgeApplicationImp {
         let parent = self.window.borrow().clone();
         about.present(parent.as_ref().map(|w| w.upcast_ref::<gtk::Widget>()));
     }
+
+    fn open_support_page(&self) {
+        let launcher = gtk::UriLauncher::new(SUPPORT_URL);
+        let parent = self.window.borrow().clone();
+        launcher.launch(parent.as_ref(), gio::Cancellable::NONE, |res| {
+            if let Err(e) = res {
+                eprintln!("failed to open support page: {e}");
+            }
+        });
+    }
 }
 
 // cannot be dereferenced?
@@ -460,6 +473,11 @@ pub fn register_actions(app: &BridgeApplication) {
     let app_c = app.clone();
     about.connect_activate(move |_, _| app_c.imp().show_about_dialog());
     app.add_action(&about);
+
+    let support = gio::SimpleAction::new("support", None);
+    let app_c = app.clone();
+    support.connect_activate(move |_, _| app_c.imp().open_support_page());
+    app.add_action(&support);
 }
 
 fn run_cmd(program: &str, args: &[&str]) -> String {
