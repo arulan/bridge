@@ -1,11 +1,9 @@
 # Bridge
 
 Route your apps to two virtual outputs and mix between them. Send chat to one side, 
-your game to the other.
+your game to the other. 0.5.0 marks the initial beta release. Please use with caution.
 
 ![Bridge](data/screenshots/main-window.png)
-
-0.5.0 marks the initial beta release. Please use with caution.
 
 ## Features
 
