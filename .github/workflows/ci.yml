@@ -25,7 +25,10 @@ jobs:
     name: Clippy & Test
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      # the flathub-infra images are only tested against the flatpak-builder
+      # action, and rofiles-fuse doesn't work there when we drive the CLI
+      # ourselves. this job is the only one that does, so it stays put.
+      image: bilelmoussaoui/flatpak-github-actions:gnome-nightly
       options: --privileged
     steps:
       - uses: actions/checkout@v5
@@ -38,11 +41,11 @@ jobs:
             _build io.github.arulan.Bridge-dev.json
       - name: Clippy
         run: |
-          flatpak-builder --disable-rofiles-fuse --run _build io.github.arulan.Bridge-dev.json \
+          flatpak-builder --run _build io.github.arulan.Bridge-dev.json \
             sh -c 'export CARGO_HOME=/run/build/bridge/cargo CARGO_TARGET_DIR=/run/build/bridge/target && cargo clippy --all-targets -- -D warnings'
       - name: Test
         run: |
-          flatpak-builder --disable-rofiles-fuse --run _build io.github.arulan.Bridge-dev.json \
+          flatpak-builder --run _build io.github.arulan.Bridge-dev.json \
             sh -c 'export CARGO_HOME=/run/build/bridge/cargo CARGO_TARGET_DIR=/run/build/bridge/target && cargo test'
 
   flatpak:
