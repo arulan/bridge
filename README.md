@@ -1,14 +1,47 @@
 # Bridge
 
-A PipeWire crossfade mixer. Bridge creates two virtual outputs that you can
-route your audio to, and mix between them with a single control. For example: 
-send chat to one side, and game audio to the other.
+Route your apps to two virtual outputs and mix between them. Send chat to one side, 
+your game to the other.
 
 ![Bridge](data/screenshots/main-window.png)
 
-## Building with Meson
+0.5.0 marks the initial beta release. Please use with caution.
 
-Requires GTK4, libadwaita, PipeWire, and a Rust toolchain (edition 2024, rustc ≥1.96).
+## Features
+
+Bridge creates two virtual outputs, Aux and Main, and at its center sits the
+crossfade mixer. Route your audio to the separate outputs and adjust the mix
+between them from anywhere.
+
+- Create Routing Rules to automatically send app audio to your desired output
+- Conveniently setup headphone virtual surround by providing your own HeSuVi HRIR file
+- Create output presets and switch between them at the press of a button
+- Global Shortcuts support, control your audio from anywhere
+
+## Installing
+
+Grab the `.flatpak` from the
+[releases page](https://github.com/arulan/bridge/releases), then:
+
+```
+flatpak install --user ./bridge.flatpak
+```
+
+## Building
+
+Flatpak:
+
+```
+./generate-cargo-sources.sh
+flatpak-builder --user --install --force-clean --install-deps-from=flathub \
+    builddir io.github.arulan.Bridge.json
+flatpak run io.github.arulan.Bridge
+```
+
+Rerun `generate-cargo-sources.sh` whenever `Cargo.lock` changes.
+
+Building natively requires GTK4, libadwaita, PipeWire, and a Rust toolchain
+(edition 2024, rustc ≥1.96):
 
 ```
 meson setup builddir
@@ -16,34 +49,11 @@ meson compile -C builddir
 meson install -C builddir
 ```
 
+## Reporting bugs
 
-After the install steps, run the app from the install prefix.
-
-## Building with Flatpak
-
-The manifest builds against the GNOME 50 runtime, with the Rust and
-LLVM SDK extensions:
-
-```
-flatpak install flathub org.gnome.Platform//50 org.gnome.Sdk//50 \
-    org.freedesktop.Sdk.Extension.rust-stable \
-    org.freedesktop.Sdk.Extension.llvm22
-```
-
-A generated `cargo-sources.json` has to be available first:
-
-```
-./generate-cargo-sources.sh
-```
-
-Then build and install:
-
-```
-flatpak-builder --user --install --force-clean builddir io.github.arulan.Bridge.json
-flatpak run io.github.arulan.Bridge
-```
-
-Run `generate-cargo-sources.sh` again whenever `Cargo.lock` changes.
+Open an issue using the bug report template. The form asks you to provide a diagnostic report
+the app will generate for you. Please be detailed, include steps to reproduce, and provide screenshots
+as necessary. 
 
 ## License
 
