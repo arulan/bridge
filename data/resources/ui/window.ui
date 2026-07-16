@@ -429,7 +429,7 @@
                                             </child>
                                             <child>
                                               <object class="GtkLabel">
-                                                <property name="label">Configure Virtual Surround…</property>
+                                                <property name="label">Virtual Surround…</property>
                                               </object>
                                             </child>
                                           </object>

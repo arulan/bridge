@@ -99,7 +99,7 @@ impl ApplicationImpl for BridgeApplicationImp {
         if config::is_configured() {
             self.start_shortcuts();
         } else {
-            // Setup on first-run/!is_configured state; Do not show main window until after setup
+            // Setup on first-run/!is_configured state
             let app_c = app.clone();
             be.connect_sinks_ready(move |_| {
                 app_c.imp().show_setup_dialog(true);

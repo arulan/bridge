@@ -6,9 +6,9 @@ rust-version = "1.96"
 license = "GPL-3.0-or-later"
 
 [dependencies]
-gtk4 = { version = "0.10", features = ["v4_12"] }
-adw = { package = "libadwaita", version = "0.8", features = ["v1_8"] }
-glib = "0.21"
-gio = "0.21"
+gtk4 = { version = "0.11", features = ["v4_12"] }
+adw = { package = "libadwaita", version = "0.9", features = ["v1_8"] }
+glib = "0.22"
+gio = "0.22"
 pipewire = { version = "0.10", features = ["v0_3_77"] }
 async-channel = "2"
