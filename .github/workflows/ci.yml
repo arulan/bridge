@@ -38,11 +38,11 @@ jobs:
             _build io.github.arulan.Bridge-dev.json
       - name: Clippy
         run: |
-          flatpak-builder --run _build io.github.arulan.Bridge-dev.json \
+          flatpak-builder --disable-rofiles-fuse --run _build io.github.arulan.Bridge-dev.json \
             sh -c 'export CARGO_HOME=/run/build/bridge/cargo CARGO_TARGET_DIR=/run/build/bridge/target && cargo clippy --all-targets -- -D warnings'
       - name: Test
         run: |
-          flatpak-builder --run _build io.github.arulan.Bridge-dev.json \
+          flatpak-builder --disable-rofiles-fuse --run _build io.github.arulan.Bridge-dev.json \
             sh -c 'export CARGO_HOME=/run/build/bridge/cargo CARGO_TARGET_DIR=/run/build/bridge/target && cargo test'
 
   flatpak:
