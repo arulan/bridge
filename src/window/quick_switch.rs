@@ -60,21 +60,21 @@ impl BridgeWindow {
         let (target, icon, label, tooltip) = if a.matches(&aux_hw, &main_hw) {
             (
                 b,
-                "horizontal-arrows-symbolic",
+                "bridge-horizontal-arrows-symbolic",
                 format!("Switch to {name_b}"),
                 format!("Currently on {name_a}"),
             )
         } else if b.matches(&aux_hw, &main_hw) {
             (
                 a,
-                "horizontal-arrows-symbolic",
+                "bridge-horizontal-arrows-symbolic",
                 format!("Switch to {name_a}"),
                 format!("Currently on {name_b}"),
             )
         } else {
             (
                 a,
-                "arrow-turn-right-horizontal2-symbolic",
+                "bridge-arrow-turn-right-horizontal2-symbolic",
                 format!("Switch to {name_a}"),
                 "Current outputs match no preset".to_owned(),
             )
@@ -109,7 +109,7 @@ impl BridgeWindow {
     fn qs_disable(&self, label: &str, tooltip: &str) {
         let imp = self.imp();
         imp.qs_switch_content
-            .set_icon_name("horizontal-arrows-disabled-symbolic");
+            .set_icon_name("bridge-horizontal-arrows-disabled-symbolic");
         imp.qs_switch_content.set_label(label);
         imp.qs_switch_button.set_tooltip_text(Some(tooltip));
         imp.qs_switch_button.set_sensitive(false);

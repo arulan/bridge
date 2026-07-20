@@ -7,15 +7,15 @@
   </gresource>
   <!-- Symbolic icons are from GNOME's Icon Library, CC0 -->
   <gresource prefix="/io/github/arulan/Bridge/icons/scalable/actions">
-    <file preprocess="xml-stripblanks" alias="sound-symbolic.svg">icons/scalable/actions/sound-symbolic.svg</file>
-    <file preprocess="xml-stripblanks" alias="speaker-symbolic.svg">icons/scalable/actions/speaker-symbolic.svg</file>
-    <file preprocess="xml-stripblanks" alias="speaker-3-symbolic.svg">icons/scalable/actions/speaker-3-symbolic.svg</file>
-    <file preprocess="xml-stripblanks" alias="speaker-0-symbolic.svg">icons/scalable/actions/speaker-0-symbolic.svg</file>
-    <file preprocess="xml-stripblanks" alias="stereo-jack-symbolic.svg">icons/scalable/actions/stereo-jack-symbolic.svg</file>
-    <file preprocess="xml-stripblanks" alias="headphones-symbolic.svg">icons/scalable/actions/headphones-symbolic.svg</file>
-    <file preprocess="xml-stripblanks" alias="list-symbolic.svg">icons/scalable/actions/list-symbolic.svg</file>
-    <file preprocess="xml-stripblanks" alias="horizontal-arrows-symbolic.svg">icons/scalable/actions/horizontal-arrows-symbolic.svg</file>
-    <file preprocess="xml-stripblanks" alias="horizontal-arrows-disabled-symbolic.svg">icons/scalable/actions/horizontal-arrows-disabled-symbolic.svg</file>
-    <file preprocess="xml-stripblanks" alias="arrow-turn-right-horizontal2-symbolic.svg">icons/scalable/actions/arrow-turn-right-horizontal2-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="bridge-sound-symbolic.svg">icons/scalable/actions/bridge-sound-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="bridge-speaker-symbolic.svg">icons/scalable/actions/bridge-speaker-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="bridge-speaker-3-symbolic.svg">icons/scalable/actions/bridge-speaker-3-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="bridge-speaker-0-symbolic.svg">icons/scalable/actions/bridge-speaker-0-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="bridge-stereo-jack-symbolic.svg">icons/scalable/actions/bridge-stereo-jack-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="bridge-headphones-symbolic.svg">icons/scalable/actions/bridge-headphones-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="bridge-list-symbolic.svg">icons/scalable/actions/bridge-list-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="bridge-horizontal-arrows-symbolic.svg">icons/scalable/actions/bridge-horizontal-arrows-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="bridge-horizontal-arrows-disabled-symbolic.svg">icons/scalable/actions/bridge-horizontal-arrows-disabled-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="bridge-arrow-turn-right-horizontal2-symbolic.svg">icons/scalable/actions/bridge-arrow-turn-right-horizontal2-symbolic.svg</file>
   </gresource>
 </gresources>

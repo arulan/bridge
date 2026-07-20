@@ -61,7 +61,7 @@
                 <property name="tooltip-text">Switch output preset</property>
                 <child>
                   <object class="AdwButtonContent" id="qs_switch_content">
-                    <property name="icon-name">horizontal-arrows-symbolic</property>
+                    <property name="icon-name">bridge-horizontal-arrows-symbolic</property>
                     <property name="label">A</property>
                   </object>
                 </child>
@@ -77,7 +77,7 @@
                 <property name="action-name">app.quick-switch</property>
                 <child>
                   <object class="AdwButtonContent">
-                    <property name="icon-name">horizontal-arrows-symbolic</property>
+                    <property name="icon-name">bridge-horizontal-arrows-symbolic</property>
                     <property name="label">Quick Switch…</property>
                   </object>
                 </child>
@@ -212,7 +212,7 @@
                                             <property name="spacing">6</property>
                                             <child>
                                               <object class="GtkImage">
-                                                <property name="icon-name">list-symbolic</property>
+                                                <property name="icon-name">bridge-list-symbolic</property>
                                               </object>
                                             </child>
                                             <child>
@@ -236,7 +236,7 @@
                                         <style><class name="flat"/><class name="compact-icon-button"/></style>
                                         <child>
                                           <object class="GtkImage">
-                                            <property name="icon-name">sound-symbolic</property>
+                                            <property name="icon-name">bridge-sound-symbolic</property>
                                           </object>
                                         </child>
                                       </object>
@@ -248,7 +248,7 @@
                                         <style><class name="flat"/><class name="compact-icon-button"/></style>
                                         <child>
                                           <object class="GtkImage" id="aux_mute_image">
-                                            <property name="icon-name">speaker-3-symbolic</property>
+                                            <property name="icon-name">bridge-speaker-3-symbolic</property>
                                           </object>
                                         </child>
                                       </object>
@@ -267,7 +267,7 @@
                                     <property name="spacing">6</property>
                                     <child>
                                       <object class="GtkImage">
-                                        <property name="icon-name">speaker-symbolic</property>
+                                        <property name="icon-name">bridge-speaker-symbolic</property>
                                         <property name="valign">center</property>
                                         <property name="pixel-size">12</property>
                                         <style><class name="dim-label"/></style>
@@ -402,7 +402,7 @@
                                           <object class="AdwToggle">
                                             <property name="name">direct</property>
                                             <property name="label">Direct</property>
-                                            <property name="icon-name">stereo-jack-symbolic</property>
+                                            <property name="icon-name">bridge-stereo-jack-symbolic</property>
                                             <property name="tooltip">Direct audio playback</property>
                                           </object>
                                         </child>
@@ -410,7 +410,7 @@
                                           <object class="AdwToggle">
                                             <property name="name">surround</property>
                                             <property name="label">Surround</property>
-                                            <property name="icon-name">headphones-symbolic</property>
+                                            <property name="icon-name">bridge-headphones-symbolic</property>
                                             <property name="tooltip">Virtual Surround playback</property>
                                           </object>
                                         </child>
@@ -428,7 +428,7 @@
                                             <property name="spacing">6</property>
                                             <child>
                                               <object class="GtkImage">
-                                                <property name="icon-name">headphones-symbolic</property>
+                                                <property name="icon-name">bridge-headphones-symbolic</property>
                                               </object>
                                             </child>
                                             <child>
@@ -452,7 +452,7 @@
                                         <style><class name="flat"/><class name="compact-icon-button"/></style>
                                         <child>
                                           <object class="GtkImage">
-                                            <property name="icon-name">sound-symbolic</property>
+                                            <property name="icon-name">bridge-sound-symbolic</property>
                                           </object>
                                         </child>
                                       </object>
@@ -464,7 +464,7 @@
                                         <style><class name="flat"/><class name="compact-icon-button"/></style>
                                         <child>
                                           <object class="GtkImage" id="main_mute_image">
-                                            <property name="icon-name">speaker-3-symbolic</property>
+                                            <property name="icon-name">bridge-speaker-3-symbolic</property>
                                           </object>
                                         </child>
                                       </object>
@@ -483,7 +483,7 @@
                                     <property name="spacing">6</property>
                                     <child>
                                       <object class="GtkImage">
-                                        <property name="icon-name">speaker-symbolic</property>
+                                        <property name="icon-name">bridge-speaker-symbolic</property>
                                         <property name="valign">center</property>
                                         <property name="pixel-size">12</property>
                                         <style><class name="dim-label"/></style>

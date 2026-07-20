@@ -797,9 +797,9 @@ impl BridgeWindow {
             Side::Main => (&*imp.main_mute_image, &*imp.main_mute_button),
         };
         img.set_icon_name(Some(if muted {
-            "speaker-0-symbolic"
+            "bridge-speaker-0-symbolic"
         } else {
-            "speaker-3-symbolic"
+            "bridge-speaker-3-symbolic"
         }));
         btn.set_tooltip_text(Some(if muted {
             "Unmute this output"

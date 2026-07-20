@@ -186,9 +186,9 @@ impl BridgeWindow {
         imp.main_mute_button.set_active(active_muted);
         imp.mode_swap_in_progress.set(false);
         imp.main_mute_image.set_icon_name(Some(if active_muted {
-            "speaker-0-symbolic"
+            "bridge-speaker-0-symbolic"
         } else {
-            "speaker-3-symbolic"
+            "bridge-speaker-3-symbolic"
         }));
         imp.main_mute_button.set_tooltip_text(Some(if active_muted {
             "Unmute this output"
