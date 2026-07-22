@@ -80,6 +80,11 @@
       <summary>Expand the Routing tile on launch</summary>
     </key>
 
+    <key name="run-in-background" type="b">
+      <default>false</default>
+      <summary>Keep the app open after the window is closed</summary>
+    </key>
+
     <key name="default-follows-main" type="b">
       <default>false</default>
       <summary>The system default follows the virtual output driving Main</summary>

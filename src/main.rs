@@ -17,6 +17,7 @@
 
 mod application;
 mod audio;
+mod background;
 mod config;
 mod dialogs;
 mod shortcuts;

@@ -195,6 +195,14 @@ pub fn set_keep_routing_open(open: bool) {
     let _ = settings().set_boolean("keep-routing-open", open);
 }
 
+pub fn run_in_background() -> bool {
+    settings().boolean("run-in-background")
+}
+
+pub fn set_run_in_background(enabled: bool) {
+    let _ = settings().set_boolean("run-in-background", enabled);
+}
+
 pub const CROSSFADE_STEP_MIN: i32 = 2;
 pub const CROSSFADE_STEP_MAX: i32 = 25;
 

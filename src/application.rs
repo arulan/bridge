@@ -17,6 +17,7 @@
 
 use std::cell::RefCell;
 use std::process::Command;
+use std::rc::Rc;
 
 use adw::prelude::*;
 use adw::subclass::prelude::*;
@@ -24,6 +25,7 @@ use gtk4::{self as gtk};
 
 use crate::audio::backend::PipeWireBackend;
 use crate::audio::pw_config;
+use crate::background;
 use crate::config;
 use crate::dialogs::preferences;
 use crate::dialogs::quick_switch;
@@ -41,6 +43,9 @@ pub const APP_ID: &str = match option_env!("APP_ID") {
 
 // ko-fi support page
 const SUPPORT_URL: &str = "https://ko-fi.com/arulan";
+
+// Background portal permission prompt
+const BACKGROUND_PORTAL_REASON: &str = "Keep mixing audio while the window is closed";
 
 pub const RESOURCES_FILE: Option<&str> = option_env!("RESOURCES_FILE");
 
@@ -62,6 +67,8 @@ pub struct BridgeApplicationImp {
     window: RefCell<Option<BridgeWindow>>,
     backend: RefCell<Option<PipeWireBackend>>,
     shortcuts: RefCell<Option<ShortcutsPortal>>,
+    // keeps the app alive without a window
+    hold_guard: RefCell<Option<gio::ApplicationHoldGuard>>,
 }
 
 #[glib::object_subclass]
@@ -99,6 +106,12 @@ impl ApplicationImpl for BridgeApplicationImp {
 
         window.present();
 
+        let app_c = app.clone();
+        self.apply_background_mode(
+            config::run_in_background(),
+            Rc::new(move || app_c.imp().show_background_denied_alert()),
+        );
+
         if config::is_configured() {
             self.start_shortcuts();
         } else {
@@ -132,6 +145,51 @@ impl BridgeApplicationImp {
         if let Some(portal) = self.shortcuts.borrow().as_ref() {
             portal.start(conn);
         }
+    }
+
+    // Run in Background
+    fn apply_background_mode(&self, enabled: bool, on_denied: Rc<dyn Fn()>) {
+        if let Some(window) = self.window.borrow().as_ref() {
+            window.set_hide_on_close(enabled);
+        }
+
+        let app = self.obj();
+        if enabled {
+            if self.hold_guard.borrow().is_none() {
+                self.hold_guard.replace(Some(app.hold()));
+            }
+
+            if let Some(conn) = app.dbus_connection() {
+                let weak = app.downgrade();
+                background::request_background(&conn, BACKGROUND_PORTAL_REASON, move |granted| {
+                    if granted {
+                        return;
+                    }
+
+                    let Some(app) = weak.upgrade() else { return };
+                    let imp = app.imp();
+                    imp.hold_guard.replace(None);
+
+                    if let Some(window) = imp.window.borrow().as_ref() {
+                        window.set_hide_on_close(false);
+                    }
+
+                    config::set_run_in_background(false);
+                    on_denied();
+                });
+            }
+        } else {
+            self.hold_guard.replace(None);
+        }
+    }
+
+    fn show_background_denied_alert(&self) {
+        let win = self.window.borrow().clone();
+        show_error_alert(
+            win.as_ref(),
+            "Background Permission Denied",
+            "Your system denied permission for Bridge to run in the background.",
+        );
     }
 
     fn show_setup_dialog(&self, first_run: bool) {
@@ -290,7 +348,7 @@ impl BridgeApplicationImp {
 
     fn show_preferences_dialog(&self) {
         let parent = self.window.borrow().clone();
-        preferences::show(parent.as_ref());
+        preferences::show(&self.obj(), parent.as_ref());
     }
 
     fn show_remove_config_dialog(&self) {
@@ -433,6 +491,11 @@ impl BridgeApplication {
             .property("application-id", APP_ID)
             .property("flags", gio::ApplicationFlags::empty())
             .build()
+    }
+
+    pub fn apply_background_mode(&self, enabled: bool, on_denied: impl Fn() + 'static) {
+        self.imp()
+            .apply_background_mode(enabled, Rc::new(on_denied));
     }
 }
 

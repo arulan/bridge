@@ -15,13 +15,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
+use std::cell::Cell;
+use std::rc::Rc;
+
 use adw::prelude::*;
 use gtk4::{self as gtk};
 
+use crate::application::BridgeApplication;
 use crate::config;
 use crate::volume::VolumeDisplay;
 
-pub fn show(parent: Option<&impl IsA<gtk::Widget>>) {
+pub fn show(app: &BridgeApplication, parent: Option<&impl IsA<gtk::Widget>>) {
     let dialog = adw::PreferencesDialog::new();
     let page = adw::PreferencesPage::new();
 
@@ -90,6 +94,42 @@ pub fn show(parent: Option<&impl IsA<gtk::Widget>>) {
     });
 
     general.add(&routing_row);
+
+    let background_row = adw::SwitchRow::builder()
+        .title("Run in Background")
+        .subtitle("Allow activity when the app is closed")
+        .active(config::run_in_background())
+        .build();
+
+    let app_c = app.clone();
+    let dialog_weak = dialog.downgrade();
+    // guards against the denial path
+    let suppress = Rc::new(Cell::new(false));
+    background_row.connect_active_notify(move |row| {
+        if suppress.get() {
+            return;
+        }
+
+        let active = row.is_active();
+        config::set_run_in_background(active);
+
+        let row_weak = row.downgrade();
+        let dialog_weak = dialog_weak.clone();
+        let suppress = Rc::clone(&suppress);
+        app_c.apply_background_mode(active, move || {
+            if let Some(row) = row_weak.upgrade() {
+                suppress.set(true);
+                row.set_active(false);
+                suppress.set(false);
+            }
+
+            if let Some(dialog) = dialog_weak.upgrade() {
+                dialog.add_toast(adw::Toast::new("Your system denied background permission"));
+            }
+        });
+    });
+
+    general.add(&background_row);
     page.add(&general);
 
     let pipewire = adw::PreferencesGroup::builder()
