@@ -66,7 +66,6 @@ pub fn request_background<F: Fn(bool) + 'static>(
             if !granted {
                 eprintln!("Background portal did not grant background permission");
             }
-            
             on_result(granted);
         },
     );

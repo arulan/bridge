@@ -1,3 +1,5 @@
+<img src="data/icons/hicolor/scalable/apps/io.github.arulan.Bridge.svg" width="128" height="128" alt="Bridge">
+
 # Bridge
 
 Route your apps to two virtual outputs and mix between them. Send chat to one side, 
