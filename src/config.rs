@@ -203,6 +203,14 @@ pub fn set_run_in_background(enabled: bool) {
     let _ = settings().set_boolean("run-in-background", enabled);
 }
 
+pub fn run_on_startup() -> bool {
+    settings().boolean("run-on-startup")
+}
+
+pub fn set_run_on_startup(enabled: bool) {
+    let _ = settings().set_boolean("run-on-startup", enabled);
+}
+
 pub const CROSSFADE_STEP_MIN: i32 = 2;
 pub const CROSSFADE_STEP_MAX: i32 = 25;
 

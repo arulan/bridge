@@ -27,10 +27,17 @@ const PORTAL_PATH: &str = "/org/freedesktop/portal/desktop";
 const BACKGROUND_IFACE: &str = "org.freedesktop.portal.Background";
 const REQUEST_IFACE: &str = "org.freedesktop.portal.Request";
 
+#[derive(Clone, Copy, Debug)]
+pub struct BackgroundGrant {
+    pub background: bool,
+    pub autostart: bool,
+}
+
 // Background Portal request
-pub fn request_background<F: Fn(bool) + 'static>(
+pub fn request_background<F: Fn(BackgroundGrant) + 'static>(
     conn: &gio::DBusConnection,
     reason: &str,
+    autostart: Option<&[&str]>,
     on_result: F,
 ) {
     // fresh token per call
@@ -52,21 +59,29 @@ pub fn request_background<F: Fn(bool) + 'static>(
         move |sig| {
             sub_ref_c.borrow_mut().take();
 
-            let granted = match sig
+            let grant = match sig
                 .parameters
                 .get::<(u32, HashMap<String, glib::Variant>)>()
             {
-                Some((0, results)) => results
-                    .get("background")
-                    .and_then(|v| v.get::<bool>())
-                    .unwrap_or(false),
-                _ => false,
+                Some((0, results)) => {
+                    let get = |key| {
+                        results
+                            .get(key)
+                            .and_then(|v: &glib::Variant| v.get::<bool>())
+                            .unwrap_or(false)
+                    };
+                    BackgroundGrant {
+                        background: get("background"),
+                        autostart: get("autostart"),
+                    }
+                }
+                _ => BackgroundGrant {
+                    background: false,
+                    autostart: false,
+                },
             };
 
-            if !granted {
-                eprintln!("Background portal did not grant background permission");
-            }
-            on_result(granted);
+            on_result(grant);
         },
     );
     *sub_ref.borrow_mut() = Some(sub);
@@ -74,6 +89,10 @@ pub fn request_background<F: Fn(bool) + 'static>(
     let mut options: HashMap<String, glib::Variant> = HashMap::new();
     options.insert("handle_token".to_owned(), token.to_variant());
     options.insert("reason".to_owned(), reason.to_variant());
+    options.insert("autostart".to_owned(), autostart.is_some().to_variant());
+    if let Some(argv) = autostart {
+        options.insert("commandline".to_owned(), argv.to_variant());
+    }
 
     let params = ("", options).to_variant();
     conn.call(

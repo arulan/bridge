@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::process::Command;
 use std::rc::Rc;
 
@@ -47,6 +47,9 @@ const SUPPORT_URL: &str = "https://ko-fi.com/arulan";
 // Background portal permission prompt
 const BACKGROUND_PORTAL_REASON: &str = "Keep mixing audio while the window is closed";
 
+// background portal arguments to launch app on startup
+const AUTOSTART_ARGV: [&str; 2] = ["bridge", "--from-autostart"];
+
 pub const RESOURCES_FILE: Option<&str> = option_env!("RESOURCES_FILE");
 
 // The GSettings SCHEMA_ID == APP_ID
@@ -69,6 +72,8 @@ pub struct BridgeApplicationImp {
     shortcuts: RefCell<Option<ShortcutsPortal>>,
     // keeps the app alive without a window
     hold_guard: RefCell<Option<gio::ApplicationHoldGuard>>,
+    // launched via autostart flag
+    from_autostart: Cell<bool>,
 }
 
 #[glib::object_subclass]
@@ -104,13 +109,20 @@ impl ApplicationImpl for BridgeApplicationImp {
         window.bind_shortcuts(&portal);
         *self.shortcuts.borrow_mut() = Some(portal);
 
-        window.present();
+        let start_hidden =
+            self.from_autostart.get() && config::run_in_background() && config::is_configured();
+        if !start_hidden {
+            window.present();
+        }
 
-        let app_c = app.clone();
-        self.apply_background_mode(
-            config::run_in_background(),
-            Rc::new(move || app_c.imp().show_background_denied_alert()),
-        );
+        self.apply_background_mode(config::run_in_background());
+        if config::run_in_background() {
+            let app_c = app.clone();
+            self.request_portal(
+                Some(Rc::new(move || app_c.imp().show_background_denied_alert())),
+                None,
+            );
+        }
 
         if config::is_configured() {
             self.start_shortcuts();
@@ -148,39 +160,58 @@ impl BridgeApplicationImp {
     }
 
     // Run in Background
-    fn apply_background_mode(&self, enabled: bool, on_denied: Rc<dyn Fn()>) {
+    fn apply_background_mode(&self, enabled: bool) {
         if let Some(window) = self.window.borrow().as_ref() {
             window.set_hide_on_close(enabled);
         }
 
-        let app = self.obj();
         if enabled {
             if self.hold_guard.borrow().is_none() {
-                self.hold_guard.replace(Some(app.hold()));
-            }
-
-            if let Some(conn) = app.dbus_connection() {
-                let weak = app.downgrade();
-                background::request_background(&conn, BACKGROUND_PORTAL_REASON, move |granted| {
-                    if granted {
-                        return;
-                    }
-
-                    let Some(app) = weak.upgrade() else { return };
-                    let imp = app.imp();
-                    imp.hold_guard.replace(None);
-
-                    if let Some(window) = imp.window.borrow().as_ref() {
-                        window.set_hide_on_close(false);
-                    }
-
-                    config::set_run_in_background(false);
-                    on_denied();
-                });
+                let guard = self.obj().hold();
+                self.hold_guard.replace(Some(guard));
             }
         } else {
             self.hold_guard.replace(None);
         }
+    }
+
+    fn request_portal(
+        &self,
+        on_background_denied: Option<Rc<dyn Fn()>>,
+        on_autostart_denied: Option<Rc<dyn Fn()>>,
+    ) {
+        let app = self.obj();
+
+        let Some(conn) = app.dbus_connection() else {
+            return;
+        };
+
+        let argv = config::run_on_startup().then_some(&AUTOSTART_ARGV[..]);
+        let weak = app.downgrade();
+
+        background::request_background(&conn, BACKGROUND_PORTAL_REASON, argv, move |grant| {
+            let Some(app) = weak.upgrade() else { return };
+            let imp = app.imp();
+
+            if let Some(cb) = &on_background_denied
+                && config::run_in_background()
+                && !grant.background
+            {
+                eprintln!("Background portal denied background permission");
+                imp.apply_background_mode(false);
+                config::set_run_in_background(false);
+                cb();
+            }
+
+            if let Some(cb) = &on_autostart_denied
+                && config::run_on_startup()
+                && !grant.autostart
+            {
+                eprintln!("Background portal denied autostart");
+                config::set_run_on_startup(false);
+                cb();
+            }
+        });
     }
 
     fn show_background_denied_alert(&self) {
@@ -204,6 +235,7 @@ impl BridgeApplicationImp {
             let find_id = |name: &str| hw_sinks.iter().find(|s| s.name == name).map(|s| s.node_id);
             (find_id(&cfg.aux.hw_name), find_id(&cfg.main.hw_name))
         };
+
         let dialog = SetupDialog::new(hw_sinks, aux_id, main_id);
 
         let win_c = win.clone();
@@ -487,15 +519,42 @@ glib::wrapper! {
 
 impl BridgeApplication {
     pub fn new() -> Self {
-        glib::Object::builder()
+        let app: Self = glib::Object::builder()
             .property("application-id", APP_ID)
             .property("flags", gio::ApplicationFlags::empty())
-            .build()
+            .build();
+
+        app.add_main_option(
+            "from-autostart",
+            glib::Char(0),
+            glib::OptionFlags::NONE,
+            glib::OptionArg::None,
+            "Started automatically at login",
+            None,
+        );
+        app.connect_handle_local_options(|app, opts| {
+            if opts.contains("from-autostart") {
+                app.imp().from_autostart.set(true);
+            }
+            // continue normally
+            std::ops::ControlFlow::Continue(())
+        });
+
+        app
     }
 
-    pub fn apply_background_mode(&self, enabled: bool, on_denied: impl Fn() + 'static) {
-        self.imp()
-            .apply_background_mode(enabled, Rc::new(on_denied));
+    // Run in Background toggle
+    pub fn set_background_enabled(&self, enabled: bool, on_denied: impl Fn() + 'static) {
+        let imp = self.imp();
+        imp.apply_background_mode(enabled);
+        if enabled {
+            imp.request_portal(Some(Rc::new(on_denied)), None);
+        }
+    }
+
+    // Run on Startup toggle
+    pub fn set_startup_enabled(&self, on_denied: impl Fn() + 'static) {
+        self.imp().request_portal(None, Some(Rc::new(on_denied)));
     }
 }
 
@@ -626,7 +685,7 @@ fn collect_diagnostic_info() -> String {
          Aux:  {aux}\n\
          Main: {main}\n\
          Surround: hrir=\"{hrir}\" hw=\"{s_hw}\" name=\"{s_name}\" active={s_active}\n\
-         Prefs: default-follows-main={follows_main} keep-routing-open={open_routing} volume-display={vol}\n\
+         Prefs: default-follows-main={follows_main} keep-routing-open={open_routing} volume-display={vol} run-in-background={bg} run-on-startup={startup}\n\
          Window: {w}x{h} maximized={max}",
         ver = env!("CARGO_PKG_VERSION"),
         pw_path = pw_config::config_file().display(),
@@ -638,6 +697,8 @@ fn collect_diagnostic_info() -> String {
         s_active = config::surround_active(),
         follows_main = config::default_follows_main(),
         open_routing = config::keep_routing_open(),
+        bg = config::run_in_background(),
+        startup = config::run_on_startup(),
         vol = vol.as_key(),
         w = s.int("window-width"),
         h = s.int("window-height"),

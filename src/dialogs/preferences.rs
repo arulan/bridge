@@ -103,7 +103,7 @@ pub fn show(app: &BridgeApplication, parent: Option<&impl IsA<gtk::Widget>>) {
 
     let app_c = app.clone();
     let dialog_weak = dialog.downgrade();
-    // guards against the denial path
+    // guards against the denial path flipping it back
     let suppress = Rc::new(Cell::new(false));
     background_row.connect_active_notify(move |row| {
         if suppress.get() {
@@ -116,7 +116,7 @@ pub fn show(app: &BridgeApplication, parent: Option<&impl IsA<gtk::Widget>>) {
         let row_weak = row.downgrade();
         let dialog_weak = dialog_weak.clone();
         let suppress = Rc::clone(&suppress);
-        app_c.apply_background_mode(active, move || {
+        app_c.set_background_enabled(active, move || {
             if let Some(row) = row_weak.upgrade() {
                 suppress.set(true);
                 row.set_active(false);
@@ -130,6 +130,42 @@ pub fn show(app: &BridgeApplication, parent: Option<&impl IsA<gtk::Widget>>) {
     });
 
     general.add(&background_row);
+
+    let startup_row = adw::SwitchRow::builder()
+        .title("Run on Startup")
+        .subtitle("Launch Bridge automatically at login")
+        .active(config::run_on_startup())
+        .build();
+
+    let app_c = app.clone();
+    let dialog_weak = dialog.downgrade();
+    let suppress = Rc::new(Cell::new(false));
+
+    startup_row.connect_active_notify(move |row| {
+        if suppress.get() {
+            return;
+        }
+
+        config::set_run_on_startup(row.is_active());
+
+        let row_weak = row.downgrade();
+        let dialog_weak = dialog_weak.clone();
+        let suppress = Rc::clone(&suppress);
+
+        app_c.set_startup_enabled(move || {
+            if let Some(row) = row_weak.upgrade() {
+                suppress.set(true);
+                row.set_active(false);
+                suppress.set(false);
+            }
+
+            if let Some(dialog) = dialog_weak.upgrade() {
+                dialog.add_toast(adw::Toast::new("Your system denied autostart permission"));
+            }
+        });
+    });
+
+    general.add(&startup_row);
     page.add(&general);
 
     let pipewire = adw::PreferencesGroup::builder()
