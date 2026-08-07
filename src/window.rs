@@ -150,8 +150,6 @@ pub struct BridgeWindowImp {
     // hides the restart banner until a new pending change triggers it
     surround_restart_dismissed: Cell<bool>,
 
-    shortcut_banner_dismissed: Cell<bool>,
-
     routing_row_meters: RefCell<Vec<(gtk::LevelBar, Vec<u32>)>>,
 
     // set while the Add Rule dialog is open
@@ -723,11 +721,15 @@ impl BridgeWindow {
         let imp = self.imp();
 
         imp.shortcuts_banner.connect_button_clicked(glib::clone!(
-            #[weak(rename_to = w)]
-            self,
+            #[strong]
+            portal,
             move |b| {
-                w.imp().shortcut_banner_dismissed.set(true);
+                if portal.is_handshaking() {
+                    return;
+                }
+                // Hide the banner while retrying
                 b.set_revealed(false);
+                portal.restart();
             }
         ));
 
@@ -762,14 +764,7 @@ impl BridgeWindow {
     }
 
     fn update_shortcuts_banner(&self, active: bool) {
-        let imp = self.imp();
-
-        if active {
-            imp.shortcut_banner_dismissed.set(false);
-            imp.shortcuts_banner.set_revealed(false);
-        } else if !imp.shortcut_banner_dismissed.get() {
-            imp.shortcuts_banner.set_revealed(true);
-        }
+        self.imp().shortcuts_banner.set_revealed(!active);
     }
 
     // fill bheavior center -> selection

@@ -43,25 +43,24 @@ const SHORTCUTS_IFACE: &str = "org.freedesktop.portal.GlobalShortcuts";
 const REQUEST_IFACE: &str = "org.freedesktop.portal.Request";
 const SESSION_IFACE: &str = "org.freedesktop.portal.Session";
 
-const MAX_BIND_RETRIES: u32 = 3;
-const BIND_RETRY_BACKOFF: Duration = Duration::from_secs(1);
+// Response code for a user cancel
+const RESPONSE_CANCELLED: u32 = 1;
 
-const MAX_CREATE_RETRIES: u32 = 3;
-const CREATE_TIMEOUT: Duration = Duration::from_secs(5);
+const MAX_HANDSHAKE_ATTEMPTS: u32 = 4;
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
+const RETRY_BACKOFF: Duration = Duration::from_secs(1);
 
 #[derive(Default)]
 pub struct ShortcutsPortalImp {
     conn: RefCell<Option<gio::DBusConnection>>,
     session_handle: RefCell<Option<String>>,
     subscriptions: RefCell<Vec<gio::SignalSubscription>>,
-    // True once the portal acknowledges BindShortcuts
+    activated_sub: RefCell<Option<gio::SignalSubscription>>,
     bound: Cell<bool>,
-    // BindShortcuts retries
-    bind_attempts: Cell<u32>,
-    // CreateSession retries
-    create_attempts: Cell<u32>,
-    // Guard against subscribing to Activated more than once across retries
-    activated_subscribed: Cell<bool>,
+    awaiting_bind: Cell<bool>,
+    handshaking: Cell<bool>,
+    attempt: Cell<u32>,
+    generation: Cell<u64>,
 }
 
 #[glib::object_subclass]
@@ -93,7 +92,7 @@ impl ShortcutsPortal {
         glib::Object::new()
     }
 
-    // True once the portal acknowledges BindShortcuts
+    // True once the shortcuts are bound
     pub fn is_active(&self) -> bool {
         self.imp().bound.get()
     }
@@ -116,18 +115,33 @@ impl ShortcutsPortal {
     }
 
     pub fn start(&self, conn: gio::DBusConnection) {
-        self.imp().conn.replace(Some(conn.clone()));
-        self.imp().create_attempts.set(0);
-        self.create_session(&conn);
+        self.imp().conn.replace(Some(conn));
+        self.imp().attempt.set(0);
+        self.begin_handshake();
     }
 
-    fn create_session(&self, conn: &gio::DBusConnection) {
-        let attempt = self.imp().create_attempts.get();
-        let sender = sender_from_conn(conn);
+    // Destroys the existing session to begin a new portal handshake
+    pub fn restart(&self) {
+        if self.imp().conn.borrow().is_none() {
+            return;
+        }
+        self.close_session();
+        self.imp().attempt.set(0);
+        self.begin_handshake();
+    }
+
+    fn begin_handshake(&self) {
+        let conn = self.imp().conn.borrow().clone();
+        let Some(conn) = conn else { return };
+
+        let attempt = self.imp().attempt.get();
+        let generation = self.bump_generation();
+        self.imp().handshaking.set(true);
+        let sender = sender_from_conn(&conn);
         let cs_token = format!("bridge_cs_{attempt}");
         let cs_path = format!("/org/freedesktop/portal/desktop/request/{sender}/{cs_token}");
         self.subscribe(
-            conn,
+            &conn,
             &cs_path,
             REQUEST_IFACE,
             "Response",
@@ -142,34 +156,100 @@ impl ShortcutsPortal {
             "session_handle_token".to_owned(),
             format!("bridge_sh_{attempt}").to_variant(),
         );
-        dbus_call(conn, "CreateSession", (options,).to_variant(), "(o)");
+        dbus_call(&conn, "CreateSession", (options,).to_variant(), "(o)");
 
         let weak = self.downgrade();
-        let conn_c = conn.clone();
-        glib::timeout_add_local_once(CREATE_TIMEOUT, move || {
+        glib::timeout_add_local_once(HANDSHAKE_TIMEOUT, move || {
             let Some(portal) = weak.upgrade() else { return };
             let imp = portal.imp();
-            if imp.conn.borrow().is_none() || imp.session_handle.borrow().is_some() {
+            if imp.bound.get() || imp.awaiting_bind.get() || portal.is_stale(generation) {
                 return;
             }
-            portal.retry_create_session(&conn_c);
+            eprintln!("GlobalShortcuts handshake timed out - attempt {attempt}");
+            portal.retry_handshake();
         });
     }
 
-    fn retry_create_session(&self, conn: &gio::DBusConnection) {
-        let attempts = self.imp().create_attempts.get();
-        if attempts >= MAX_CREATE_RETRIES {
+    fn give_up(&self) {
+        self.close_session();
+        let imp = self.imp();
+        imp.attempt.set(MAX_HANDSHAKE_ATTEMPTS);
+        imp.handshaking.set(false);
+        self.emit_by_name::<()>("active-changed", &[]);
+    }
+
+    // true while still negociating the portal chain
+    pub fn is_handshaking(&self) -> bool {
+        self.imp().handshaking.get()
+    }
+
+    fn retry_handshake(&self) {
+        let imp = self.imp();
+        let next = imp.attempt.get() + 1;
+        if next >= MAX_HANDSHAKE_ATTEMPTS {
             eprintln!(
-                "GlobalShortcuts giving up after {MAX_CREATE_RETRIES} CreateSession retries; shortcuts inactive"
+                "GlobalShortcuts giving up after {MAX_HANDSHAKE_ATTEMPTS} attempts; shortcuts inactive"
             );
-            self.imp().bound.set(false);
-            self.emit_by_name::<()>("active-changed", &[]);
+            self.give_up();
             return;
         }
-        let next = attempts + 1;
-        self.imp().create_attempts.set(next);
-        eprintln!("GlobalShortcuts retrying CreateSession ({next}/{MAX_CREATE_RETRIES})");
-        self.create_session(conn);
+        imp.attempt.set(next);
+        self.close_session();
+        let generation = imp.generation.get();
+
+        let backoff = RETRY_BACKOFF * 2u32.pow(next - 1);
+        eprintln!("GlobalShortcuts retrying handshake - {next}/{MAX_HANDSHAKE_ATTEMPTS}");
+        let weak = self.downgrade();
+        glib::timeout_add_local_once(backoff, move || {
+            let Some(portal) = weak.upgrade() else { return };
+            if portal.is_stale(generation) {
+                return;
+            }
+            portal.begin_handshake();
+        });
+    }
+
+    // generation for every attempt
+    fn bump_generation(&self) -> u64 {
+        let next = self.imp().generation.get() + 1;
+        self.imp().generation.set(next);
+        next
+    }
+
+    fn is_stale(&self, generation: u64) -> bool {
+        let imp = self.imp();
+        imp.conn.borrow().is_none() || imp.generation.get() != generation
+    }
+
+    // drops subs and closes the session
+    // clean session for next attempt
+    fn close_session(&self) {
+        let imp = self.imp();
+        imp.subscriptions.borrow_mut().clear();
+        imp.awaiting_bind.set(false);
+        let was_bound = imp.bound.replace(false);
+        self.bump_generation();
+
+        let conn = imp.conn.borrow().clone();
+        let session = imp.session_handle.take();
+        if let (Some(conn), Some(session)) = (conn, session) {
+            conn.call(
+                Some(PORTAL_BUS),
+                &session,
+                SESSION_IFACE,
+                "Close",
+                None,
+                None,
+                gio::DBusCallFlags::NONE,
+                -1,
+                None::<&gio::Cancellable>,
+                |_| {},
+            );
+        }
+
+        if was_bound {
+            self.emit_by_name::<()>("active-changed", &[]);
+        }
     }
 
     pub fn stop(&self) {
@@ -195,9 +275,10 @@ impl ShortcutsPortal {
         }
         imp.session_handle.replace(None);
         imp.bound.set(false);
-        imp.bind_attempts.set(0);
-        imp.create_attempts.set(0);
-        imp.activated_subscribed.set(false);
+        imp.awaiting_bind.set(false);
+        imp.handshaking.set(false);
+        imp.attempt.set(0);
+        imp.activated_sub.replace(None);
         imp.conn.replace(None);
     }
 
@@ -206,32 +287,78 @@ impl ShortcutsPortal {
             Some(v) => v,
             None => return,
         };
+
+        if self.imp().session_handle.borrow().is_some() {
+            return;
+        }
         if response != 0 {
             eprintln!("GlobalShortcuts CreateSession failed (response={response})");
+            self.retry_handshake();
             return;
         }
         let session_handle: String = results
             .get("session_handle")
             .and_then(|v| v.get())
             .unwrap_or_default();
+        if session_handle.is_empty() {
+            eprintln!("GlobalShortcuts CreateSession returned no session handle");
+            self.retry_handshake();
+            return;
+        }
         self.imp()
             .session_handle
             .replace(Some(session_handle.clone()));
 
-        let sender = sender_from_conn(conn);
-        let bs_token = "bridge_bs";
-        let bs_path = format!("/org/freedesktop/portal/desktop/request/{sender}/{bs_token}");
-        self.imp().bind_attempts.set(0);
+        // only one bind attempt per session
+        let attempt = self.imp().attempt.get();
+        let generation = self.imp().generation.get();
+        let weak = self.downgrade();
+        let conn_c = conn.clone();
+        self.request_shortcut_list(
+            conn,
+            &session_handle,
+            &format!("bridge_hs_{attempt}"),
+            move |list| {
+                let Some(portal) = weak.upgrade() else { return };
+                if portal.is_stale(generation) {
+                    return;
+                }
+                match list {
+                    Some(list) if !list.is_empty() => portal.finish_bound(&conn_c),
+                    _ => portal.send_bind(&conn_c),
+                }
+            },
+        );
+    }
+
+    fn send_bind(&self, conn: &gio::DBusConnection) {
+        let session = self
+            .imp()
+            .session_handle
+            .borrow()
+            .clone()
+            .unwrap_or_default();
+        if session.is_empty() {
+            return;
+        }
+        let attempt = self.imp().attempt.get();
+        let token = format!("bridge_bs_{attempt}");
+        let path = format!(
+            "/org/freedesktop/portal/desktop/request/{}/{}",
+            sender_from_conn(conn),
+            token,
+        );
         self.subscribe(
             conn,
-            &bs_path,
+            &path,
             REQUEST_IFACE,
             "Response",
             |portal, conn, params| {
                 portal.on_bind_response(conn, params);
             },
         );
-        call_bind_shortcuts(conn, &session_handle, bs_token);
+        self.imp().awaiting_bind.set(true);
+        call_bind_shortcuts(conn, &session, &token);
     }
 
     fn on_bind_response(&self, conn: &gio::DBusConnection, params: glib::Variant) {
@@ -239,49 +366,29 @@ impl ShortcutsPortal {
             Some(v) => v,
             None => return,
         };
+        self.imp().awaiting_bind.set(false);
 
+        if response == RESPONSE_CANCELLED {
+            eprintln!("GlobalShortcuts BindShortcuts cancelled by the user");
+            self.give_up();
+            return;
+        }
         if response != 0 {
             eprintln!("GlobalShortcuts BindShortcuts failed (response={response})");
-            let attempts = self.imp().bind_attempts.get();
-            if attempts < MAX_BIND_RETRIES {
-                let next = attempts + 1;
-                self.imp().bind_attempts.set(next);
-                eprintln!("GlobalShortcuts retrying BindShortcuts ({next}/{MAX_BIND_RETRIES})");
-                let weak = self.downgrade();
-                let conn_c = conn.clone();
-                glib::timeout_add_local_once(BIND_RETRY_BACKOFF, move || {
-                    let Some(portal) = weak.upgrade() else { return };
-                    let session = portal.imp().session_handle.borrow().clone();
-                    let Some(session) = session else { return };
-                    let token = format!("bridge_bs_{next}");
-                    let bs_path = format!(
-                        "/org/freedesktop/portal/desktop/request/{}/{}",
-                        sender_from_conn(&conn_c),
-                        token,
-                    );
-                    portal.subscribe(
-                        &conn_c,
-                        &bs_path,
-                        REQUEST_IFACE,
-                        "Response",
-                        |p, c, params| {
-                            p.on_bind_response(c, params);
-                        },
-                    );
-                    call_bind_shortcuts(&conn_c, &session, &token);
-                });
-                return;
-            }
-            eprintln!(
-                "GlobalShortcuts giving up after {MAX_BIND_RETRIES} retries; shortcuts inactive"
-            );
-            self.imp().bound.set(false);
-            self.emit_by_name::<()>("active-changed", &[]);
+            self.retry_handshake();
+            return;
+        }
+        self.finish_bound(conn);
+    }
+
+    fn finish_bound(&self, conn: &gio::DBusConnection) {
+        let imp = self.imp();
+        if imp.bound.get() {
             return;
         }
 
-        if !self.imp().activated_subscribed.get() {
-            self.subscribe(
+        if imp.activated_sub.borrow().is_none() {
+            let sub = self.subscribe_raw(
                 conn,
                 PORTAL_PATH,
                 SHORTCUTS_IFACE,
@@ -290,16 +397,12 @@ impl ShortcutsPortal {
                     portal.on_activated(params);
                 },
             );
-            self.imp().activated_subscribed.set(true);
+            imp.activated_sub.replace(Some(sub));
         }
 
-        let session = self
-            .imp()
-            .session_handle
-            .borrow()
-            .clone()
-            .unwrap_or_default();
-        self.imp().bound.set(true);
+        let session = imp.session_handle.borrow().clone().unwrap_or_default();
+        imp.bound.set(true);
+        imp.handshaking.set(false);
         eprintln!("Global shortcuts active (session {session})");
         self.emit_by_name::<()>("active-changed", &[]);
     }
@@ -326,13 +429,20 @@ impl ShortcutsPortal {
         self.emit_by_name::<()>("shortcut-activated", &[&shortcut_id]);
     }
 
-    fn subscribe<F>(&self, conn: &gio::DBusConnection, path: &str, iface: &str, signal: &str, f: F)
+    fn subscribe_raw<F>(
+        &self,
+        conn: &gio::DBusConnection,
+        path: &str,
+        iface: &str,
+        signal: &str,
+        f: F,
+    ) -> gio::SignalSubscription
     where
         F: Fn(&ShortcutsPortal, &gio::DBusConnection, glib::Variant) + 'static,
     {
         let weak = self.downgrade();
         let conn_c = conn.clone();
-        let sub = conn.subscribe_to_signal(
+        conn.subscribe_to_signal(
             Some(PORTAL_BUS),
             Some(iface),
             Some(signal),
@@ -343,7 +453,14 @@ impl ShortcutsPortal {
                 let Some(portal) = weak.upgrade() else { return };
                 f(&portal, &conn_c, sig.parameters.clone());
             },
-        );
+        )
+    }
+
+    fn subscribe<F>(&self, conn: &gio::DBusConnection, path: &str, iface: &str, signal: &str, f: F)
+    where
+        F: Fn(&ShortcutsPortal, &gio::DBusConnection, glib::Variant) + 'static,
+    {
+        let sub = self.subscribe_raw(conn, path, iface, signal, f);
         self.imp().subscriptions.borrow_mut().push(sub);
     }
 
@@ -357,20 +474,25 @@ impl ShortcutsPortal {
         let (conn, session) = match (conn_opt, session_opt) {
             (Some(c), Some(s)) => (c, s),
             _ => {
-                let inactive = SHORTCUTS
-                    .iter()
-                    .map(|(id, desc, _)| (id.to_string(), desc.to_string(), String::new()))
-                    .collect();
-                f(inactive);
+                f(untriggered_shortcuts());
                 return;
             }
         };
 
-        let sender = sender_from_conn(&conn);
-        let token = "bridge_ls";
+        self.request_shortcut_list(&conn, &session, "bridge_ls", move |list| {
+            f(list.unwrap_or_else(untriggered_shortcuts))
+        });
+    }
+
+    fn request_shortcut_list<F>(&self, conn: &gio::DBusConnection, session: &str, token: &str, f: F)
+    where
+        F: FnOnce(Option<Vec<(String, String, String)>>) + 'static,
+    {
+        let sender = sender_from_conn(conn);
         let ls_path = format!("/org/freedesktop/portal/desktop/request/{sender}/{token}");
 
         let f_cell = Rc::new(RefCell::new(Some(f)));
+        let f_cell_ret = Rc::clone(&f_cell);
 
         // Holds the sub guard so it can be dropped after the first fire
         let sub_ref: Rc<RefCell<Option<gio::SignalSubscription>>> = Rc::new(RefCell::new(None));
@@ -392,6 +514,9 @@ impl ShortcutsPortal {
                         None => return,
                     };
                 if response != 0 {
+                    if let Some(cb) = f_cell.borrow_mut().take() {
+                        cb(None);
+                    }
                     return;
                 }
 
@@ -421,7 +546,7 @@ impl ShortcutsPortal {
                     .unwrap_or_default();
 
                 if let Some(cb) = f_cell.borrow_mut().take() {
-                    cb(list);
+                    cb(Some(list));
                 }
             },
         );
@@ -429,20 +554,31 @@ impl ShortcutsPortal {
 
         let mut opts: HashMap<String, glib::Variant> = HashMap::new();
         opts.insert("handle_token".to_owned(), token.to_variant());
-        let session_path = match glib::variant::ObjectPath::try_from(session) {
+        let session_path = match glib::variant::ObjectPath::try_from(session.to_owned()) {
             Ok(p) => p,
             Err(_) => {
                 eprintln!("list_shortcuts: invalid session path");
+                sub_ref.borrow_mut().take();
+                if let Some(cb) = f_cell_ret.borrow_mut().take() {
+                    cb(None);
+                }
                 return;
             }
         };
         dbus_call(
-            &conn,
+            conn,
             "ListShortcuts",
             (session_path, opts).to_variant(),
             "(o)",
         );
     }
+}
+
+fn untriggered_shortcuts() -> Vec<(String, String, String)> {
+    SHORTCUTS
+        .iter()
+        .map(|(id, desc, _)| (id.to_string(), desc.to_string(), String::new()))
+        .collect()
 }
 
 fn sender_from_conn(conn: &gio::DBusConnection) -> String {
