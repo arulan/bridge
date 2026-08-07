@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.arulan.Bridge</id>
+  <id>@app_id@</id>
   <name>Bridge</name>
   <summary>A crossfade mixer</summary>
 
@@ -19,7 +19,7 @@
     </p>
   </description>
 
-  <launchable type="desktop-id">io.github.arulan.Bridge.desktop</launchable>
+  <launchable type="desktop-id">@app_id@.desktop</launchable>
 
   <url type="homepage">https://github.com/arulan/bridge</url>
   <url type="bugtracker">https://github.com/arulan/bridge/issues</url>

@@ -6,7 +6,14 @@ project('bridge', 'rust',
 
 gnome = import('gnome')
 
-application_id = 'io.github.arulan.Bridge'
+base_id = 'io.github.arulan.Bridge'
+if get_option('profile') == 'development'
+  application_id = base_id + '.Devel'
+else
+  application_id = base_id
+endif
+# GSettings path stays on the base id
+base_path = '/' + base_id.replace('.', '/') + '/'
 
 prefix = get_option('prefix')
 bindir = prefix / get_option('bindir')

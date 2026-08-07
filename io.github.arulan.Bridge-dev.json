@@ -1,5 +1,5 @@
 {
-    "app-id": "io.github.arulan.Bridge",
+    "app-id": "io.github.arulan.Bridge.Devel",
     "runtime": "org.gnome.Platform",
     "runtime-version": "50",
     "sdk": "org.gnome.Sdk",
@@ -38,7 +38,8 @@
             "builddir": true,
             "buildsystem": "meson",
             "config-opts": [
-                "--buildtype=debug"
+                "--buildtype=debug",
+                "-Dprofile=development"
             ],
             "sources": [
                 {

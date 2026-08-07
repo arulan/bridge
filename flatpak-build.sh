@@ -9,5 +9,5 @@ cd "$(dirname "$0")"
 flatpak-builder --user --install --force-clean builddir io.github.arulan.Bridge-dev.json
 
 if [ "${1:-}" = "run" ]; then
-    flatpak run io.github.arulan.Bridge
+    flatpak run io.github.arulan.Bridge.Devel
 fi

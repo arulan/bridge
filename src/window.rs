@@ -226,6 +226,11 @@ impl BridgeWindow {
         // TODO: Look into GResource later
         add_css();
 
+        // striped header bar on devel build
+        if crate::application::APP_ID.ends_with(".Devel") {
+            self.add_css_class("devel");
+        }
+
         self.restore_window_state();
         self.connect_close_request(glib::clone!(
             #[weak(rename_to = w)]

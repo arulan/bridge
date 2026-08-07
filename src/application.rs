@@ -524,6 +524,9 @@ impl BridgeApplication {
             .property("flags", gio::ApplicationFlags::empty())
             .build();
 
+        // bundled icons stay under the base resource path
+        app.set_resource_base_path(Some("/io/github/arulan/Bridge"));
+
         app.add_main_option(
             "from-autostart",
             glib::Char(0),

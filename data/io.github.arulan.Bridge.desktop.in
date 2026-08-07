@@ -7,7 +7,7 @@ Categories=AudioVideo;Audio;Mixer;
 Keywords=PipeWire;Audio;Mixer;Crossfade;Volume;
 
 Exec=bridge
-Icon=io.github.arulan.Bridge
+Icon=@app_id@
 Terminal=false
 
 
