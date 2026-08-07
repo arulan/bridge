@@ -263,25 +263,21 @@ impl Ui {
 }
 
 pub fn show(
-    transient_for: Option<&impl IsA<gtk::Window>>,
+    transient_for: Option<&impl IsA<gtk::Widget>>,
     mut streams: Vec<StreamInfo>,
     hw_sinks: Vec<HwSink>,
     preselect: &[u32],
     backend: PipeWireBackend,
     on_saved: impl Fn(RoutingRule) + 'static,
-) -> adw::Window {
+) -> adw::Dialog {
     streams.sort_by_key(stream_sort_key);
     let groups = build_groups(&streams);
 
-    let win = adw::Window::builder()
+    let dialog = adw::Dialog::builder()
         .title("Add Routing Rule")
-        .default_width(560)
-        .default_height(720)
-        .modal(true)
+        .content_width(560)
+        .content_height(720)
         .build();
-    if let Some(parent) = transient_for {
-        win.set_transient_for(Some(parent));
-    }
 
     let toolbar = adw::ToolbarView::new();
     let header = adw::HeaderBar::new();
@@ -291,8 +287,10 @@ pub fn show(
     let cancel = gtk::Button::with_label("Cancel");
     cancel.connect_clicked(glib::clone!(
         #[weak]
-        win,
-        move |_| win.close()
+        dialog,
+        move |_| {
+            dialog.close();
+        }
     ));
     header.pack_start(&cancel);
 
@@ -300,7 +298,7 @@ pub fn show(
     add_button.add_css_class("suggested-action");
     add_button.set_sensitive(false);
     header.pack_end(&add_button);
-    win.set_default_widget(Some(&add_button));
+    dialog.set_default_widget(Some(&add_button));
 
     let scroll = gtk::ScrolledWindow::builder()
         .hscrollbar_policy(gtk::PolicyType::Never)
@@ -398,7 +396,7 @@ pub fn show(
     clamp.set_child(Some(&body));
     scroll.set_child(Some(&clamp));
     toolbar.set_content(Some(&scroll));
-    win.set_content(Some(&toolbar));
+    dialog.set_child(Some(&toolbar));
 
     let mut rows = Vec::with_capacity(groups.len());
     let mut checked = Vec::with_capacity(groups.len());
@@ -500,12 +498,12 @@ pub fn show(
         let on_saved = Rc::new(on_saved);
         add_button.connect_clicked(glib::clone!(
             #[weak]
-            win,
+            dialog,
             move |_| {
                 let Some(ui) = ui_weak.upgrade() else { return };
                 if let Some(rule) = ui.provisional_rule() {
                     on_saved(rule);
-                    win.close();
+                    dialog.close();
                 }
             }
         ));
@@ -521,8 +519,8 @@ pub fn show(
         tick_source.set(Some(id));
     }
 
-    // the windows owns the dialog state for its lifetime
-    win.connect_close_request(glib::clone!(
+    // the dialog owns its state for its lifetime
+    dialog.connect_closed(glib::clone!(
         #[strong]
         ui,
         #[strong]
@@ -532,7 +530,6 @@ pub fn show(
             if let Some(id) = tick_source.take() {
                 id.remove();
             }
-            glib::Propagation::Proceed
         }
     ));
 
@@ -548,8 +545,8 @@ pub fn show(
     ui.refresh_suggestion();
     ui.recompute();
 
-    win.present();
-    win
+    dialog.present(transient_for);
+    dialog
 }
 
 fn build_groups(streams: &[StreamInfo]) -> Vec<Group> {

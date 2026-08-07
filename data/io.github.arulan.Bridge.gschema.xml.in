@@ -67,7 +67,7 @@
       <summary>Last window width</summary>
     </key>
     <key name="window-height" type="i">
-      <default>640</default>
+      <default>800</default>
       <summary>Last window height</summary>
     </key>
     <key name="is-maximized" type="b">

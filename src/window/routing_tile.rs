@@ -376,14 +376,11 @@ impl BridgeWindow {
                 }
             ),
         );
-        dialog.connect_close_request(glib::clone!(
+        dialog.connect_closed(glib::clone!(
             #[weak(rename_to = w)]
             self,
-            #[upgrade_or]
-            glib::Propagation::Proceed,
             move |_| {
                 w.imp().stream_meters_paused.set(false);
-                glib::Propagation::Proceed
             }
         ));
     }

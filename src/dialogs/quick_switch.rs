@@ -84,11 +84,11 @@ fn sink_row(title: &str, dropdown: &gtk::DropDown) -> gtk::ListBoxRow {
 }
 
 pub fn show(
-    transient_for: Option<&impl IsA<gtk::Window>>,
+    transient_for: Option<&impl IsA<gtk::Widget>>,
     hw_sinks: Vec<HwSink>,
     presets: Vec<Preset>,
     on_saved: impl Fn(Vec<Preset>) + 'static,
-) -> adw::Window {
+) -> adw::Dialog {
     let mut edit = presets;
     let rest = if edit.len() > 2 {
         edit.split_off(2)
@@ -101,15 +101,10 @@ pub fn show(
     let both_valid = edit[0].is_valid() && edit[1].is_valid();
     let draft = Rc::new(RefCell::new(edit));
 
-    let win = adw::Window::builder()
+    let dialog = adw::Dialog::builder()
         .title("Quick Switch")
-        .default_width(680)
-        .modal(true)
-        .resizable(false)
+        .content_width(680)
         .build();
-    if let Some(parent) = transient_for {
-        win.set_transient_for(Some(parent));
-    }
 
     let toolbar = adw::ToolbarView::new();
     let header = adw::HeaderBar::new();
@@ -119,8 +114,10 @@ pub fn show(
     let cancel = gtk::Button::with_label("Cancel");
     cancel.connect_clicked(glib::clone!(
         #[weak]
-        win,
-        move |_| win.close()
+        dialog,
+        move |_| {
+            dialog.close();
+        }
     ));
     header.pack_start(&cancel);
 
@@ -128,7 +125,7 @@ pub fn show(
     save.add_css_class("suggested-action");
     save.set_sensitive(both_valid);
     header.pack_end(&save);
-    win.set_default_widget(Some(&save));
+    dialog.set_default_widget(Some(&save));
     let save = Rc::new(save);
 
     let outer = gtk::Box::builder()
@@ -229,13 +226,13 @@ pub fn show(
     }
 
     toolbar.set_content(Some(&outer));
-    win.set_content(Some(&toolbar));
+    dialog.set_child(Some(&toolbar));
 
     let on_saved = Rc::new(on_saved);
     let rest = Rc::new(rest);
     save.connect_clicked(glib::clone!(
         #[weak]
-        win,
+        dialog,
         #[strong]
         draft,
         #[strong]
@@ -246,10 +243,10 @@ pub fn show(
             let mut out = draft.borrow().clone();
             out.extend(rest.iter().cloned());
             on_saved(out);
-            win.close();
+            dialog.close();
         }
     ));
 
-    win.present();
-    win
+    dialog.present(transient_for);
+    dialog
 }
