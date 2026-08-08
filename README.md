@@ -3,22 +3,18 @@
 # Bridge
 
 Route your apps to two virtual outputs and mix between them. Send chat to one side, 
-your game to the other. 
+your game to the other. Adjust the balance at any time.
 
-0.5.0 marks the initial beta release. Please use with caution.
 
 ![Bridge](data/screenshots/main-window.png)
 
 ## Features
 
-Bridge creates two virtual outputs, Aux and Main, and at its center sits the
-crossfade mixer. Route your audio to the separate outputs and adjust the mix
-between them from anywhere.
-
-- Create Routing Rules to automatically send app audio to your desired output
+- A crossfade mixer between two virtual outputs that your audio can be routed to
+- Create pattern-matching persistent routing rules that send app audio to your desired output
 - Conveniently setup headphone virtual surround by providing your own HeSuVi HRIR file
 - Create output presets and switch between them at the press of a button
-- Global Shortcuts support, control your audio from anywhere
+- Support for Global Shortcuts
 
 ## Installing
 
@@ -39,10 +35,13 @@ flatpak-builder --user --install --force-clean --install-deps-from=flathub \
 flatpak run io.github.arulan.Bridge
 ```
 
+Build the dev manifest instead, or pass `-Dprofile=development`, to get a build that installs
+alongside your normal one as `io.github.arulan.Bridge.Devel`.
+
 Rerun `generate-cargo-sources.sh` whenever `Cargo.lock` changes. `cargo-sources.json` is committed.
 
-Building natively requires GTK4, libadwaita, PipeWire, and a Rust toolchain
-(edition 2024, rustc ≥1.96):
+Building natively requires GTK4, libadwaita, PipeWire, Meson ≥1.1, and a Rust
+toolchain (edition 2024, rustc ≥1.96):
 
 ```
 meson setup builddir
