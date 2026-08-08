@@ -30,7 +30,19 @@
   <screenshots>
     <screenshot type="default">
       <image>https://raw.githubusercontent.com/arulan/bridge/main/data/screenshots/main-window.png</image>
-      <caption>The crossfade mixer</caption>
+      <caption>Mix between two outputs with a single control</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/arulan/bridge/main/data/screenshots/routing-rules.png</image>
+      <caption>Rules to sends app audio to the output you choose</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/arulan/bridge/main/data/screenshots/quick-switch.png</image>
+      <caption>Output presets you can switch between in one click</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/arulan/bridge/main/data/screenshots/virtual-surround.png</image>
+      <caption>Headphone virtual surround from a HeSuVi file</caption>
     </screenshot>
   </screenshots>
 
@@ -40,6 +52,20 @@
   </supports>
 
   <releases>
+    <release version="0.6.0" date="2026-08-07">
+      <description>
+        <p>Bridge now supports the Background Portal and has a new icon!</p>
+        <ul>
+          <li>Run in Background: Continue using the app after closing the window</li>
+          <li>Run on Startup: Start Bridge automatically when you log in</li>
+          <li>A brand new app icon!</li>
+          <li>Quick Switch and Add Rule now dialogs inside the main window</li>
+          <li>Strip serial numbers from output device names</li>
+          <li>Fixed a bug that could cause Global Shortcuts not to bind after launch</li>
+          <li>Fixed some icon inconsistencies when overwritten via a theme</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.5.0" date="2026-07-16">
       <description>
         <p>Initial beta release</p>

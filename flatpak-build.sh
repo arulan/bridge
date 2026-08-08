@@ -1,13 +1,34 @@
 #!/usr/bin/env bash
 #
-# builds and installs the dev flatpak manifest. Pass 'run' to also launch afterwards
+# defaults to the dev manifest; pass 'prod' for the stable app instead
+# Pass 'run' to launch after building
 
 set -eu
 
 cd "$(dirname "$0")"
 
-flatpak-builder --user --install --force-clean builddir io.github.arulan.Bridge-dev.json
+manifest=io.github.arulan.Bridge-dev.json
+app_id=io.github.arulan.Bridge.Devel
+run=
 
-if [ "${1:-}" = "run" ]; then
-    flatpak run io.github.arulan.Bridge.Devel
+for arg in "$@"; do
+    case "$arg" in
+        prod)
+            manifest=io.github.arulan.Bridge.json
+            app_id=io.github.arulan.Bridge
+            ;;
+        run)
+            run=yes
+            ;;
+        *)
+            echo "usage: $0 [prod] [run]" >&2
+            exit 1
+            ;;
+    esac
+done
+
+flatpak-builder --user --install --force-clean builddir "$manifest"
+
+if [ -n "$run" ]; then
+    flatpak run "$app_id"
 fi

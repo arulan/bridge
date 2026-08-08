@@ -1,6 +1,6 @@
 project('bridge', 'rust',
-  version: '0.5.0',
-  meson_version: '>= 1.0',
+  version: '0.6.0',
+  meson_version: '>= 1.1',
   default_options: ['warning_level=2'],
 )
 
