@@ -18,7 +18,7 @@
 use gio::prelude::*;
 
 use crate::application::settings;
-use crate::audio::hw_sink::HwSink;
+use crate::audio::hw_sink::{HwSink, strip_device_serial};
 use crate::audio::routing::RoutingRule;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -113,7 +113,8 @@ fn load_sink(s: &gio::Settings) -> SinkDef {
         channels: s.int("channels") as u32,
         position: s.string("position").into(),
         hw_name: s.string("hw-name").into(),
-        display_name: s.string("display-name").into(),
+        // stored before stripping serials
+        display_name: strip_device_serial(&s.string("display-name")),
     }
 }
 
@@ -151,7 +152,7 @@ pub fn load_surround() -> SurroundConfig {
     SurroundConfig {
         hrir_path: s.string("hrir-path").into(),
         hw_name: s.string("hw-name").into(),
-        display_name: s.string("display-name").into(),
+        display_name: strip_device_serial(&s.string("display-name")),
     }
 }
 

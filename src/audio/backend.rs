@@ -24,7 +24,7 @@ use glib::prelude::*;
 use glib::subclass::Signal;
 use glib::subclass::prelude::*;
 
-use super::hw_sink::HwSink;
+use super::hw_sink::{HwSink, strip_device_serial};
 use super::level_meter::{self, LevelMeters};
 use super::pw_config;
 use super::pw_connection::{Event, PwConnection, Request};
@@ -189,6 +189,17 @@ impl PipeWireBackend {
     /// Sorted hardware sinks
     pub fn hw_sinks(&self) -> Vec<HwSink> {
         let mut sinks: Vec<HwSink> = self.imp().sinks.borrow().values().cloned().collect();
+
+        let stripped: Vec<String> = sinks
+            .iter()
+            .map(|s| strip_device_serial(&s.display_name))
+            .collect();
+        for (sink, short) in sinks.iter_mut().zip(&stripped) {
+            if stripped.iter().filter(|other| *other == short).count() == 1 {
+                sink.display_name = short.clone();
+            }
+        }
+
         sinks.sort_by_key(|s| s.display_name.to_lowercase());
         sinks
     }

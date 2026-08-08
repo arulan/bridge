@@ -116,6 +116,29 @@ pub fn channel_layout_label(channels: u32, position: &str) -> String {
         }
     }
 }
+pub fn strip_device_serial(description: &str) -> String {
+    let Some(open) = description.find('(') else {
+        return description.to_owned();
+    };
+    let Some(len) = description[open + 1..].find(')') else {
+        return description.to_owned();
+    };
+    let inner = &description[open + 1..open + 1 + len];
+
+    let serial = inner.len() >= 6 && inner.chars().all(|c| c.is_ascii_hexdigit());
+    if !serial {
+        return description.to_owned();
+    }
+
+    let mut out = String::with_capacity(description.len());
+    out.push_str(description[..open].trim_end());
+    let tail = description[open + len + 2..].trim_start();
+    if !out.is_empty() && !tail.is_empty() {
+        out.push(' ');
+    }
+    out.push_str(tail);
+    out
+}
 
 // SPA uses space separated channels, such as "[ FL FR ]"; our is comma separated
 fn normalize_position(raw: &str) -> String {
@@ -128,6 +151,27 @@ fn normalize_position(raw: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn strips_only_serials() {
+        assert_eq!(
+            strip_device_serial("ADI-2 DAC (12345678) Analog Stereo"),
+            "ADI-2 DAC Analog Stereo"
+        );
+        assert_eq!(
+            strip_device_serial("Scarlett 2i2 (A1B2C3D4)"),
+            "Scarlett 2i2"
+        );
+        assert_eq!(
+            strip_device_serial("Built-in Audio (HDMI 2)"),
+            "Built-in Audio (HDMI 2)"
+        );
+        assert_eq!(
+            strip_device_serial("GB202 High Definition"),
+            "GB202 High Definition"
+        );
+        assert_eq!(strip_device_serial(""), "");
+    }
 
     #[test]
     fn position_formats() {
