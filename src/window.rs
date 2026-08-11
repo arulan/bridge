@@ -948,12 +948,30 @@ impl BridgeWindow {
         };
 
         if was_disc {
-            let sinks = backend.hw_sinks();
-            imp.suppress_selected.set(true);
-            self.refresh_side_dropdown(side, &sinks, &cfg);
-            imp.suppress_selected.set(false);
-            self.sync_controls();
+            glib::idle_add_local_once(glib::clone!(
+                #[weak(rename_to = w)]
+                self,
+                move || w.rebuild_reconnected_side(side)
+            ));
+            return;
         }
+
+        self.refresh_channels_label(side);
+        self.update_qs_toggle();
+    }
+
+    fn rebuild_reconnected_side(&self, side: Side) {
+        let imp = self.imp();
+        let Some(backend) = imp.backend.borrow().clone() else {
+            return;
+        };
+
+        let cfg = config::load();
+        let sinks = backend.hw_sinks();
+        imp.suppress_selected.set(true);
+        self.refresh_side_dropdown(side, &sinks, &cfg);
+        imp.suppress_selected.set(false);
+        self.sync_controls();
 
         self.refresh_channels_label(side);
         self.update_qs_toggle();

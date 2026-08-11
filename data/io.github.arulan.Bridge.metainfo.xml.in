@@ -52,6 +52,14 @@
   </supports>
 
   <releases>
+    <release version="0.6.1" date="2026-08-11">
+      <description>
+        <p>Bug Fix</p>
+        <ul>
+          <li>Fixed a crash that could occur when selecting a new hardware device after the previously selected one disconnected</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.6.0" date="2026-08-07">
       <description>
         <p>Bridge now supports the Background Portal and has a new icon!</p>
