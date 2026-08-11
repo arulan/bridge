@@ -131,6 +131,22 @@ fn store_sink(s: &gio::Settings, def: &SinkDef) {
     let _ = s.set_string("display-name", &def.display_name);
 }
 
+pub fn trim(side: Side) -> f64 {
+    settings().child(side.as_wire()).double("trim")
+}
+
+pub fn set_trim(side: Side, mul: f64) {
+    let _ = settings().child(side.as_wire()).set_double("trim", mul);
+}
+
+pub fn surround_trim() -> f64 {
+    settings().child("surround").double("trim")
+}
+
+pub fn set_surround_trim(mul: f64) {
+    let _ = settings().child("surround").set_double("trim", mul);
+}
+
 // Clears the Aux/Main output settings; next launch falls back to first-run setup
 pub fn clear_sinks() {
     let s = settings();
@@ -140,6 +156,7 @@ pub fn clear_sinks() {
         c.reset("position");
         c.reset("hw-name");
         c.reset("display-name");
+        c.reset("trim");
     }
 }
 
@@ -170,6 +187,7 @@ pub fn clear_surround() {
     s.reset("hw-name");
     s.reset("display-name");
     s.reset("active");
+    s.reset("trim");
 }
 
 pub fn surround_active() -> bool {

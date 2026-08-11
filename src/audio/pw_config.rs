@@ -81,6 +81,14 @@ pub fn build_pw_config(cfg: &SinkConfig) -> String {
     )
 }
 
+pub fn sink_description(side: Side, surround: bool) -> &'static str {
+    if surround && side == Side::Main {
+        SURROUND_DESC
+    } else {
+        side_spec(side).2
+    }
+}
+
 fn side_spec(side: Side) -> (&'static str, &'static str, &'static str) {
     match side {
         Side::Aux => (AUX_SINK, AUX_PB, "Bridge - Aux"),
@@ -170,6 +178,8 @@ fn target_fragment(hw_name: &str) -> String {
         format!("\n        target.object  = \"{}\"", hw_name)
     }
 }
+
+const SURROUND_DESC: &str = "Bridge - Virtual Surround";
 
 // HeSuVi 14-channel WAV to stereo HRTF convolver graph
 const SURROUND_TEMPLATE: &str = r#"context.modules = [

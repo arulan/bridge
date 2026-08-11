@@ -28,12 +28,14 @@ use glib::subclass::InitializingObject;
 use gtk4::{self as gtk, CompositeTemplate, prelude::*};
 
 use crate::audio::backend::PipeWireBackend;
-use crate::audio::hw_sink::HwSink;
+use crate::audio::hw_sink::{HwSink, disconnected_label};
 use crate::audio::{mixer, pw_config};
 use crate::config::{self, Side};
+use crate::pages::sink::SinkPage;
 use crate::shortcuts::ShortcutsPortal;
 use crate::util::{
     drive_stream_meters, hw_sink_factory, hw_sink_model, selected_hw_sink, stream_count,
+    style_level_meter,
 };
 use crate::volume::VolumeDisplay;
 
@@ -134,6 +136,12 @@ pub struct BridgeWindowImp {
     pub qs_switch_content: TemplateChild<adw::ButtonContent>,
     #[template_child]
     pub qs_configure_button: TemplateChild<gtk::Button>,
+    #[template_child]
+    pub nav_view: TemplateChild<adw::NavigationView>,
+    #[template_child]
+    pub aux_detail_button: TemplateChild<gtk::Button>,
+    #[template_child]
+    pub main_detail_button: TemplateChild<gtk::Button>,
 
     backend: RefCell<Option<PipeWireBackend>>,
     suppress_selected: Cell<bool>,
@@ -157,6 +165,11 @@ pub struct BridgeWindowImp {
     stream_meters_paused: Cell<bool>,
 
     routing_size_groups: RefCell<Vec<gtk::SizeGroup>>,
+
+    aux_trim: Cell<f64>,
+    main_trim: Cell<f64>,
+
+    surround_trim: Cell<f64>,
 
     volume_display: Cell<VolumeDisplay>,
     // crossfader step as the delta value on [-1, 1]
@@ -211,6 +224,7 @@ impl BridgeWindow {
         self.wire_backend_signals(backend);
 
         *imp.backend.borrow_mut() = Some(backend.clone());
+        self.reload_trims();
 
         self.set_routing_expanded(config::keep_routing_open());
         self.refresh_surround();
@@ -256,10 +270,7 @@ impl BridgeWindow {
 
         // meter stays uniform color
         for bar in [imp.aux_level_bar.get(), imp.main_level_bar.get()] {
-            bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_LOW));
-            bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_HIGH));
-            bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_FULL));
-            bar.add_css_class("level-meter");
+            style_level_meter(&bar);
         }
     }
 
@@ -318,6 +329,17 @@ impl BridgeWindow {
             #[weak(rename_to = w)]
             self,
             move |b| w.on_mute_toggled(Side::Main, b.is_active())
+        ));
+
+        imp.aux_detail_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.open_sink_page(Side::Aux)
+        ));
+        imp.main_detail_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.open_sink_page(Side::Main)
         ));
 
         imp.aux_test_tone_button.connect_clicked(glib::clone!(
@@ -384,8 +406,8 @@ impl BridgeWindow {
                 #[weak(rename_to = w)]
                 self,
                 move |tg| {
-                    let want_surround = tg.active_name().as_deref() == Some("surround");
-                    w.on_main_mode_toggled(want_surround);
+                    let requested_surround = tg.active_name().as_deref() == Some("surround");
+                    w.on_main_mode_toggled(requested_surround);
                 }
             ));
 
@@ -456,6 +478,7 @@ impl BridgeWindow {
             move |_| {
                 w.populate_dropdowns();
                 w.refresh_routing_tile();
+                w.refresh_sink_page();
             }
         ));
 
@@ -526,12 +549,28 @@ impl BridgeWindow {
             return;
         };
 
+        // scale by crossfade & trim gain
+        let (aux_gain, main_gain) = mixer::calculate_multipliers(imp.mix_scale.value());
+
         let surround_active = imp.surround_active.get();
-        for (side, bar, mute_btn) in [
-            (Side::Aux, &*imp.aux_level_bar, &*imp.aux_mute_button),
-            (Side::Main, &*imp.main_level_bar, &*imp.main_mute_button),
+        let open_page = self.visible_sink_page();
+        for (side, bar, mute_btn, gain, disconnected) in [
+            (
+                Side::Aux,
+                &*imp.aux_level_bar,
+                &*imp.aux_mute_button,
+                aux_gain * imp.aux_trim.get(),
+                imp.aux_disconnected.get(),
+            ),
+            (
+                Side::Main,
+                &*imp.main_level_bar,
+                &*imp.main_mute_button,
+                main_gain * self.main_trim_active(),
+                imp.main_disconnected.get(),
+            ),
         ] {
-            let val = if mute_btn.is_active() {
+            let val = if mute_btn.is_active() || disconnected {
                 0.0
             } else {
                 // in surround mode the Main level meter follows the surround sink
@@ -540,9 +579,16 @@ impl BridgeWindow {
                 } else {
                     backend.peak(side)
                 } as f64;
+                let peak = peak * gain;
                 (peak * SMOOTHING + bar.value() * (1.0 - SMOOTHING)).clamp(0.0, 1.0)
             };
             bar.set_value(val);
+
+            if let Some(page) = &open_page
+                && page.side() == side
+            {
+                page.set_peak(val);
+            }
         }
 
         if !imp.stream_meters_paused.get() {
@@ -610,11 +656,7 @@ impl BridgeWindow {
 
         let model = hw_sink_model(sinks);
         if disconnected {
-            let label = if def.display_name.is_empty() {
-                "Disconnected".to_owned()
-            } else {
-                format!("Disconnected — {}", def.display_name)
-            };
+            let label = disconnected_label(&def.display_name);
             let placeholder = HwSink {
                 node_id: 0,
                 name: def.hw_name.clone(),
@@ -661,6 +703,9 @@ impl BridgeWindow {
         let aux_disc = imp.aux_disconnected.get();
         let main_disc = imp.main_disconnected.get();
 
+        imp.aux_detail_button.set_sensitive(present);
+        imp.main_detail_button.set_sensitive(present);
+
         imp.aux_mute_button.set_sensitive(present && !aux_disc);
         imp.main_mute_button.set_sensitive(present && !main_disc);
         imp.aux_test_tone_button.set_sensitive(present && !aux_disc);
@@ -698,6 +743,57 @@ impl BridgeWindow {
         self.update_qs_toggle();
     }
 
+    // checks if hardware output device changes
+    pub fn refresh_sink_page(&self) {
+        let imp = self.imp();
+        let Some(backend) = imp.backend.borrow().clone() else {
+            return;
+        };
+        if let Some(page) = self.visible_sink_page() {
+            page.refresh(&backend);
+        }
+    }
+
+    pub fn reload_trims(&self) {
+        let imp = self.imp();
+        imp.aux_trim.set(config::trim(Side::Aux));
+        imp.main_trim.set(config::trim(Side::Main));
+        imp.surround_trim.set(config::surround_trim());
+        self.apply_mix();
+    }
+
+    fn main_trim_active(&self) -> f64 {
+        let imp = self.imp();
+        if imp.surround_active.get() {
+            imp.surround_trim.get()
+        } else {
+            imp.main_trim.get()
+        }
+    }
+
+    fn open_sink_page(&self, side: Side) {
+        let imp = self.imp();
+        let Some(backend) = imp.backend.borrow().clone() else {
+            return;
+        };
+
+        let page = SinkPage::new(side, &backend);
+        page.connect_trim_changed(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.reload_trims()
+        ));
+
+        imp.nav_view.push(&page);
+    }
+
+    fn visible_sink_page(&self) -> Option<SinkPage> {
+        self.imp()
+            .nav_view
+            .visible_page()
+            .and_downcast::<SinkPage>()
+    }
+
     fn apply_mix(&self) {
         let imp = self.imp();
         let Some(backend) = imp.backend.borrow().clone() else {
@@ -706,11 +802,11 @@ impl BridgeWindow {
 
         let (aux, main) = mixer::calculate_multipliers(imp.mix_scale.value());
 
-        backend.set_volume(Side::Aux, aux);
-        backend.set_volume(Side::Main, main);
+        backend.set_volume(Side::Aux, aux * imp.aux_trim.get());
+        backend.set_volume(Side::Main, main * imp.main_trim.get());
 
         if backend.surround_present() {
-            backend.set_surround_volume(main);
+            backend.set_surround_volume(main * imp.surround_trim.get());
         }
 
         self.render_fill(imp.mix_scale.value());
@@ -852,6 +948,9 @@ impl BridgeWindow {
     fn update_readout_labels(&self) {
         let imp = self.imp();
         let (aux, main) = mixer::calculate_multipliers(imp.mix_scale.value());
+        // label reads the combined crossfade + trim level
+        let aux = aux * imp.aux_trim.get();
+        let main = main * self.main_trim_active();
         let mode = imp.volume_display.get();
 
         for (mul, muted, val, unit, vbox) in [
@@ -958,6 +1057,7 @@ impl BridgeWindow {
 
         self.refresh_channels_label(side);
         self.update_qs_toggle();
+        self.refresh_sink_page();
     }
 
     fn rebuild_reconnected_side(&self, side: Side) {
@@ -975,6 +1075,7 @@ impl BridgeWindow {
 
         self.refresh_channels_label(side);
         self.update_qs_toggle();
+        self.refresh_sink_page();
     }
 
     fn refresh_channels_label(&self, side: Side) {

@@ -47,6 +47,13 @@ pub fn route_targets(hw_sinks: &[HwSink]) -> Vec<RouteTarget> {
     out
 }
 
+pub fn style_level_meter(bar: &gtk::LevelBar) {
+    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_LOW));
+    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_HIGH));
+    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_FULL));
+    bar.add_css_class("level-meter");
+}
+
 pub fn row_level_meter() -> gtk::LevelBar {
     let bar = gtk::LevelBar::builder()
         .min_value(0.0)
@@ -54,10 +61,7 @@ pub fn row_level_meter() -> gtk::LevelBar {
         .width_request(60)
         .valign(gtk::Align::Center)
         .build();
-    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_LOW));
-    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_HIGH));
-    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_FULL));
-    bar.add_css_class("level-meter");
+    style_level_meter(&bar);
     bar
 }
 

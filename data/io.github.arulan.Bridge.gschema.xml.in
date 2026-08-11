@@ -18,6 +18,11 @@
       <default>""</default>
       <summary>Hardware output display name</summary>
     </key>
+    <key name="trim" type="d">
+      <default>1.0</default>
+      <range min="0.0" max="1.0"/>
+      <summary>Output level trim</summary>
+    </key>
   </schema>
 
   <!-- Optional virtual surround sink -->
@@ -37,6 +42,11 @@
     <key name="active" type="b">
       <default>false</default>
       <summary>Virtual Surround toggle state on Main</summary>
+    </key>
+    <key name="trim" type="d">
+      <default>1.0</default>
+      <range min="0.0" max="1.0"/>
+      <summary>Virtual Surround level trim</summary>
     </key>
   </schema>
 

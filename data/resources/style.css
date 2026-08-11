@@ -12,6 +12,15 @@ button.compact-icon-button { -gtk-icon-size: 14px; }
 .count-button > button { padding: 0px 5px; }
 .count-button > button label { font-weight: bold; }
 
+/* The card title acts as the button to the details page */
+.card-title-button {
+  min-height: 0;
+  padding: 4px 6px;
+  margin: -4px -6px;
+}
+
+.card-title-chevron { -gtk-icon-size: 11px; }
+
 /* Card Volume Display */
 .card-volume { font-size: 1.55em; font-weight: 700; line-height: 1; }
 .card-volume-unit { font-size: 0.85em; }

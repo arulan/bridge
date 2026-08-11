@@ -414,7 +414,9 @@ impl BridgeApplicationImp {
                     config::clear_surround();
                     pw_config::remove_surround_config();
                     if let Some(w) = &win {
+                        w.reload_trims();
                         w.refresh_surround();
+                        w.refresh_sink_page();
                     }
                 }
             ),

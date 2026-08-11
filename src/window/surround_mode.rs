@@ -27,7 +27,7 @@ use adw::subclass::prelude::*;
 
 use super::BridgeWindow;
 use crate::audio::backend::PipeWireBackend;
-use crate::audio::pw_config::{MAIN_SINK, SURROUND_SINK};
+use crate::audio::pw_config::{MAIN_SINK, SURROUND_SINK, sink_description};
 use crate::config::{self, Side};
 
 impl BridgeWindow {
@@ -137,7 +137,7 @@ impl BridgeWindow {
         self.refresh_surround();
     }
 
-    pub(super) fn on_main_mode_toggled(&self, want_surround: bool) {
+    pub(super) fn on_main_mode_toggled(&self, requested_surround: bool) {
         let imp = self.imp();
         if imp.mode_swap_in_progress.get() {
             return;
@@ -146,7 +146,7 @@ impl BridgeWindow {
             return;
         };
         // can't switch to a surround sink that isn't live yet
-        if want_surround && !backend.surround_present() {
+        if requested_surround && !backend.surround_present() {
             self.force_toggle_to(false);
             return;
         }
@@ -154,9 +154,9 @@ impl BridgeWindow {
         let carry_default = config::default_follows_main()
             && backend.is_default(self.active_main_sink()) == Some(true);
 
-        imp.surround_active.set(want_surround);
-        config::set_surround_active(want_surround);
-        self.apply_main_mode_swap(&backend, want_surround);
+        imp.surround_active.set(requested_surround);
+        config::set_surround_active(requested_surround);
+        self.apply_main_mode_swap(&backend, requested_surround);
 
         if carry_default {
             backend.set_default_sink(self.active_main_sink());
@@ -164,17 +164,17 @@ impl BridgeWindow {
     }
 
     /// Switch the Main card's controls over to the active mode
-    fn apply_main_mode_swap(&self, backend: &PipeWireBackend, want_surround: bool) {
+    fn apply_main_mode_swap(&self, backend: &PipeWireBackend, surround: bool) {
         let imp = self.imp();
 
-        let active_muted = if want_surround {
+        let active_muted = if surround {
             imp.surround_user_muted.get()
         } else {
             imp.main_muted.get()
         };
 
         // Inactive side is force-muted; active side restores mute state
-        if want_surround {
+        if surround {
             backend.set_mute(Side::Main, true);
             backend.set_surround_mute(imp.surround_user_muted.get());
         } else {
@@ -196,24 +196,19 @@ impl BridgeWindow {
             "Mute this output"
         }));
 
-        imp.main_subtitle_label.set_label(if want_surround {
-            "Bridge - Virtual Surround"
-        } else {
-            "Bridge - Main"
-        });
+        imp.main_subtitle_label
+            .set_label(sink_description(Side::Main, surround));
 
         // rebuilds the Main dropdown for the mode
         self.populate_dropdowns();
+        self.refresh_sink_page();
     }
 
-    fn force_toggle_to(&self, want_surround: bool) {
+    fn force_toggle_to(&self, surround: bool) {
         let imp = self.imp();
         imp.mode_swap_in_progress.set(true);
-        imp.main_mode_toggle.set_active_name(Some(if want_surround {
-            "surround"
-        } else {
-            "direct"
-        }));
+        imp.main_mode_toggle
+            .set_active_name(Some(if surround { "surround" } else { "direct" }));
         imp.mode_swap_in_progress.set(false);
     }
 }
