@@ -37,7 +37,7 @@ use pw::properties::properties;
 use pw::spa;
 use pw::types::ObjectType;
 
-use crate::audio::hw_sink::{HwSink, hw_sink_from_props};
+use crate::audio::hw_device::{HwDevice, sink_from_props};
 use crate::audio::pw_config::{AUX_SINK, MAIN_SINK, SURROUND_SINK};
 use crate::audio::routing::StreamInfo;
 use crate::config::Side;
@@ -67,7 +67,7 @@ pub enum Request {
 // pw -> main
 pub enum Event {
     Settled,
-    SinkAdded(HwSink),
+    SinkAdded(HwDevice),
     SinkRemoved(u32),
     OwnedAdded {
         side: Side,
@@ -598,7 +598,7 @@ fn classify_node(
         return;
     }
 
-    if let Some(sink) = hw_sink_from_props(id, props) {
+    if let Some(sink) = sink_from_props(id, props) {
         state.borrow_mut().hw.insert(id);
         let _ = evt_tx.try_send(Event::SinkAdded(sink));
     }

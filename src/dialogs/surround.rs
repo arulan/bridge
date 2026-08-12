@@ -22,11 +22,11 @@ use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk4::{self as gtk};
 
-use crate::audio::hw_sink::HwSink;
+use crate::audio::hw_device::HwDevice;
 use crate::audio::pw_config;
 use crate::config::SurroundConfig;
 use crate::util::{
-    hw_sink_factory, hw_sink_model, make_device_row, make_file_row, selected_hw_sink,
+    hw_device_factory, hw_device_model, make_device_row, make_file_row, selected_hw_device,
 };
 
 #[derive(Default)]
@@ -76,7 +76,7 @@ glib::wrapper! {
 }
 
 impl SurroundDialog {
-    pub fn new(hw_sinks: Vec<HwSink>, current: &SurroundConfig) -> Self {
+    pub fn new(hw_sinks: Vec<HwDevice>, current: &SurroundConfig) -> Self {
         let obj: Self = glib::Object::builder()
             .property("title", "Virtual Surround")
             .property("content-width", 520i32)
@@ -86,12 +86,12 @@ impl SurroundDialog {
         obj
     }
 
-    pub fn selected_sink(&self) -> Option<HwSink> {
+    pub fn selected_sink(&self) -> Option<HwDevice> {
         self.imp()
             .device_dropdown
             .borrow()
             .as_ref()
-            .and_then(selected_hw_sink)
+            .and_then(selected_hw_device)
     }
 
     pub fn hrir_source(&self) -> Option<PathBuf> {
@@ -192,7 +192,7 @@ impl SurroundDialog {
             .device_dropdown
             .borrow()
             .as_ref()
-            .is_some_and(|d| selected_hw_sink(d).is_some());
+            .is_some_and(|d| selected_hw_device(d).is_some());
         let ready = has_device && imp.hrir_source.borrow().is_some();
         if let Some(btn) = imp.setup_button.borrow().as_ref() {
             btn.set_sensitive(ready);
@@ -224,7 +224,7 @@ impl SurroundDialog {
         }
     }
 
-    fn build_ui(&self, hw_sinks: &[HwSink], current: &SurroundConfig) {
+    fn build_ui(&self, hw_sinks: &[HwDevice], current: &SurroundConfig) {
         let imp = self.imp();
         let configured = !current.hrir_path.is_empty();
 
@@ -294,7 +294,7 @@ impl SurroundDialog {
         body.append(&dev_heading);
 
         if !hw_sinks.is_empty() {
-            let model = hw_sink_model(hw_sinks);
+            let model = hw_device_model(hw_sinks);
             let idx = hw_sinks
                 .iter()
                 .position(|s| s.name == current.hw_name)
@@ -305,7 +305,7 @@ impl SurroundDialog {
                 .selected(idx)
                 .hexpand(true)
                 .build();
-            dropdown.set_factory(Some(&hw_sink_factory()));
+            dropdown.set_factory(Some(&hw_device_factory()));
 
             let obj_c = self.clone();
             dropdown.connect_selected_notify(move |_| {

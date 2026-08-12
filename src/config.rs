@@ -18,7 +18,7 @@
 use gio::prelude::*;
 
 use crate::application::settings;
-use crate::audio::hw_sink::{HwSink, strip_device_serial};
+use crate::audio::hw_device::{HwDevice, strip_device_serial};
 use crate::audio::routing::RoutingRule;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -83,8 +83,8 @@ impl SinkConfig {
     }
 }
 
-impl From<HwSink> for SinkDef {
-    fn from(sink: HwSink) -> Self {
+impl From<HwDevice> for SinkDef {
+    fn from(sink: HwDevice) -> Self {
         SinkDef {
             channels: sink.channels,
             position: sink.position,

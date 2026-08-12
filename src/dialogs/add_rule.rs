@@ -27,7 +27,7 @@ use adw::prelude::*;
 use gtk4::{self as gtk};
 
 use crate::audio::backend::PipeWireBackend;
-use crate::audio::hw_sink::HwSink;
+use crate::audio::hw_device::HwDevice;
 use crate::audio::routing::{RoutingRule, StreamInfo};
 use crate::util::{RouteTarget, drive_stream_meters, route_targets, row_level_meter, stream_count};
 
@@ -265,7 +265,7 @@ impl Ui {
 pub fn show(
     transient_for: Option<&impl IsA<gtk::Widget>>,
     mut streams: Vec<StreamInfo>,
-    hw_sinks: Vec<HwSink>,
+    hw_sinks: Vec<HwDevice>,
     preselect: &[u32],
     backend: PipeWireBackend,
     on_saved: impl Fn(RoutingRule) + 'static,

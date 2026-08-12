@@ -28,12 +28,12 @@ use glib::subclass::InitializingObject;
 use gtk4::{self as gtk, CompositeTemplate, prelude::*};
 
 use crate::audio::backend::PipeWireBackend;
-use crate::audio::hw_sink::HwSink;
+use crate::audio::hw_device::HwDevice;
 use crate::audio::{mixer, pw_config};
 use crate::config::{self, Side};
 use crate::shortcuts::ShortcutsPortal;
 use crate::util::{
-    drive_stream_meters, hw_sink_factory, hw_sink_model, selected_hw_sink, stream_count,
+    drive_stream_meters, hw_device_factory, hw_device_model, selected_hw_device, stream_count,
 };
 use crate::volume::VolumeDisplay;
 
@@ -267,8 +267,8 @@ impl BridgeWindow {
     fn wire_card_controls(&self) {
         let imp = self.imp();
 
-        imp.aux_hw_dropdown.set_factory(Some(&hw_sink_factory()));
-        imp.main_hw_dropdown.set_factory(Some(&hw_sink_factory()));
+        imp.aux_hw_dropdown.set_factory(Some(&hw_device_factory()));
+        imp.main_hw_dropdown.set_factory(Some(&hw_device_factory()));
 
         imp.aux_hw_dropdown.connect_selected_notify(glib::clone!(
             #[weak(rename_to = w)]
@@ -574,7 +574,7 @@ impl BridgeWindow {
 
     // Rebuild one side's dropdown model and selection
     // Prepend "Disconnected —" when selected hw device disconnects
-    fn refresh_side_dropdown(&self, side: Side, sinks: &[HwSink], cfg: &config::SinkConfig) {
+    fn refresh_side_dropdown(&self, side: Side, sinks: &[HwDevice], cfg: &config::SinkConfig) {
         let imp = self.imp();
         let (dropdown, banner, disc_cell) = match side {
             Side::Aux => (
@@ -608,14 +608,14 @@ impl BridgeWindow {
         let present = sinks.iter().any(|s| s.name == def.hw_name);
         let disconnected = !def.hw_name.is_empty() && !present;
 
-        let model = hw_sink_model(sinks);
+        let model = hw_device_model(sinks);
         if disconnected {
             let label = if def.display_name.is_empty() {
                 "Disconnected".to_owned()
             } else {
                 format!("Disconnected — {}", def.display_name)
             };
-            let placeholder = HwSink {
+            let placeholder = HwDevice {
                 node_id: 0,
                 name: def.hw_name.clone(),
                 display_name: label,
@@ -919,7 +919,7 @@ impl BridgeWindow {
             Side::Aux => &*imp.aux_hw_dropdown,
             Side::Main => &*imp.main_hw_dropdown,
         };
-        let Some(sink) = selected_hw_sink(dropdown) else {
+        let Some(sink) = selected_hw_device(dropdown) else {
             return;
         };
         // node_id 0 is the disconnected placeholder, not a real output device
@@ -1001,9 +1001,10 @@ impl BridgeWindow {
         }
         row.set_visible(true);
 
-        let text = selected_hw_sink(dropdown)
+        let text = selected_hw_device(dropdown)
             .map(|s| {
-                let mut text = crate::audio::hw_sink::channel_layout_label(s.channels, &s.position);
+                let mut text =
+                    crate::audio::hw_device::channel_layout_label(s.channels, &s.position);
                 if let Some(conn) = s.connection_label() {
                     if text.is_empty() {
                         text = conn.to_owned();

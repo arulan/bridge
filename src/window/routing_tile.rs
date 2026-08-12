@@ -25,7 +25,7 @@ use gtk4::{self as gtk};
 
 use super::BridgeWindow;
 use super::stream_list::{fill_streams, streams_popover};
-use crate::audio::hw_sink::HwSink;
+use crate::audio::hw_device::HwDevice;
 use crate::audio::routing::{
     RoutingRule, RuleTarget, StreamInfo, winning_rule_index, would_match_disabled_index,
 };
@@ -181,7 +181,7 @@ impl BridgeWindow {
         &self,
         idx: usize,
         rule: &RoutingRule,
-        hw_sinks: &[HwSink],
+        hw_sinks: &[HwDevice],
         ids: &[u32],
         build: &mut RowBuild,
     ) -> gtk::ListBoxRow {
@@ -413,7 +413,7 @@ fn match_summary(values: &[String]) -> Option<String> {
     }
 }
 
-fn target_choices(hw_sinks: &[HwSink], current: &RuleTarget) -> (gio::ListStore, u32) {
+fn target_choices(hw_sinks: &[HwDevice], current: &RuleTarget) -> (gio::ListStore, u32) {
     let mut choices = route_targets(hw_sinks);
 
     if let RuleTarget::DirectHw(name) = current

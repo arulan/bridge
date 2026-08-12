@@ -16,7 +16,7 @@
 // along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
 pub mod backend;
-pub mod hw_sink;
+pub mod hw_device;
 pub mod level_meter;
 pub mod mixer;
 pub mod pw_config;

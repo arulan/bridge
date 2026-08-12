@@ -21,7 +21,7 @@ use adw::prelude::*;
 use adw::subclass::prelude::*;
 
 use super::BridgeWindow;
-use crate::audio::hw_sink::HwSink;
+use crate::audio::hw_device::HwDevice;
 use crate::config::{self, Side};
 
 impl BridgeWindow {
@@ -168,7 +168,7 @@ impl BridgeWindow {
             let Some(sink) = model
                 .item(i)
                 .and_downcast::<glib::BoxedAnyObject>()
-                .map(|b| b.borrow::<HwSink>().clone())
+                .map(|b| b.borrow::<HwDevice>().clone())
             else {
                 continue;
             };
@@ -180,7 +180,7 @@ impl BridgeWindow {
     }
 }
 
-fn preset_devices_present(preset: &config::Preset, sinks: &[HwSink]) -> bool {
+fn preset_devices_present(preset: &config::Preset, sinks: &[HwDevice]) -> bool {
     let present = |name: &str| name.is_empty() || sinks.iter().any(|s| s.name == name);
     present(&preset.aux_hw) && present(&preset.main_hw)
 }

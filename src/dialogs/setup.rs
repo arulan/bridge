@@ -21,11 +21,11 @@ use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk4::{self as gtk};
 
-use crate::audio::hw_sink::HwSink;
+use crate::audio::hw_device::HwDevice;
 use crate::audio::pw_config;
 use crate::config::{Side, SinkConfig};
 use crate::util::{
-    hw_sink_factory, hw_sink_model, make_device_row, make_file_row, selected_hw_sink,
+    hw_device_factory, hw_device_model, make_device_row, make_file_row, selected_hw_device,
 };
 
 #[derive(Default)]
@@ -73,7 +73,7 @@ glib::wrapper! {
 
 impl SetupDialog {
     pub fn new(
-        hw_sinks: Vec<HwSink>,
+        hw_sinks: Vec<HwDevice>,
         aux_default_id: Option<u32>,
         main_default_id: Option<u32>,
     ) -> Self {
@@ -94,7 +94,7 @@ impl SetupDialog {
         }
     }
 
-    fn selected_sink(&self, side: Side) -> HwSink {
+    fn selected_sink(&self, side: Side) -> HwDevice {
         let imp = self.imp();
         let dropdown = match side {
             Side::Aux => imp.aux_dropdown.borrow(),
@@ -102,7 +102,7 @@ impl SetupDialog {
         };
         dropdown
             .as_ref()
-            .and_then(selected_hw_sink)
+            .and_then(selected_hw_device)
             .expect("selected_sink called with no device selected")
     }
 
@@ -138,7 +138,7 @@ impl SetupDialog {
 
     fn build_ui(
         &self,
-        hw_sinks: &[HwSink],
+        hw_sinks: &[HwDevice],
         aux_default_id: Option<u32>,
         main_default_id: Option<u32>,
     ) {
@@ -204,7 +204,7 @@ impl SetupDialog {
         body.append(&devices_heading);
 
         if !hw_sinks.is_empty() {
-            let model = hw_sink_model(hw_sinks);
+            let model = hw_device_model(hw_sinks);
 
             let aux_idx = aux_default_id
                 .and_then(|id| hw_sinks.iter().position(|s| s.node_id == id))
@@ -219,14 +219,14 @@ impl SetupDialog {
                 .selected(aux_idx)
                 .hexpand(true)
                 .build();
-            aux_dd.set_factory(Some(&hw_sink_factory()));
+            aux_dd.set_factory(Some(&hw_device_factory()));
 
             let main_dd = gtk::DropDown::builder()
                 .model(&model)
                 .selected(main_idx)
                 .hexpand(true)
                 .build();
-            main_dd.set_factory(Some(&hw_sink_factory()));
+            main_dd.set_factory(Some(&hw_device_factory()));
 
             body.append(&make_device_row("Aux output", &aux_dd));
             body.append(&make_device_row("Main output", &main_dd));

@@ -18,7 +18,7 @@
 use pipewire::spa::utils::dict::DictRef;
 
 #[derive(Clone, Debug)]
-pub struct HwSink {
+pub struct HwDevice {
     pub node_id: u32,
     pub name: String,
     pub display_name: String,
@@ -29,9 +29,9 @@ pub struct HwSink {
     pub position: String,
 }
 
-/// Builds HwSink from a node's info props; None for non-sinks or our virtual
+/// Builds HwDevice from a node's info props; None for non-sinks or our virtual
 /// sinks. The info dict is the full property set
-pub fn hw_sink_from_props(node_id: u32, props: &DictRef) -> Option<HwSink> {
+pub fn sink_from_props(node_id: u32, props: &DictRef) -> Option<HwDevice> {
     if props.get("media.class") != Some("Audio/Sink") {
         return None;
     }
@@ -61,7 +61,7 @@ pub fn hw_sink_from_props(node_id: u32, props: &DictRef) -> Option<HwSink> {
         .map(normalize_position)
         .unwrap_or_else(|| "FL,FR".to_owned());
 
-    Some(HwSink {
+    Some(HwDevice {
         node_id,
         name: node_name.to_owned(),
         display_name,
@@ -73,7 +73,7 @@ pub fn hw_sink_from_props(node_id: u32, props: &DictRef) -> Option<HwSink> {
     })
 }
 
-impl HwSink {
+impl HwDevice {
     // Label for connection hardware/transport type
     pub fn connection_label(&self) -> Option<&'static str> {
         let profile = self.profile_name.to_ascii_lowercase();
@@ -180,8 +180,8 @@ mod tests {
         assert_eq!(normalize_position("[ FL, FR, LFE ]"), "FL,FR,LFE");
     }
 
-    fn sink(api: &str, bus: &str, profile: &str, name: &str) -> HwSink {
-        HwSink {
+    fn sink(api: &str, bus: &str, profile: &str, name: &str) -> HwDevice {
+        HwDevice {
             node_id: 0,
             name: name.to_owned(),
             display_name: String::new(),

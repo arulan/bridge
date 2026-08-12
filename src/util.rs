@@ -19,7 +19,7 @@ use gtk::prelude::*;
 use gtk4::{self as gtk};
 
 use crate::audio::backend::PipeWireBackend;
-use crate::audio::hw_sink::HwSink;
+use crate::audio::hw_device::HwDevice;
 use crate::audio::routing::RuleTarget;
 
 pub struct RouteTarget {
@@ -27,7 +27,7 @@ pub struct RouteTarget {
     pub target: RuleTarget,
 }
 
-pub fn route_targets(hw_sinks: &[HwSink]) -> Vec<RouteTarget> {
+pub fn route_targets(hw_sinks: &[HwDevice]) -> Vec<RouteTarget> {
     let mut out = vec![
         RouteTarget {
             label: "Aux".to_owned(),
@@ -81,25 +81,25 @@ pub fn stream_count(n: usize) -> String {
     }
 }
 
-/// ListStore of HwSinks
-pub fn hw_sink_model(sinks: &[HwSink]) -> gio::ListStore {
+/// ListStore of HwDevices
+pub fn hw_device_model(devices: &[HwDevice]) -> gio::ListStore {
     let store = gio::ListStore::new::<glib::BoxedAnyObject>();
-    for sink in sinks {
-        store.append(&glib::BoxedAnyObject::new(sink.clone()));
+    for device in devices {
+        store.append(&glib::BoxedAnyObject::new(device.clone()));
     }
     store
 }
 
-pub fn selected_hw_sink(dropdown: &gtk::DropDown) -> Option<HwSink> {
+pub fn selected_hw_device(dropdown: &gtk::DropDown) -> Option<HwDevice> {
     dropdown
         .selected_item()
         .and_downcast::<glib::BoxedAnyObject>()
-        .map(|boxed| boxed.borrow::<HwSink>().clone())
+        .map(|boxed| boxed.borrow::<HwDevice>().clone())
 }
 
 /// Dropdown entries show device display name;
 /// ellipsized to avoid stretching the dropdown
-pub fn hw_sink_factory() -> gtk::SignalListItemFactory {
+pub fn hw_device_factory() -> gtk::SignalListItemFactory {
     let factory = gtk::SignalListItemFactory::new();
 
     factory.connect_setup(|_, obj| {
@@ -115,7 +115,7 @@ pub fn hw_sink_factory() -> gtk::SignalListItemFactory {
         let item = obj.downcast_ref::<gtk::ListItem>().unwrap();
         let label = item.child().unwrap().downcast::<gtk::Label>().unwrap();
         if let Some(boxed) = item.item().and_downcast::<glib::BoxedAnyObject>() {
-            label.set_label(&boxed.borrow::<HwSink>().display_name);
+            label.set_label(&boxed.borrow::<HwDevice>().display_name);
         }
     });
     factory

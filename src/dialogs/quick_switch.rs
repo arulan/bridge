@@ -23,13 +23,13 @@ use std::rc::Rc;
 use adw::prelude::*;
 use gtk4::{self as gtk};
 
-use crate::audio::hw_sink::HwSink;
+use crate::audio::hw_device::HwDevice;
 use crate::config::Preset;
-use crate::util::{hw_sink_factory, hw_sink_model, selected_hw_sink};
+use crate::util::{hw_device_factory, hw_device_model, selected_hw_device};
 
-fn side_dropdown(sinks: &[HwSink], selected_hw: &str) -> gtk::DropDown {
-    let model = hw_sink_model(sinks);
-    let leave = HwSink {
+fn side_dropdown(sinks: &[HwDevice], selected_hw: &str) -> gtk::DropDown {
+    let model = hw_device_model(sinks);
+    let leave = HwDevice {
         node_id: 0,
         name: String::new(),
         display_name: "Leave unchanged".to_owned(),
@@ -57,7 +57,7 @@ fn side_dropdown(sinks: &[HwSink], selected_hw: &str) -> gtk::DropDown {
         .selected(idx)
         .hexpand(true)
         .build();
-    dropdown.set_factory(Some(&hw_sink_factory()));
+    dropdown.set_factory(Some(&hw_device_factory()));
     dropdown
 }
 
@@ -85,7 +85,7 @@ fn sink_row(title: &str, dropdown: &gtk::DropDown) -> gtk::ListBoxRow {
 
 pub fn show(
     transient_for: Option<&impl IsA<gtk::Widget>>,
-    hw_sinks: Vec<HwSink>,
+    hw_sinks: Vec<HwDevice>,
     presets: Vec<Preset>,
     on_saved: impl Fn(Vec<Preset>) + 'static,
 ) -> adw::Dialog {
@@ -204,10 +204,10 @@ pub fn show(
             move || {
                 {
                     let mut d = draft.borrow_mut();
-                    d[i].aux_hw = selected_hw_sink(&aux_dd)
+                    d[i].aux_hw = selected_hw_device(&aux_dd)
                         .map(|s| s.name)
                         .unwrap_or_default();
-                    d[i].main_hw = selected_hw_sink(&main_dd)
+                    d[i].main_hw = selected_hw_device(&main_dd)
                         .map(|s| s.name)
                         .unwrap_or_default();
                     d[i].name = name_row.text().to_string();

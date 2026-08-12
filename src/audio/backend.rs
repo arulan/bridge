@@ -24,7 +24,7 @@ use glib::prelude::*;
 use glib::subclass::Signal;
 use glib::subclass::prelude::*;
 
-use super::hw_sink::{HwSink, strip_device_serial};
+use super::hw_device::{HwDevice, strip_device_serial};
 use super::level_meter::{self, LevelMeters};
 use super::pw_config;
 use super::pw_connection::{Event, PwConnection, Request};
@@ -35,7 +35,7 @@ use crate::config::{self, Side};
 #[derive(Default)]
 pub struct PipeWireBackendImp {
     // Mirrors the pw side state
-    sinks: RefCell<HashMap<u32, HwSink>>,
+    sinks: RefCell<HashMap<u32, HwDevice>>,
     owned: RefCell<HashMap<Side, u32>>,
     surround_id: RefCell<Option<u32>>,
     streams: RefCell<HashMap<u32, StreamInfo>>,
@@ -187,8 +187,8 @@ impl PipeWireBackend {
     }
 
     /// Sorted hardware sinks
-    pub fn hw_sinks(&self) -> Vec<HwSink> {
-        let mut sinks: Vec<HwSink> = self.imp().sinks.borrow().values().cloned().collect();
+    pub fn hw_sinks(&self) -> Vec<HwDevice> {
+        let mut sinks: Vec<HwDevice> = self.imp().sinks.borrow().values().cloned().collect();
 
         let stripped: Vec<String> = sinks
             .iter()
