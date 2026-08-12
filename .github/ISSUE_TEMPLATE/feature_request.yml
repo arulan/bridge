@@ -1,0 +1,47 @@
+name: Feature Request
+description: Suggest a new feature for Bridge
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bridge is focused around the crossfade mixer and simplicity. It doesn't aim to compete
+        with professional audio applications, but rather something to get more out of PipeWire
+        for gaming, listening to music, voice chat, and normal desktop use. I will read every 
+        request, but I can't promise it'll fit with the scope of Bridge.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: |
+        Describe the problem you're running into and why it matters for how you use Bridge.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: How you handle it today
+      description: |
+        How do you manage without this feature in Bridge today? Are there workarounds that you use? CLI tools, scripts, etc.
+    validations:
+      required: false
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What do you have in mind
+      description: |
+        Describe how you envision Bridge to support this. What does the feature look like?
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: |
+        Are there other apps that already do this (even if not on Linux)? Do you have any screenshots or links to share for context.
+    validations:
+      required: false
