@@ -38,9 +38,9 @@ use pw::spa;
 use pw::types::ObjectType;
 
 use crate::audio::hw_device::{HwDevice, sink_from_props};
-use crate::audio::pw_config::{AUX_SINK, MAIN_SINK, SURROUND_SINK};
+use crate::audio::pw_config;
+use crate::audio::role::Role;
 use crate::audio::routing::StreamInfo;
-use crate::config::Side;
 
 use ffi::{LoadedModule, load_module};
 use pod::set_node_props;
@@ -50,17 +50,15 @@ const FLUSH_TIMEOUT: Duration = Duration::from_millis(250);
 
 // main -> pw
 pub enum Request {
-    SetVolume { side: Side, volume: f32 },
-    SetMute { side: Side, muted: bool },
-    SetSurroundVolume { volume: f32 },
-    SetSurroundMute { muted: bool },
-    Retarget { side: Side, hw_name: Option<String> },
+    SetVolume { role: Role, volume: f32 },
+    SetMute { role: Role, muted: bool },
+    Retarget { role: Role, hw_name: Option<String> },
     RetargetStream { id: u32, target: Option<String> },
     SetDefault(String),
-    // (side, module args) for each configured side
-    // skipped for live sink/module sides
-    CreateTempSinks(Vec<(Side, String)>),
-    RecreateTempSinks(Vec<(Side, String)>),
+    // (role, module args) for each configured role
+    // skipped for live sink/module roles
+    CreateTempSinks(Vec<(Role, String)>),
+    RecreateTempSinks(Vec<(Role, String)>),
     Shutdown,
 }
 
@@ -69,17 +67,13 @@ pub enum Event {
     Settled,
     SinkAdded(HwDevice),
     SinkRemoved(u32),
-    OwnedAdded {
-        side: Side,
+    NodeReady {
+        role: Role,
         id: u32,
     },
-    OwnedRemoved {
-        side: Side,
+    NodeRemoved {
+        role: Role,
     },
-    SurroundReady {
-        id: u32,
-    },
-    SurroundRemoved,
     StreamAdded {
         info: StreamInfo,
         peak: Arc<AtomicU32>,
@@ -97,17 +91,13 @@ pub struct PwConnection {
 }
 
 impl PwConnection {
-    pub fn start(
-        aux_peak: Arc<AtomicU32>,
-        main_peak: Arc<AtomicU32>,
-        surround_peak: Arc<AtomicU32>,
-    ) -> (Self, async_channel::Receiver<Event>) {
+    pub fn start(peaks: Vec<(Role, Arc<AtomicU32>)>) -> (Self, async_channel::Receiver<Event>) {
         let (cmd_tx, cmd_rx) = pw::channel::channel::<Request>();
         let (evt_tx, evt_rx) = async_channel::unbounded::<Event>();
         let (ack_tx, ack_rx) = mpsc::channel::<()>();
 
         let join = std::thread::spawn(move || {
-            if let Err(e) = pw_main(cmd_rx, evt_tx, ack_tx, aux_peak, main_peak, surround_peak) {
+            if let Err(e) = pw_main(cmd_rx, evt_tx, ack_tx, peaks) {
                 eprintln!("pw_connection: exited with error: {e}");
             }
         });
@@ -134,7 +124,7 @@ impl PwConnection {
 }
 
 // One of our loopback capture nodes
-struct OwnedSink {
+struct OwnedNode {
     id: u32,
     channels: u32,
 }
@@ -143,11 +133,9 @@ struct State {
     // Every node we've bound
     bound: HashMap<u32, (pw::node::Node, pw::node::NodeListener)>,
     // Our owned capture nodes, the ones we set volume and mute on
-    owned: HashMap<Side, OwnedSink>,
-    // The surround sink, when the node is live
-    surround: Option<OwnedSink>,
+    owned: HashMap<Role, OwnedNode>,
     // Owned playback node ids, the targets we change for live routing
-    owned_pb: HashMap<Side, u32>,
+    owned_pb: HashMap<Role, u32>,
     // The hardware sink ids we report with SinkAdded
     hw: HashSet<u32>,
     // streams for routing rules
@@ -161,7 +149,7 @@ struct State {
 
     metadata: Option<(pw::metadata::Metadata, pw::metadata::MetadataListener)>,
     meta_cache: HashMap<String, String>,
-    modules: HashMap<Side, LoadedModule>,
+    modules: HashMap<Role, LoadedModule>,
 
     shutting_down: bool,
 }
@@ -171,7 +159,6 @@ impl State {
         State {
             bound: HashMap::new(),
             owned: HashMap::new(),
-            surround: None,
             owned_pb: HashMap::new(),
             hw: HashSet::new(),
             streams: HashSet::new(),
@@ -197,9 +184,7 @@ fn pw_main(
     cmd_rx: pw::channel::Receiver<Request>,
     evt_tx: async_channel::Sender<Event>,
     ack_tx: mpsc::Sender<()>,
-    aux_peak: Arc<AtomicU32>,
-    main_peak: Arc<AtomicU32>,
-    surround_peak: Arc<AtomicU32>,
+    peaks: Vec<(Role, Arc<AtomicU32>)>,
 ) -> Result<(), pw::Error> {
     pw::init();
 
@@ -275,12 +260,9 @@ fn pw_main(
 
     // capture meters run on this thread so they can be pinned in metadata
     // autoconnects when their target sinks appear
-    let mut meters = Vec::with_capacity(3);
-    for (sink, atomic) in [
-        (AUX_SINK, aux_peak),
-        (MAIN_SINK, main_peak),
-        (SURROUND_SINK, surround_peak),
-    ] {
+    let mut meters = Vec::with_capacity(peaks.len());
+    for (role, atomic) in peaks {
+        let sink = pw_config::sink_name(role);
         match meter::open_sink_meter(&core, sink, atomic, &state) {
             Ok(pair) => meters.push(pair),
             Err(e) => eprintln!("pw_connection: meter stream for {sink} failed: {e}"),
@@ -302,41 +284,25 @@ fn handle_request(
     state: &Rc<RefCell<State>>,
 ) {
     match req {
-        Request::SetVolume { side, volume } => {
+        Request::SetVolume { role, volume } => {
             let st = state.borrow();
-            if let Some(owned) = st.owned.get(&side)
+            if let Some(owned) = st.owned.get(&role)
                 && let Some((node, _)) = st.bound.get(&owned.id)
             {
                 set_node_props(node, Some((volume, owned.channels)), None);
             }
         }
-        Request::SetMute { side, muted } => {
+        Request::SetMute { role, muted } => {
             let st = state.borrow();
-            if let Some(owned) = st.owned.get(&side)
+            if let Some(owned) = st.owned.get(&role)
                 && let Some((node, _)) = st.bound.get(&owned.id)
             {
                 set_node_props(node, None, Some(muted));
             }
         }
-        Request::SetSurroundVolume { volume } => {
+        Request::Retarget { role, hw_name } => {
             let st = state.borrow();
-            if let Some(s) = st.surround.as_ref()
-                && let Some((node, _)) = st.bound.get(&s.id)
-            {
-                set_node_props(node, Some((volume, s.channels)), None);
-            }
-        }
-        Request::SetSurroundMute { muted } => {
-            let st = state.borrow();
-            if let Some(s) = st.surround.as_ref()
-                && let Some((node, _)) = st.bound.get(&s.id)
-            {
-                set_node_props(node, None, Some(muted));
-            }
-        }
-        Request::Retarget { side, hw_name } => {
-            let st = state.borrow();
-            let (Some(&subject), Some((meta, _))) = (st.owned_pb.get(&side), st.metadata.as_ref())
+            let (Some(&subject), Some((meta, _))) = (st.owned_pb.get(&role), st.metadata.as_ref())
             else {
                 return;
             };
@@ -373,7 +339,7 @@ fn handle_request(
             // then sync so the writes flush before the 'done' handler quits
             {
                 let st = state.borrow();
-                for owned in st.owned.values().chain(st.surround.as_ref()) {
+                for owned in st.owned.values() {
                     if let Some((node, _)) = st.bound.get(&owned.id) {
                         set_node_props(node, Some((1.0, owned.channels)), Some(false));
                     }
@@ -388,20 +354,20 @@ fn handle_request(
 fn load_temp_sinks(
     context: &pw::context::ContextRc,
     state: &Rc<RefCell<State>>,
-    configs: Vec<(Side, String)>,
+    configs: Vec<(Role, String)>,
 ) {
-    for (side, args) in configs {
+    for (role, args) in configs {
         {
             let st = state.borrow();
-            if st.owned.contains_key(&side) || st.modules.contains_key(&side) {
+            if st.owned.contains_key(&role) || st.modules.contains_key(&role) {
                 continue;
             }
         }
         match load_module(context, "libpipewire-module-loopback", &args) {
             Some(m) => {
-                state.borrow_mut().modules.insert(side, m);
+                state.borrow_mut().modules.insert(role, m);
             }
-            None => eprintln!("pw_connection: failed to load temp loopback for {side:?}"),
+            None => eprintln!("pw_connection: failed to load temp loopback for {role:?}"),
         }
     }
 }
@@ -516,12 +482,12 @@ fn handle_global(
 }
 
 fn aux_sink_id(state: &Rc<RefCell<State>>) -> Option<u32> {
-    state.borrow().owned.get(&Side::Aux).map(|o| o.id)
+    state.borrow().owned.get(&Role::Aux).map(|o| o.id)
 }
 
 fn refresh_aux_streams(evt_tx: &async_channel::Sender<Event>, state: &Rc<RefCell<State>>) {
     let mut st = state.borrow_mut();
-    let ids: BTreeSet<u32> = match st.owned.get(&Side::Aux).map(|o| o.id) {
+    let ids: BTreeSet<u32> = match st.owned.get(&Role::Aux).map(|o| o.id) {
         Some(aux_id) => {
             let outs: Vec<u32> = st
                 .links
@@ -550,34 +516,23 @@ fn classify_node(
     evt_tx: &async_channel::Sender<Event>,
     state: &Rc<RefCell<State>>,
 ) {
-    let role = props.get("bridge.role");
-
-    if role == Some("surround") {
+    if let Some(role) = props.get("bridge.role").and_then(Role::from_wire) {
+        let default_channels = if role == Role::Surround { 8 } else { 2 };
         let channels = props
             .get("audio.channels")
             .and_then(|s| s.parse().ok())
-            .unwrap_or(8);
-        state.borrow_mut().surround = Some(OwnedSink { id, channels });
-        let _ = evt_tx.try_send(Event::SurroundReady { id });
-        return;
-    }
-
-    if let Some(side) = role.and_then(Side::from_wire) {
-        let channels = props
-            .get("audio.channels")
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(2);
+            .unwrap_or(default_channels);
         state
             .borrow_mut()
             .owned
-            .insert(side, OwnedSink { id, channels });
-        let _ = evt_tx.try_send(Event::OwnedAdded { side, id });
+            .insert(role, OwnedNode { id, channels });
+        let _ = evt_tx.try_send(Event::NodeReady { role, id });
         refresh_aux_streams(evt_tx, state);
         return;
     }
 
-    if let Some(side) = props.get("bridge.pb-role").and_then(Side::from_wire) {
-        state.borrow_mut().owned_pb.insert(side, id);
+    if let Some(role) = props.get("bridge.pb-role").and_then(Role::from_wire) {
+        state.borrow_mut().owned_pb.insert(role, id);
         return;
     }
 
@@ -613,15 +568,12 @@ fn handle_global_remove(
     {
         let mut st = state.borrow_mut();
 
-        if st.surround.as_ref().is_some_and(|s| s.id == id) {
-            st.surround = None;
-            let _ = evt_tx.try_send(Event::SurroundRemoved);
-        } else if let Some(side) = side_for_owned(&st.owned, id) {
-            st.owned.remove(&side);
-            let _ = evt_tx.try_send(Event::OwnedRemoved { side });
-            refresh = side == Side::Aux;
-        } else if let Some(side) = side_for_pb(&st.owned_pb, id) {
-            st.owned_pb.remove(&side);
+        if let Some(role) = role_for_owned(&st.owned, id) {
+            st.owned.remove(&role);
+            let _ = evt_tx.try_send(Event::NodeRemoved { role });
+            refresh = role == Role::Aux;
+        } else if let Some(role) = role_for_pb(&st.owned_pb, id) {
+            st.owned_pb.remove(&role);
         } else if st.hw.remove(&id) {
             let _ = evt_tx.try_send(Event::SinkRemoved(id));
         } else if st.streams.remove(&id) {
@@ -629,7 +581,7 @@ fn handle_global_remove(
             let _ = evt_tx.try_send(Event::StreamRemoved(id));
             refresh = true;
         } else if let Some((_, inp)) = st.links.remove(&id) {
-            refresh = st.owned.get(&Side::Aux).map(|o| o.id) == Some(inp);
+            refresh = st.owned.get(&Role::Aux).map(|o| o.id) == Some(inp);
         }
 
         st.bound.remove(&id);
@@ -674,13 +626,13 @@ fn dict_prop(props: &spa::utils::dict::DictRef, key: &str) -> Option<String> {
     props.get(key).map(str::to_owned)
 }
 
-fn side_for_owned(owned: &HashMap<Side, OwnedSink>, id: u32) -> Option<Side> {
-    owned.iter().find(|&(_, o)| o.id == id).map(|(&s, _)| s)
+fn role_for_owned(owned: &HashMap<Role, OwnedNode>, id: u32) -> Option<Role> {
+    owned.iter().find(|&(_, o)| o.id == id).map(|(&r, _)| r)
 }
 
-fn side_for_pb(owned_pb: &HashMap<Side, u32>, id: u32) -> Option<Side> {
+fn role_for_pb(owned_pb: &HashMap<Role, u32>, id: u32) -> Option<Role> {
     owned_pb
         .iter()
         .find(|&(_, &pb_id)| pb_id == id)
-        .map(|(&s, _)| s)
+        .map(|(&r, _)| r)
 }

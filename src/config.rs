@@ -27,25 +27,6 @@ pub enum Side {
     Main,
 }
 
-impl Side {
-    /// Parse bridge.role from the loopback conf
-    pub fn from_wire(s: &str) -> Option<Side> {
-        match s {
-            "aux" => Some(Side::Aux),
-            "main" => Some(Side::Main),
-            _ => None,
-        }
-    }
-
-    /// bridge.role string for the loopback conf
-    pub fn as_wire(&self) -> &'static str {
-        match self {
-            Side::Aux => "aux",
-            Side::Main => "main",
-        }
-    }
-}
-
 #[derive(Clone, Debug, Default)]
 pub struct SinkDef {
     pub channels: u32,

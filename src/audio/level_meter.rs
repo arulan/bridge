@@ -17,17 +17,16 @@
 
 // Per-sink peak levels from the capture streams on the pw_connection thread
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::config::Side;
+use crate::audio::role::Role;
 
 /// One peak atomic per virtual sink.
 /// Each holds the loudest sample seen since the last read.
 pub struct LevelMeters {
-    aux: Arc<AtomicU32>,
-    main: Arc<AtomicU32>,
-    surround: Arc<AtomicU32>,
+    peaks: HashMap<Role, Arc<AtomicU32>>,
 }
 
 impl Default for LevelMeters {
@@ -38,33 +37,23 @@ impl Default for LevelMeters {
 
 impl LevelMeters {
     pub fn new() -> Self {
-        LevelMeters {
-            aux: Arc::new(AtomicU32::new(0)),
-            main: Arc::new(AtomicU32::new(0)),
-            surround: Arc::new(AtomicU32::new(0)),
-        }
+        let peaks = [Role::Aux, Role::Main, Role::Surround]
+            .into_iter()
+            .map(|role| (role, Arc::new(AtomicU32::new(0))))
+            .collect();
+        LevelMeters { peaks }
     }
 
-    /// clones of the (aux, main, surround) atomics that the capture streams write into
-    pub fn atoms(&self) -> (Arc<AtomicU32>, Arc<AtomicU32>, Arc<AtomicU32>) {
-        (
-            Arc::clone(&self.aux),
-            Arc::clone(&self.main),
-            Arc::clone(&self.surround),
-        )
+    pub fn atoms(&self) -> Vec<(Role, Arc<AtomicU32>)> {
+        self.peaks
+            .iter()
+            .map(|(&role, atomic)| (role, Arc::clone(atomic)))
+            .collect()
     }
 
     /// Peak observed since the last call
-    pub fn peak(&self, side: Side) -> f32 {
-        let atomic = match side {
-            Side::Aux => &self.aux,
-            Side::Main => &self.main,
-        };
-        take_peak(atomic)
-    }
-
-    pub fn surround_peak(&self) -> f32 {
-        take_peak(&self.surround)
+    pub fn peak(&self, role: Role) -> f32 {
+        self.peaks.get(&role).map_or(0.0, |a| take_peak(a))
     }
 }
 

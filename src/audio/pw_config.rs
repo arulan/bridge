@@ -17,6 +17,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::audio::role::Role;
 use crate::config::{Side, SinkConfig, SinkDef};
 
 pub const AUX_SINK: &str = "bridge_aux";
@@ -25,6 +26,14 @@ pub const AUX_PB: &str = "bridge_aux_pb";
 pub const MAIN_PB: &str = "bridge_main_pb";
 
 pub const SURROUND_SINK: &str = "bridge_surround";
+
+pub fn sink_name(role: Role) -> &'static str {
+    match role {
+        Role::Aux => AUX_SINK,
+        Role::Main => MAIN_SINK,
+        Role::Surround => SURROUND_SINK,
+    }
+}
 
 // Flatpak will need --filesystem=xdg-config/pipewire:create
 pub fn config_dir() -> PathBuf {
@@ -99,7 +108,7 @@ fn side_spec(side: Side) -> (&'static str, &'static str, &'static str) {
 // Avoids having recreated temp sinks desync volume/mute state with UI controls
 fn loopback_body(side: Side, def: &SinkDef, temp: bool) -> String {
     let (name, pb_name, desc) = side_spec(side);
-    let role = side.as_wire();
+    let role = Role::from(side).as_wire();
     let channels = def.channels;
     let position = def.position.replace(',', " ");
     let target = target_fragment(&def.hw_name);

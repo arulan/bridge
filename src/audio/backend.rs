@@ -28,6 +28,7 @@ use super::hw_device::{HwDevice, strip_device_serial};
 use super::level_meter::{self, LevelMeters};
 use super::pw_config;
 use super::pw_connection::{Event, PwConnection, Request};
+use super::role::Role;
 use super::routing::{RoutingRule, StreamInfo, winning_rule_index};
 use super::test_tone;
 use crate::config::{self, Side};
@@ -36,8 +37,7 @@ use crate::config::{self, Side};
 pub struct PipeWireBackendImp {
     // Mirrors the pw side state
     sinks: RefCell<HashMap<u32, HwDevice>>,
-    owned: RefCell<HashMap<Side, u32>>,
-    surround_id: RefCell<Option<u32>>,
+    owned: RefCell<HashMap<Role, u32>>,
     streams: RefCell<HashMap<u32, StreamInfo>>,
     // stream ids the pw thread reports as linked to the Aux sink
     aux_stream_ids: RefCell<HashSet<u32>>,
@@ -91,10 +91,10 @@ impl PipeWireBackend {
 
     pub fn start(&self) {
         let meters = LevelMeters::new();
-        let (aux_peak, main_peak, surround_peak) = meters.atoms();
+        let peaks = meters.atoms();
         self.imp().level_meters.replace(Some(meters));
 
-        let (pw, evt_rx) = PwConnection::start(aux_peak, main_peak, surround_peak);
+        let (pw, evt_rx) = PwConnection::start(peaks);
         self.imp().pw.replace(Some(pw));
 
         let weak = self.downgrade();
@@ -138,22 +138,21 @@ impl PipeWireBackend {
                     self.emit_by_name::<()>("sinks-changed", &[]);
                 }
             }
-            Event::OwnedAdded { side, id } => {
-                imp.owned.borrow_mut().insert(side, id);
-                self.emit_by_name::<()>("owned-changed", &[]);
-            }
-            Event::OwnedRemoved { side } => {
-                if imp.owned.borrow_mut().remove(&side).is_some() {
-                    self.emit_by_name::<()>("owned-changed", &[]);
+
+            Event::NodeReady { role, id } => {
+                imp.owned.borrow_mut().insert(role, id);
+                match role {
+                    Role::Surround => self.emit_by_name::<()>("surround-ready", &[]),
+                    _ => self.emit_by_name::<()>("owned-changed", &[]),
                 }
             }
-            Event::SurroundReady { id } => {
-                imp.surround_id.replace(Some(id));
-                self.emit_by_name::<()>("surround-ready", &[]);
-            }
-            Event::SurroundRemoved => {
-                imp.surround_id.replace(None);
-                self.emit_by_name::<()>("surround-removed", &[]);
+            Event::NodeRemoved { role } => {
+                let dropped = imp.owned.borrow_mut().remove(&role).is_some();
+                match role {
+                    Role::Surround => self.emit_by_name::<()>("surround-removed", &[]),
+                    _ if dropped => self.emit_by_name::<()>("owned-changed", &[]),
+                    _ => {}
+                }
             }
             Event::StreamAdded { info, peak } => {
                 let live = imp.installed.get();
@@ -224,9 +223,9 @@ impl PipeWireBackend {
 
     pub fn owned_sinks_present(&self) -> bool {
         let owned = self.imp().owned.borrow();
-        [Side::Aux, Side::Main]
+        [Role::Aux, Role::Main]
             .iter()
-            .all(|side| owned.contains_key(side))
+            .all(|role| owned.contains_key(role))
     }
 
     /// True while sink is a session-only loopback we loaded, rather than a
@@ -235,16 +234,22 @@ impl PipeWireBackend {
         self.imp().using_temp.get()
     }
 
-    fn temp_sink_configs(&self) -> Vec<(Side, String)> {
+    fn temp_sink_configs(&self) -> Vec<(Role, String)> {
         if !config::is_configured() {
             return Vec::new();
         }
         let cfg = config::load();
         let owned = self.imp().owned.borrow();
+
         [Side::Aux, Side::Main]
             .into_iter()
-            .filter(|side| !owned.contains_key(side))
-            .map(|side| (side, pw_config::loopback_module_args(side, cfg.side(side))))
+            .filter(|side| !owned.contains_key(&Role::from(*side)))
+            .map(|side| {
+                (
+                    Role::from(side),
+                    pw_config::loopback_module_args(side, cfg.side(side)),
+                )
+            })
             .collect()
     }
 
@@ -276,7 +281,10 @@ impl PipeWireBackend {
     pub fn retarget(&self, side: Side, hw_name: &str) {
         let hw_name = (!hw_name.is_empty()).then(|| hw_name.to_owned());
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
-            pw.send(Request::Retarget { side, hw_name });
+            pw.send(Request::Retarget {
+                role: side.into(),
+                hw_name,
+            });
         }
     }
 
@@ -311,49 +319,47 @@ impl PipeWireBackend {
 
     /// Sets the volume on one of our sinks
     pub fn set_volume(&self, side: Side, volume: f64) {
-        if let Some(pw) = self.imp().pw.borrow().as_ref() {
-            pw.send(Request::SetVolume {
-                side,
-                volume: volume as f32,
-            });
-        }
+        self.set_role_volume(side.into(), volume);
     }
 
     /// Mutes or unmutes one of our sinks
     pub fn set_mute(&self, side: Side, muted: bool) {
-        if let Some(pw) = self.imp().pw.borrow().as_ref() {
-            pw.send(Request::SetMute { side, muted });
-        }
+        self.set_role_mute(side.into(), muted);
     }
 
     /// Volume on the surround sink
     pub fn set_surround_volume(&self, volume: f64) {
+        self.set_role_volume(Role::Surround, volume);
+    }
+
+    pub fn set_surround_mute(&self, muted: bool) {
+        self.set_role_mute(Role::Surround, muted);
+    }
+
+    fn set_role_volume(&self, role: Role, volume: f64) {
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
-            pw.send(Request::SetSurroundVolume {
+            pw.send(Request::SetVolume {
+                role,
                 volume: volume as f32,
             });
         }
     }
 
-    /// Mute on the surround sink
-    pub fn set_surround_mute(&self, muted: bool) {
+    fn set_role_mute(&self, role: Role, muted: bool) {
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
-            pw.send(Request::SetSurroundMute { muted });
+            pw.send(Request::SetMute { role, muted });
         }
     }
 
     /// True once the surround sink is live
     pub fn surround_present(&self) -> bool {
-        self.imp().surround_id.borrow().is_some()
+        self.imp().owned.borrow().contains_key(&Role::Surround)
     }
 
     /// Play per-channel test tone through our virtual sinks. The layout comes
     /// from the saved config.
     pub fn play_test_tone(&self, side: Side, on_done: impl FnOnce() + Send + 'static) {
-        let sink_name = match side {
-            Side::Aux => pw_config::AUX_SINK,
-            Side::Main => pw_config::MAIN_SINK,
-        };
+        let sink_name = pw_config::sink_name(side.into());
 
         let def = config::load();
         let def = def.side(side);
@@ -375,20 +381,20 @@ impl PipeWireBackend {
 
     /// Get the latest peak level on each side's sink
     pub fn peak(&self, side: Side) -> f32 {
-        self.imp()
-            .level_meters
-            .borrow()
-            .as_ref()
-            .map_or(0.0, |m| m.peak(side))
+        self.role_peak(side.into())
     }
 
     /// Latest peak on the surround sink
     pub fn surround_peak(&self) -> f32 {
+        self.role_peak(Role::Surround)
+    }
+
+    fn role_peak(&self, role: Role) -> f32 {
         self.imp()
             .level_meters
             .borrow()
             .as_ref()
-            .map_or(0.0, |m| m.surround_peak())
+            .map_or(0.0, |m| m.peak(role))
     }
 
     /// Latest peak on one tracked app stream
