@@ -222,10 +222,11 @@ impl PipeWireBackend {
     }
 
     pub fn owned_sinks_present(&self) -> bool {
-        let owned = self.imp().owned.borrow();
-        [Role::Aux, Role::Main]
-            .iter()
-            .all(|role| owned.contains_key(role))
+        self.present(Role::Aux) && self.present(Role::Main)
+    }
+
+    pub fn present(&self, role: Role) -> bool {
+        self.imp().owned.borrow().contains_key(&role)
     }
 
     /// True while sink is a session-only loopback we loaded, rather than a
@@ -276,15 +277,12 @@ impl PipeWireBackend {
         }
     }
 
-    /// Live routing of one side's (Aux or Main) hardware output by node.name
+    /// Live routing of one of our sinks to a hardware output by node.name
     /// None targets the system default; The conf writes the target for new sessions
-    pub fn retarget(&self, side: Side, hw_name: &str) {
+    pub fn retarget(&self, role: Role, hw_name: &str) {
         let hw_name = (!hw_name.is_empty()).then(|| hw_name.to_owned());
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
-            pw.send(Request::Retarget {
-                role: side.into(),
-                hw_name,
-            });
+            pw.send(Request::Retarget { role, hw_name });
         }
     }
 
@@ -318,25 +316,7 @@ impl PipeWireBackend {
     }
 
     /// Sets the volume on one of our sinks
-    pub fn set_volume(&self, side: Side, volume: f64) {
-        self.set_role_volume(side.into(), volume);
-    }
-
-    /// Mutes or unmutes one of our sinks
-    pub fn set_mute(&self, side: Side, muted: bool) {
-        self.set_role_mute(side.into(), muted);
-    }
-
-    /// Volume on the surround sink
-    pub fn set_surround_volume(&self, volume: f64) {
-        self.set_role_volume(Role::Surround, volume);
-    }
-
-    pub fn set_surround_mute(&self, muted: bool) {
-        self.set_role_mute(Role::Surround, muted);
-    }
-
-    fn set_role_volume(&self, role: Role, volume: f64) {
+    pub fn set_volume(&self, role: Role, volume: f64) {
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
             pw.send(Request::SetVolume {
                 role,
@@ -345,51 +325,34 @@ impl PipeWireBackend {
         }
     }
 
-    fn set_role_mute(&self, role: Role, muted: bool) {
+    /// Toggle mutes sink
+    pub fn set_mute(&self, role: Role, muted: bool) {
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
             pw.send(Request::SetMute { role, muted });
         }
     }
 
-    /// True once the surround sink is live
-    pub fn surround_present(&self) -> bool {
-        self.imp().owned.borrow().contains_key(&Role::Surround)
-    }
+    /// Play a per-channel test tone through one of our virtual sinks.
+    /// Sweeps clockwise starting from FL; LFE last
+    pub fn play_test_tone(&self, role: Role, on_done: impl FnOnce() + Send + 'static) {
+        let (n_channels, position) = match role {
+            Role::Aux => side_layout(Side::Aux),
+            Role::Main => side_layout(Side::Main),
+            Role::Surround => (
+                pw_config::SURROUND_CHANNELS,
+                pw_config::SURROUND_POSITION.to_owned(),
+            ),
+        };
 
-    /// Play per-channel test tone through our virtual sinks. The layout comes
-    /// from the saved config.
-    pub fn play_test_tone(&self, side: Side, on_done: impl FnOnce() + Send + 'static) {
-        let sink_name = pw_config::sink_name(side.into());
+        let positions = test_tone::pos_str_to_spa_ids(&position, n_channels);
+        let sweep = test_tone::clockwise_sweep(&positions);
 
-        let def = config::load();
-        let def = def.side(side);
-        let n_channels = def.channels.max(2);
-        let positions = test_tone::pos_str_to_spa_ids(&def.position, n_channels);
-        let sweep = (0..positions.len()).collect();
-
+        let sink_name = pw_config::sink_name(role);
         test_tone::play_through_sink(sink_name, n_channels, positions, sweep, on_done);
     }
 
-    /// Sweep a 7.1 test tone through the surround sink
-    pub fn play_surround_test_tone(&self, on_done: impl FnOnce() + Send + 'static) {
-        // fixed layout
-        let positions = test_tone::pos_str_to_spa_ids("FL,FR,FC,LFE,RL,RR,SL,SR", 8);
-        let sweep = vec![0, 2, 1, 7, 5, 4, 6, 3];
-
-        test_tone::play_through_sink(pw_config::SURROUND_SINK, 8, positions, sweep, on_done);
-    }
-
-    /// Get the latest peak level on each side's sink
-    pub fn peak(&self, side: Side) -> f32 {
-        self.role_peak(side.into())
-    }
-
-    /// Latest peak on the surround sink
-    pub fn surround_peak(&self) -> f32 {
-        self.role_peak(Role::Surround)
-    }
-
-    fn role_peak(&self, role: Role) -> f32 {
+    /// Get the latest peak level on one of our sinks
+    pub fn peak(&self, role: Role) -> f32 {
         self.imp()
             .level_meters
             .borrow()
@@ -492,4 +455,12 @@ impl PipeWireBackend {
             None
         });
     }
+}
+
+// Channel count + layout
+fn side_layout(side: Side) -> (u32, String) {
+    let cfg = config::load();
+    let def = cfg.side(side);
+
+    (def.channels.max(2), def.position.clone())
 }

@@ -37,7 +37,7 @@ impl Default for LevelMeters {
 
 impl LevelMeters {
     pub fn new() -> Self {
-        let peaks = [Role::Aux, Role::Main, Role::Surround]
+        let peaks = Role::ALL
             .into_iter()
             .map(|role| (role, Arc::new(AtomicU32::new(0))))
             .collect();

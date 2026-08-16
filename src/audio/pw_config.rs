@@ -26,6 +26,9 @@ pub const AUX_PB: &str = "bridge_aux_pb";
 pub const MAIN_PB: &str = "bridge_main_pb";
 
 pub const SURROUND_SINK: &str = "bridge_surround";
+// Fixed for Surround
+pub const SURROUND_POSITION: &str = "FL,FR,FC,LFE,RL,RR,SL,SR";
+pub const SURROUND_CHANNELS: u32 = 8;
 
 pub fn sink_name(role: Role) -> &'static str {
     match role {

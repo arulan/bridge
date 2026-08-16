@@ -29,6 +29,7 @@ use gtk4::{self as gtk, CompositeTemplate, prelude::*};
 
 use crate::audio::backend::PipeWireBackend;
 use crate::audio::hw_device::HwDevice;
+use crate::audio::role::Role;
 use crate::audio::{mixer, pw_config};
 use crate::config::{self, Side};
 use crate::shortcuts::ShortcutsPortal;
@@ -536,9 +537,9 @@ impl BridgeWindow {
             } else {
                 // in surround mode the Main level meter follows the surround sink
                 let peak = if side == Side::Main && surround_active {
-                    backend.surround_peak()
+                    backend.peak(Role::Surround)
                 } else {
-                    backend.peak(side)
+                    backend.peak(side.into())
                 } as f64;
                 (peak * SMOOTHING + bar.value() * (1.0 - SMOOTHING)).clamp(0.0, 1.0)
             };
@@ -673,14 +674,14 @@ impl BridgeWindow {
 
         if present {
             self.apply_mix();
-            backend.set_mute(Side::Aux, imp.aux_mute_button.is_active());
+            backend.set_mute(Role::Aux, imp.aux_mute_button.is_active());
             if imp.surround_active.get() {
-                backend.set_mute(Side::Main, true);
-                backend.set_surround_mute(imp.main_mute_button.is_active());
+                backend.set_mute(Role::Main, true);
+                backend.set_mute(Role::Surround, imp.main_mute_button.is_active());
             } else {
-                backend.set_mute(Side::Main, imp.main_mute_button.is_active());
-                if backend.surround_present() {
-                    backend.set_surround_mute(true);
+                backend.set_mute(Role::Main, imp.main_mute_button.is_active());
+                if backend.present(Role::Surround) {
+                    backend.set_mute(Role::Surround, true);
                 }
             }
         }
@@ -706,11 +707,11 @@ impl BridgeWindow {
 
         let (aux, main) = mixer::calculate_multipliers(imp.mix_scale.value());
 
-        backend.set_volume(Side::Aux, aux);
-        backend.set_volume(Side::Main, main);
+        backend.set_volume(Role::Aux, aux);
+        backend.set_volume(Role::Main, main);
 
-        if backend.surround_present() {
-            backend.set_surround_volume(main);
+        if backend.present(Role::Surround) {
+            backend.set_volume(Role::Surround, main);
         }
 
         self.render_fill(imp.mix_scale.value());
@@ -810,12 +811,12 @@ impl BridgeWindow {
         if let Some(backend) = imp.backend.borrow().clone() {
             if side == Side::Main && imp.surround_active.get() {
                 imp.surround_user_muted.set(muted);
-                backend.set_surround_mute(muted);
+                backend.set_mute(Role::Surround, muted);
             } else {
                 if side == Side::Main {
                     imp.main_muted.set(muted);
                 }
-                backend.set_mute(side, muted);
+                backend.set_mute(side.into(), muted);
             }
         }
 
@@ -843,9 +844,9 @@ impl BridgeWindow {
         };
 
         if side == Side::Main && imp.surround_active.get() {
-            backend.play_surround_test_tone(on_done);
+            backend.play_test_tone(Role::Surround, on_done);
         } else {
-            backend.play_test_tone(side, on_done);
+            backend.play_test_tone(side.into(), on_done);
         }
     }
 
@@ -939,7 +940,7 @@ impl BridgeWindow {
         let Some(backend) = imp.backend.borrow().clone() else {
             return;
         };
-        backend.retarget(side, &hw_name);
+        backend.retarget(side.into(), &hw_name);
 
         // picking a new output device while in hw disonnected state rebuilds the side
         let was_disc = match side {

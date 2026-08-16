@@ -28,7 +28,8 @@ use adw::subclass::prelude::*;
 use super::BridgeWindow;
 use crate::audio::backend::PipeWireBackend;
 use crate::audio::pw_config::{MAIN_SINK, SURROUND_SINK};
-use crate::config::{self, Side};
+use crate::audio::role::Role;
+use crate::config;
 
 impl BridgeWindow {
     /// The sink the Main card currently drives, for the default-sink banner
@@ -48,7 +49,7 @@ impl BridgeWindow {
             .backend
             .borrow()
             .as_ref()
-            .is_some_and(|b| b.surround_present())
+            .is_some_and(|b| b.present(Role::Surround))
         {
             imp.surround_pending.set(true);
             // a new change triggers the banner again
@@ -65,7 +66,7 @@ impl BridgeWindow {
 
         let configured = config::surround_enabled();
         let hrir_ok = configured && hrir_exists();
-        let present = backend.surround_present();
+        let present = backend.present(Role::Surround);
 
         // the toggle appears with a valid surround config (HRIR)
         // shows disabled toggle button until sink is live
@@ -119,7 +120,7 @@ impl BridgeWindow {
             self.force_toggle_to(true);
             self.apply_main_mode_swap(&backend, true);
         } else {
-            backend.set_surround_mute(true);
+            backend.set_mute(Role::Surround, true);
         }
     }
 
@@ -146,7 +147,7 @@ impl BridgeWindow {
             return;
         };
         // can't switch to a surround sink that isn't live yet
-        if want_surround && !backend.surround_present() {
+        if want_surround && !backend.present(Role::Surround) {
             self.force_toggle_to(false);
             return;
         }
@@ -175,11 +176,11 @@ impl BridgeWindow {
 
         // Inactive side is force-muted; active side restores mute state
         if want_surround {
-            backend.set_mute(Side::Main, true);
-            backend.set_surround_mute(imp.surround_user_muted.get());
+            backend.set_mute(Role::Main, true);
+            backend.set_mute(Role::Surround, imp.surround_user_muted.get());
         } else {
-            backend.set_surround_mute(true);
-            backend.set_mute(Side::Main, imp.main_muted.get());
+            backend.set_mute(Role::Surround, true);
+            backend.set_mute(Role::Main, imp.main_muted.get());
         }
 
         imp.mode_swap_in_progress.set(true);

@@ -517,7 +517,11 @@ fn classify_node(
     state: &Rc<RefCell<State>>,
 ) {
     if let Some(role) = props.get("bridge.role").and_then(Role::from_wire) {
-        let default_channels = if role == Role::Surround { 8 } else { 2 };
+        let default_channels = if role == Role::Surround {
+            pw_config::SURROUND_CHANNELS
+        } else {
+            2
+        };
         let channels = props
             .get("audio.channels")
             .and_then(|s| s.parse().ok())

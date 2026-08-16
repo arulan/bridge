@@ -27,6 +27,9 @@ pub enum Role {
 }
 
 impl Role {
+    /// Every virtual device
+    pub const ALL: [Role; 3] = [Role::Aux, Role::Main, Role::Surround];
+
     /// Parse bridge.role from the loopback conf
     pub fn from_wire(s: &str) -> Option<Role> {
         match s {

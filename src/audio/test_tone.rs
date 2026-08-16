@@ -34,10 +34,10 @@ const TWO_PI: f64 = std::f64::consts::PI * 2.0;
 const SAMPLE_SIZE: usize = std::mem::size_of::<i16>();
 
 /// Maps channel position to SPA channel Ids
+/// Always n entries, even if position isn't reported
 pub fn pos_str_to_spa_ids(s: &str, n: u32) -> Vec<u32> {
     use pw::spa::sys::*;
     s.split(',')
-        .take(n as usize)
         .map(|tok| match tok.trim() {
             "FL" => SPA_AUDIO_CHANNEL_FL,
             "FR" => SPA_AUDIO_CHANNEL_FR,
@@ -49,7 +49,31 @@ pub fn pos_str_to_spa_ids(s: &str, n: u32) -> Vec<u32> {
             "SR" => SPA_AUDIO_CHANNEL_SR,
             _ => SPA_AUDIO_CHANNEL_UNKNOWN,
         })
+        .chain(std::iter::repeat(SPA_AUDIO_CHANNEL_UNKNOWN))
+        .take(n as usize)
         .collect()
+}
+
+/// Sweep order for a layout; clockwise with FL first and LFE last
+pub fn clockwise_sweep(positions: &[u32]) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..positions.len()).collect();
+    order.sort_by_key(|&i| sweep_rank(positions[i]));
+    order
+}
+
+fn sweep_rank(position: u32) -> u8 {
+    use pw::spa::sys::*;
+    match position {
+        SPA_AUDIO_CHANNEL_FL => 0,
+        SPA_AUDIO_CHANNEL_FC => 1,
+        SPA_AUDIO_CHANNEL_FR => 2,
+        SPA_AUDIO_CHANNEL_SR => 3,
+        SPA_AUDIO_CHANNEL_RR => 4,
+        SPA_AUDIO_CHANNEL_RL => 5,
+        SPA_AUDIO_CHANNEL_SL => 6,
+        SPA_AUDIO_CHANNEL_LFE => 8,
+        _ => 7,
+    }
 }
 
 pub fn play_through_sink(
@@ -101,8 +125,8 @@ fn run(
     audio_info.set_rate(SAMPLE_RATE);
     audio_info.set_channels(n_channels);
     let mut pos_arr = [0u32; spa::param::audio::MAX_CHANNELS];
-    for (i, &p) in positions.iter().enumerate() {
-        pos_arr[i] = p;
+    for (slot, &p) in pos_arr.iter_mut().zip(positions.iter()) {
+        *slot = p;
     }
     audio_info.set_position(pos_arr);
 
@@ -245,7 +269,7 @@ fn run(
 
 #[cfg(test)]
 mod tests {
-    use super::pos_str_to_spa_ids;
+    use super::{clockwise_sweep, pos_str_to_spa_ids};
     use pipewire::spa::sys::*;
 
     #[test]
@@ -267,5 +291,37 @@ mod tests {
     #[test]
     fn unknown_token_maps_to_unknown() {
         assert_eq!(pos_str_to_spa_ids("ZZ", 1), vec![SPA_AUDIO_CHANNEL_UNKNOWN]);
+    }
+
+    // device repots channels but no positions
+    #[test]
+    fn pads_short_layouts_to_the_channel_count() {
+        assert_eq!(
+            pos_str_to_spa_ids("", 4),
+            vec![SPA_AUDIO_CHANNEL_UNKNOWN; 4]
+        );
+        assert_eq!(
+            pos_str_to_spa_ids("FL,FR", 4),
+            vec![
+                SPA_AUDIO_CHANNEL_FL,
+                SPA_AUDIO_CHANNEL_FR,
+                SPA_AUDIO_CHANNEL_UNKNOWN,
+                SPA_AUDIO_CHANNEL_UNKNOWN
+            ]
+        );
+    }
+
+    // FL -> FC -> FR -> SR -> RR -> RL -> SL -> LFE
+    #[test]
+    fn sweeps_71_clockwise() {
+        let positions = pos_str_to_spa_ids("FL,FR,FC,LFE,RL,RR,SL,SR", 8);
+        assert_eq!(clockwise_sweep(&positions), vec![0, 2, 1, 7, 5, 4, 6, 3]);
+    }
+
+    // FL -> FC -> FR -> RR -> RL -> LFE
+    #[test]
+    fn sweeps_51_clockwise() {
+        let positions = pos_str_to_spa_ids("FL,FR,FC,LFE,RL,RR", 6);
+        assert_eq!(clockwise_sweep(&positions), vec![0, 2, 1, 5, 4, 3]);
     }
 }
