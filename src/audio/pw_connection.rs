@@ -37,7 +37,7 @@ use pw::properties::properties;
 use pw::spa;
 use pw::types::ObjectType;
 
-use crate::audio::hw_device::{HwDevice, sink_from_props};
+use crate::audio::hw_device::{HwDevice, sink_from_props, source_from_props};
 use crate::audio::pw_config;
 use crate::audio::role::Role;
 use crate::audio::routing::StreamInfo;
@@ -67,6 +67,8 @@ pub enum Event {
     Settled,
     SinkAdded(HwDevice),
     SinkRemoved(u32),
+    SourceAdded(HwDevice),
+    SourceRemoved(u32),
     NodeReady {
         role: Role,
         id: u32,
@@ -138,6 +140,8 @@ struct State {
     owned_pb: HashMap<Role, u32>,
     // The hardware sink ids we report with SinkAdded
     hw: HashSet<u32>,
+    // and the hardware source ids, mics
+    hw_sources: HashSet<u32>,
     // streams for routing rules
     streams: HashSet<u32>,
     // every link in the graph
@@ -161,6 +165,7 @@ impl State {
             owned: HashMap::new(),
             owned_pb: HashMap::new(),
             hw: HashSet::new(),
+            hw_sources: HashSet::new(),
             streams: HashSet::new(),
             links: HashMap::new(),
             aux_stream_ids: BTreeSet::new(),
@@ -262,7 +267,11 @@ fn pw_main(
     // autoconnects when their target sinks appear
     let mut meters = Vec::with_capacity(peaks.len());
     for (role, atomic) in peaks {
-        let sink = pw_config::sink_name(role);
+        // TODO: Update when we have a real backend
+        if role == Role::Mic {
+            continue;
+        }
+        let sink = pw_config::node_name(role);
         match meter::open_sink_meter(&core, sink, atomic, &state) {
             Ok(pair) => meters.push(pair),
             Err(e) => eprintln!("pw_connection: meter stream for {sink} failed: {e}"),
@@ -429,7 +438,11 @@ fn handle_global(
                 .get("node.name")
                 .is_some_and(|n| n.starts_with("bridge_"));
             let class = props.get("media.class");
-            if class != Some("Audio/Sink") && class != Some("Stream/Output/Audio") && !ours {
+            let wanted = matches!(
+                class,
+                Some("Audio/Sink") | Some("Audio/Source") | Some("Stream/Output/Audio")
+            );
+            if !wanted && !ours {
                 return;
             }
 
@@ -517,10 +530,11 @@ fn classify_node(
     state: &Rc<RefCell<State>>,
 ) {
     if let Some(role) = props.get("bridge.role").and_then(Role::from_wire) {
-        let default_channels = if role == Role::Surround {
-            pw_config::SURROUND_CHANNELS
-        } else {
-            2
+        // only a fallback; confs write audio.channels
+        let default_channels = match role {
+            Role::Surround => pw_config::SURROUND_CHANNELS,
+            Role::Mic => 1,
+            Role::Aux | Role::Main => 2,
         };
         let channels = props
             .get("audio.channels")
@@ -560,6 +574,12 @@ fn classify_node(
     if let Some(sink) = sink_from_props(id, props) {
         state.borrow_mut().hw.insert(id);
         let _ = evt_tx.try_send(Event::SinkAdded(sink));
+        return;
+    }
+
+    if let Some(source) = source_from_props(id, props) {
+        state.borrow_mut().hw_sources.insert(id);
+        let _ = evt_tx.try_send(Event::SourceAdded(source));
     }
 }
 
@@ -580,6 +600,8 @@ fn handle_global_remove(
             st.owned_pb.remove(&role);
         } else if st.hw.remove(&id) {
             let _ = evt_tx.try_send(Event::SinkRemoved(id));
+        } else if st.hw_sources.remove(&id) {
+            let _ = evt_tx.try_send(Event::SourceRemoved(id));
         } else if st.streams.remove(&id) {
             st.meters.remove(&id);
             let _ = evt_tx.try_send(Event::StreamRemoved(id));

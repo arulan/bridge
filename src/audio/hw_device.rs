@@ -32,7 +32,16 @@ pub struct HwDevice {
 /// Builds HwDevice from a node's info props; None for non-sinks or our virtual
 /// sinks. The info dict is the full property set
 pub fn sink_from_props(node_id: u32, props: &DictRef) -> Option<HwDevice> {
-    if props.get("media.class") != Some("Audio/Sink") {
+    device_from_props(node_id, props, "Audio/Sink")
+}
+
+/// The mic side; None for anything that isn't a hardware source
+pub fn source_from_props(node_id: u32, props: &DictRef) -> Option<HwDevice> {
+    device_from_props(node_id, props, "Audio/Source")
+}
+
+fn device_from_props(node_id: u32, props: &DictRef, class: &str) -> Option<HwDevice> {
+    if props.get("media.class") != Some(class) {
         return None;
     }
 
@@ -59,7 +68,7 @@ pub fn sink_from_props(node_id: u32, props: &DictRef) -> Option<HwDevice> {
     let position = props
         .get("audio.position")
         .map(normalize_position)
-        .unwrap_or_else(|| "FL,FR".to_owned());
+        .unwrap_or_else(|| default_position(channels).to_owned());
 
     Some(HwDevice {
         node_id,
@@ -140,6 +149,30 @@ pub fn strip_device_serial(description: &str) -> String {
     out
 }
 
+// Fallback if audio.position isn't reported
+fn default_position(channels: u32) -> &'static str {
+    match channels {
+        1 => "MONO",
+        _ => "FL,FR",
+    }
+}
+
+/// Devices in the order of the dropdowns
+pub fn sorted_for_display(mut devices: Vec<HwDevice>) -> Vec<HwDevice> {
+    let stripped: Vec<String> = devices
+        .iter()
+        .map(|d| strip_device_serial(&d.display_name))
+        .collect();
+    for (device, short) in devices.iter_mut().zip(&stripped) {
+        if stripped.iter().filter(|other| *other == short).count() == 1 {
+            device.display_name = short.clone();
+        }
+    }
+
+    devices.sort_by_key(|d| d.display_name.to_lowercase());
+    devices
+}
+
 // SPA uses space separated channels, such as "[ FL FR ]"; our is comma separated
 fn normalize_position(raw: &str) -> String {
     raw.split(|c: char| c == ',' || c == '[' || c == ']' || c.is_whitespace())
@@ -151,6 +184,39 @@ fn normalize_position(raw: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pipewire::properties::properties;
+
+    // sinks and sources come from the same registry
+    // parser ignores the other class
+    #[test]
+    fn parsers_only_take_their_own_class() {
+        let mic = properties! {
+            "media.class"    => "Audio/Source",
+            "node.name"      => "alsa_input.usb-headset",
+            "audio.channels" => "1",
+        };
+        let speakers = properties! {
+            "media.class"    => "Audio/Sink",
+            "node.name"      => "alsa_output.pci-0000_00",
+        };
+
+        assert!(source_from_props(1, mic.dict()).is_some());
+        assert!(sink_from_props(1, mic.dict()).is_none());
+        assert!(sink_from_props(2, speakers.dict()).is_some());
+        assert!(source_from_props(2, speakers.dict()).is_none());
+
+        // a mono mic with no layout
+        assert_eq!(source_from_props(1, mic.dict()).unwrap().position, "MONO");
+    }
+
+    #[test]
+    fn skips_our_own_virtual_devices() {
+        let ours = properties! {
+            "media.class" => "Audio/Source",
+            "node.name"   => "bridge_mic",
+        };
+        assert!(source_from_props(3, ours.dict()).is_none());
+    }
 
     #[test]
     fn strips_only_serials() {

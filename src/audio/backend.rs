@@ -24,7 +24,7 @@ use glib::prelude::*;
 use glib::subclass::Signal;
 use glib::subclass::prelude::*;
 
-use super::hw_device::{HwDevice, strip_device_serial};
+use super::hw_device::{self, HwDevice};
 use super::level_meter::{self, LevelMeters};
 use super::pw_config;
 use super::pw_connection::{Event, PwConnection, Request};
@@ -37,6 +37,7 @@ use crate::config::{self, Side};
 pub struct PipeWireBackendImp {
     // Mirrors the pw side state
     sinks: RefCell<HashMap<u32, HwDevice>>,
+    sources: RefCell<HashMap<u32, HwDevice>>,
     owned: RefCell<HashMap<Role, u32>>,
     streams: RefCell<HashMap<u32, StreamInfo>>,
     // stream ids the pw thread reports as linked to the Aux sink
@@ -69,6 +70,7 @@ impl ObjectImpl for PipeWireBackendImp {
             vec![
                 Signal::builder("sinks-ready").build(),
                 Signal::builder("sinks-changed").build(),
+                Signal::builder("sources-changed").build(),
                 Signal::builder("streams-changed").build(),
                 Signal::builder("aux-streams-changed").build(),
                 Signal::builder("default-changed").build(),
@@ -138,6 +140,18 @@ impl PipeWireBackend {
                     self.emit_by_name::<()>("sinks-changed", &[]);
                 }
             }
+            Event::SourceAdded(source) => {
+                imp.sources.borrow_mut().insert(source.node_id, source);
+                if imp.installed.get() {
+                    self.emit_by_name::<()>("sources-changed", &[]);
+                }
+            }
+            Event::SourceRemoved(id) => {
+                let dropped = imp.sources.borrow_mut().remove(&id).is_some();
+                if dropped && imp.installed.get() {
+                    self.emit_by_name::<()>("sources-changed", &[]);
+                }
+            }
 
             Event::NodeReady { role, id } => {
                 imp.owned.borrow_mut().insert(role, id);
@@ -187,20 +201,14 @@ impl PipeWireBackend {
 
     /// Sorted hardware sinks
     pub fn hw_sinks(&self) -> Vec<HwDevice> {
-        let mut sinks: Vec<HwDevice> = self.imp().sinks.borrow().values().cloned().collect();
+        let sinks = self.imp().sinks.borrow().values().cloned().collect();
+        hw_device::sorted_for_display(sinks)
+    }
 
-        let stripped: Vec<String> = sinks
-            .iter()
-            .map(|s| strip_device_serial(&s.display_name))
-            .collect();
-        for (sink, short) in sinks.iter_mut().zip(&stripped) {
-            if stripped.iter().filter(|other| *other == short).count() == 1 {
-                sink.display_name = short.clone();
-            }
-        }
-
-        sinks.sort_by_key(|s| s.display_name.to_lowercase());
-        sinks
+    /// Sorted hardware sources
+    pub fn hw_sources(&self) -> Vec<HwDevice> {
+        let sources = self.imp().sources.borrow().values().cloned().collect();
+        hw_device::sorted_for_display(sources)
     }
 
     pub fn output_streams(&self) -> Vec<StreamInfo> {
@@ -342,12 +350,17 @@ impl PipeWireBackend {
                 pw_config::SURROUND_CHANNELS,
                 pw_config::SURROUND_POSITION.to_owned(),
             ),
+            // no test tone for Mic
+            Role::Mic => {
+                on_done();
+                return;
+            }
         };
 
         let positions = test_tone::pos_str_to_spa_ids(&position, n_channels);
         let sweep = test_tone::clockwise_sweep(&positions);
 
-        let sink_name = pw_config::sink_name(role);
+        let sink_name = pw_config::node_name(role);
         test_tone::play_through_sink(sink_name, n_channels, positions, sweep, on_done);
     }
 
@@ -402,6 +415,14 @@ impl PipeWireBackend {
 
     pub fn connect_sinks_changed<F: Fn(&Self) + 'static>(&self, f: F) {
         self.connect_local("sinks-changed", false, move |args| {
+            let be = args[0].get::<PipeWireBackend>().unwrap();
+            f(&be);
+            None
+        });
+    }
+
+    pub fn connect_sources_changed<F: Fn(&Self) + 'static>(&self, f: F) {
+        self.connect_local("sources-changed", false, move |args| {
             let be = args[0].get::<PipeWireBackend>().unwrap();
             f(&be);
             None

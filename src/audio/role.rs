@@ -24,11 +24,12 @@ pub enum Role {
     Aux,
     Main,
     Surround,
+    Mic,
 }
 
 impl Role {
     /// Every virtual device
-    pub const ALL: [Role; 3] = [Role::Aux, Role::Main, Role::Surround];
+    pub const ALL: [Role; 4] = [Role::Aux, Role::Main, Role::Surround, Role::Mic];
 
     /// Parse bridge.role from the loopback conf
     pub fn from_wire(s: &str) -> Option<Role> {
@@ -36,6 +37,7 @@ impl Role {
             "aux" => Some(Role::Aux),
             "main" => Some(Role::Main),
             "surround" => Some(Role::Surround),
+            "mic" => Some(Role::Mic),
             _ => None,
         }
     }
@@ -46,6 +48,7 @@ impl Role {
             Role::Aux => "aux",
             Role::Main => "main",
             Role::Surround => "surround",
+            Role::Mic => "mic",
         }
     }
 }

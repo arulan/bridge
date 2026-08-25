@@ -30,11 +30,14 @@ pub const SURROUND_SINK: &str = "bridge_surround";
 pub const SURROUND_POSITION: &str = "FL,FR,FC,LFE,RL,RR,SL,SR";
 pub const SURROUND_CHANNELS: u32 = 8;
 
-pub fn sink_name(role: Role) -> &'static str {
+pub const MIC_SOURCE: &str = "bridge_mic";
+
+pub fn node_name(role: Role) -> &'static str {
     match role {
         Role::Aux => AUX_SINK,
         Role::Main => MAIN_SINK,
         Role::Surround => SURROUND_SINK,
+        Role::Mic => MIC_SOURCE,
     }
 }
 
