@@ -124,6 +124,15 @@ pub fn clear_sinks() {
     }
 }
 
+// The mic is optional
+pub fn mic_configured() -> bool {
+    !settings().child("mic").string("hw-name").is_empty()
+}
+
+pub fn load_mic() -> SinkDef {
+    load_sink(&settings().child("mic"))
+}
+
 pub fn surround_enabled() -> bool {
     !settings().child("surround").string("hrir-path").is_empty()
 }

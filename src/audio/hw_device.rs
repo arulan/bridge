@@ -61,14 +61,16 @@ fn device_from_props(node_id: u32, props: &DictRef, class: &str) -> Option<HwDev
         .get("device.profile.name")
         .unwrap_or_default()
         .to_owned();
+    let reported = props
+        .get("audio.position")
+        .map(normalize_position)
+        .filter(|p| !p.is_empty());
     let channels = props
         .get("audio.channels")
         .and_then(|s| s.parse().ok())
+        .or_else(|| reported.as_deref().map(count_positions))
         .unwrap_or(2);
-    let position = props
-        .get("audio.position")
-        .map(normalize_position)
-        .unwrap_or_else(|| default_position(channels).to_owned());
+    let position = reported.unwrap_or_else(|| default_position(channels).to_owned());
 
     Some(HwDevice {
         node_id,
@@ -181,6 +183,11 @@ fn normalize_position(raw: &str) -> String {
         .join(",")
 }
 
+// position is already normalized
+fn count_positions(position: &str) -> u32 {
+    position.split(',').count() as u32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,6 +223,25 @@ mod tests {
             "node.name"   => "bridge_mic",
         };
         assert!(source_from_props(3, ours.dict()).is_none());
+    }
+
+    #[test]
+    fn layout_and_count_agree() {
+        let no_count = properties! {
+            "media.class"    => "Audio/Source",
+            "node.name"      => "alsa_input.usb-mic",
+            "audio.position" => "[ MONO ]",
+        };
+        let mic = source_from_props(1, no_count.dict()).unwrap();
+        assert_eq!((mic.channels, mic.position.as_str()), (1, "MONO"));
+
+        let four_channel = properties! {
+            "media.class"    => "Audio/Source",
+            "node.name"      => "alsa_input.usb-scarlett",
+            "audio.position" => "[ AUX0 AUX1 AUX2 AUX3 ]",
+        };
+        let interface = source_from_props(2, four_channel.dict()).unwrap();
+        assert_eq!(interface.channels, 4);
     }
 
     #[test]

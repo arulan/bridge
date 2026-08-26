@@ -77,6 +77,8 @@ impl ObjectImpl for PipeWireBackendImp {
                 Signal::builder("owned-changed").build(),
                 Signal::builder("surround-ready").build(),
                 Signal::builder("surround-removed").build(),
+                Signal::builder("mic-ready").build(),
+                Signal::builder("mic-removed").build(),
             ]
         })
     }
@@ -157,6 +159,7 @@ impl PipeWireBackend {
                 imp.owned.borrow_mut().insert(role, id);
                 match role {
                     Role::Surround => self.emit_by_name::<()>("surround-ready", &[]),
+                    Role::Mic => self.emit_by_name::<()>("mic-ready", &[]),
                     _ => self.emit_by_name::<()>("owned-changed", &[]),
                 }
             }
@@ -164,6 +167,7 @@ impl PipeWireBackend {
                 let dropped = imp.owned.borrow_mut().remove(&role).is_some();
                 match role {
                     Role::Surround => self.emit_by_name::<()>("surround-removed", &[]),
+                    Role::Mic => self.emit_by_name::<()>("mic-removed", &[]),
                     _ if dropped => self.emit_by_name::<()>("owned-changed", &[]),
                     _ => {}
                 }
@@ -243,30 +247,46 @@ impl PipeWireBackend {
         self.imp().using_temp.get()
     }
 
-    fn temp_sink_configs(&self) -> Vec<(Role, String)> {
-        if !config::is_configured() {
-            return Vec::new();
-        }
-        let cfg = config::load();
+    // The mic is configured separately from the outputs
+    fn temp_module_configs(&self) -> Vec<(Role, String)> {
         let owned = self.imp().owned.borrow();
+        let mut configs = Vec::new();
 
-        [Side::Aux, Side::Main]
-            .into_iter()
-            .filter(|side| !owned.contains_key(&Role::from(*side)))
-            .map(|side| {
-                (
-                    Role::from(side),
-                    pw_config::loopback_module_args(side, cfg.side(side)),
-                )
-            })
-            .collect()
+        if config::is_configured() {
+            let cfg = config::load();
+            configs.extend(
+                [Side::Aux, Side::Main]
+                    .into_iter()
+                    .filter(|side| !owned.contains_key(&Role::from(*side)))
+                    .map(|side| {
+                        (
+                            Role::from(side),
+                            pw_config::loopback_module_args(side, cfg.side(side)),
+                        )
+                    }),
+            );
+        }
+
+        if config::mic_configured() && !owned.contains_key(&Role::Mic) {
+            configs.push((Role::Mic, pw_config::mic_module_args(&config::load_mic())));
+        }
+
+        configs
+    }
+
+    // The persist banner is for the outputs
+    fn set_using_temp(&self, configs: &[(Role, String)]) {
+        let outputs = configs
+            .iter()
+            .any(|(role, _)| matches!(role, Role::Aux | Role::Main));
+        self.imp().using_temp.set(outputs);
     }
 
     /// Create in-process loopback for any configured side that isn't
     /// already live with a persistent sink
     pub fn create_missing_temp_sinks(&self) {
-        let configs = self.temp_sink_configs();
-        self.imp().using_temp.set(!configs.is_empty());
+        let configs = self.temp_module_configs();
+        self.set_using_temp(&configs);
         if configs.is_empty() {
             return;
         }
@@ -278,8 +298,8 @@ impl PipeWireBackend {
     /// Clear our loopbacks and recreate them for the current config
     /// Used when running Set Up again
     pub fn recreate_temp_sinks(&self) {
-        let configs = self.temp_sink_configs();
-        self.imp().using_temp.set(!configs.is_empty());
+        let configs = self.temp_module_configs();
+        self.set_using_temp(&configs);
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
             pw.send(Request::RecreateTempSinks(configs));
         }
@@ -471,6 +491,22 @@ impl PipeWireBackend {
 
     pub fn connect_surround_removed<F: Fn(&Self) + 'static>(&self, f: F) {
         self.connect_local("surround-removed", false, move |args| {
+            let be = args[0].get::<PipeWireBackend>().unwrap();
+            f(&be);
+            None
+        });
+    }
+
+    pub fn connect_mic_ready<F: Fn(&Self) + 'static>(&self, f: F) {
+        self.connect_local("mic-ready", false, move |args| {
+            let be = args[0].get::<PipeWireBackend>().unwrap();
+            f(&be);
+            None
+        });
+    }
+
+    pub fn connect_mic_removed<F: Fn(&Self) + 'static>(&self, f: F) {
+        self.connect_local("mic-removed", false, move |args| {
             let be = args[0].get::<PipeWireBackend>().unwrap();
             f(&be);
             None

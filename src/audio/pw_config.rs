@@ -31,6 +31,8 @@ pub const SURROUND_POSITION: &str = "FL,FR,FC,LFE,RL,RR,SL,SR";
 pub const SURROUND_CHANNELS: u32 = 8;
 
 pub const MIC_SOURCE: &str = "bridge_mic";
+pub const MIC_CAPTURE: &str = "bridge_mic_hw";
+pub const MIC_DESC: &str = "Bridge - Mic";
 
 pub fn node_name(role: Role) -> &'static str {
     match role {
@@ -319,4 +321,41 @@ pub fn remove_surround_config() {
     {
         eprintln!("pw_config: failed to remove {}: {e}", file.display());
     }
+}
+
+fn mic_loopback_body(def: &SinkDef, temp: bool) -> String {
+    let role = Role::Mic.as_wire();
+    let channels = def.channels;
+    let position = def.position.replace(',', " ");
+    let target = target_fragment(&def.hw_name);
+    let restore = if temp {
+        "\n        state.restore-props = false"
+    } else {
+        ""
+    };
+    format!(
+        r#"      capture.props = {{
+        node.name          = {MIC_CAPTURE}
+        audio.channels     = {channels}
+        audio.position     = "[ {position} ]"
+        node.passive       = true
+        stream.dont-remix  = true
+        node.dont-fallback = true
+        node.linger        = true
+        bridge.pb-role  = {role}{target}
+      }}
+      playback.props = {{
+        node.name        = {MIC_SOURCE}
+        node.description = "{MIC_DESC}"
+        media.class      = Audio/Source
+        audio.channels   = {channels}
+        audio.position   = "[ {position} ]"
+        node.virtual     = true{restore}
+        bridge.role  = {role}
+      }}"#
+    )
+}
+
+pub fn mic_module_args(def: &SinkDef) -> String {
+    format!("{{\n{}\n}}", mic_loopback_body(def, true))
 }
