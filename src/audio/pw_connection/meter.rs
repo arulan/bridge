@@ -44,42 +44,63 @@ pub(super) struct StreamMeter {
     _stream: pw::stream::StreamRc,
 }
 
+type MeterPair<'c> = (
+    pw::stream::StreamBox<'c>,
+    pw::stream::StreamListener<Arc<AtomicU32>>,
+);
+
 pub(super) fn open_sink_meter<'c>(
     core: &'c pw::core::Core,
     sink_name: &str,
     atomic: Arc<AtomicU32>,
     state: &Rc<RefCell<State>>,
-) -> Result<
-    (
-        pw::stream::StreamBox<'c>,
-        pw::stream::StreamListener<Arc<AtomicU32>>,
-    ),
-    pw::Error,
-> {
-    let stream_name = format!("bridge-meter-{sink_name}");
-    let stream = pw::stream::StreamBox::new(
-        core,
-        &stream_name,
-        properties! {
-            *pw::keys::MEDIA_TYPE     => "Audio",
-            *pw::keys::MEDIA_CATEGORY => "Capture",
-            *pw::keys::MEDIA_ROLE     => "Filter",
-            *pw::keys::TARGET_OBJECT  => sink_name,
-            *pw::keys::NODE_NAME      => stream_name.as_str(),
-            *pw::keys::NODE_LATENCY   => LATENCY,
-            *pw::keys::AUDIO_CHANNELS => "1",
+) -> Result<MeterPair<'c>, pw::Error> {
+    open_named_meter(core, sink_name, atomic, state, true)
+}
 
-            // Important for WP to link to a sink's monitor
-            "stream.capture.sink"     => "true",
-        },
-    )?;
+/// Meters virtual source
+pub(super) fn open_source_meter<'c>(
+    core: &'c pw::core::Core,
+    source_name: &str,
+    atomic: Arc<AtomicU32>,
+    state: &Rc<RefCell<State>>,
+) -> Result<MeterPair<'c>, pw::Error> {
+    open_named_meter(core, source_name, atomic, state, false)
+}
+
+fn open_named_meter<'c>(
+    core: &'c pw::core::Core,
+    node_name: &str,
+    atomic: Arc<AtomicU32>,
+    state: &Rc<RefCell<State>>,
+    monitor: bool,
+) -> Result<MeterPair<'c>, pw::Error> {
+    let stream_name = format!("bridge-meter-{node_name}");
+    let mut props = properties! {
+        *pw::keys::MEDIA_TYPE     => "Audio",
+        *pw::keys::MEDIA_CATEGORY => "Capture",
+        *pw::keys::MEDIA_ROLE     => "Filter",
+        *pw::keys::TARGET_OBJECT  => node_name,
+        *pw::keys::NODE_NAME      => stream_name.as_str(),
+        *pw::keys::NODE_LATENCY   => LATENCY,
+        *pw::keys::AUDIO_CHANNELS => "1",
+    };
+    if monitor {
+        // Important for WP to link to a sink's monitor
+        props.insert("stream.capture.sink", "true");
+    } else {
+        // to avoid WP from falling back to default source before we've set one
+        props.insert("node.dont-fallback", "true");
+    }
+
+    let stream = pw::stream::StreamBox::new(core, &stream_name, props)?;
 
     let listener = stream
         .add_local_listener_with_user_data(atomic)
         .process(read_peak)
         .state_changed({
             let state = state.clone();
-            let sink_name = sink_name.to_owned();
+            let node_name = node_name.to_owned();
             let pinned = Cell::new(false);
             move |stream, _atomic, _old, new| {
                 if new != StreamState::Streaming || pinned.get() {
@@ -91,7 +112,7 @@ pub(super) fn open_sink_meter<'c>(
                         stream.node_id(),
                         "target.object",
                         Some("Spa:String"),
-                        Some(&sink_name),
+                        Some(&node_name),
                     );
                     pinned.set(true);
                 }

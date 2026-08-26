@@ -55,6 +55,7 @@ pub enum Request {
     Retarget { role: Role, hw_name: Option<String> },
     RetargetStream { id: u32, target: Option<String> },
     SetDefault(String),
+    SetDefaultSource(String),
     // (role, module args) for each configured role
     // skipped for live sink/module roles
     CreateTempSinks(Vec<(Role, String)>),
@@ -84,6 +85,7 @@ pub enum Event {
     // The app streams currently linked to the Aux sink
     AuxStreamsChanged(Vec<u32>),
     DefaultSink(Option<String>),
+    DefaultSource(Option<String>),
 }
 
 pub struct PwConnection {
@@ -267,14 +269,14 @@ fn pw_main(
     // autoconnects when their target sinks appear
     let mut meters = Vec::with_capacity(peaks.len());
     for (role, atomic) in peaks {
-        // TODO: Update when we have a real backend
-        if role == Role::Mic {
-            continue;
-        }
-        let sink = pw_config::node_name(role);
-        match meter::open_sink_meter(&core, sink, atomic, &state) {
+        let node = pw_config::node_name(role);
+        let opened = match role {
+            Role::Mic => meter::open_source_meter(&core, node, atomic, &state),
+            _ => meter::open_sink_meter(&core, node, atomic, &state),
+        };
+        match opened {
             Ok(pair) => meters.push(pair),
-            Err(e) => eprintln!("pw_connection: meter stream for {sink} failed: {e}"),
+            Err(e) => eprintln!("pw_connection: meter stream for {node} failed: {e}"),
         }
     }
 
@@ -327,13 +329,13 @@ fn handle_request(
         Request::SetDefault(name) => {
             let st = state.borrow();
             if let Some((meta, _)) = st.metadata.as_ref() {
-                let value = format!("{{\"name\":\"{name}\"}}");
-                meta.set_property(
-                    0,
-                    "default.configured.audio.sink",
-                    Some("Spa:String:JSON"),
-                    Some(&value),
-                );
+                set_configured_default(meta, "default.configured.audio.sink", &name);
+            }
+        }
+        Request::SetDefaultSource(name) => {
+            let st = state.borrow();
+            if let Some((meta, _)) = st.metadata.as_ref() {
+                set_configured_default(meta, "default.configured.audio.source", &name);
             }
         }
         Request::CreateTempSinks(configs) => {
@@ -418,9 +420,16 @@ fn handle_global(
                                     state.borrow_mut().meta_cache.remove(key);
                                 }
                             }
-                            if key == "default.audio.sink" {
-                                let _ =
-                                    evt_tx.try_send(Event::DefaultSink(value.map(str::to_owned)));
+                            match key {
+                                "default.audio.sink" => {
+                                    let _ = evt_tx
+                                        .try_send(Event::DefaultSink(value.map(str::to_owned)));
+                                }
+                                "default.audio.source" => {
+                                    let _ = evt_tx
+                                        .try_send(Event::DefaultSource(value.map(str::to_owned)));
+                                }
+                                _ => {}
                             }
                         }
                         0
@@ -639,6 +648,11 @@ fn stream_info_from_props(id: u32, props: &spa::utils::dict::DictRef) -> Option<
         binary,
         media_name: dict_prop(props, "media.name"),
     })
+}
+
+fn set_configured_default(meta: &pw::metadata::Metadata, key: &str, name: &str) {
+    let value = format!("{{\"name\":\"{name}\"}}");
+    meta.set_property(0, key, Some("Spa:String:JSON"), Some(&value));
 }
 
 fn set_target_object(meta: &pw::metadata::Metadata, subject: u32, target: Option<&str>) {

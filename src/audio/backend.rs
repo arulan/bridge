@@ -47,6 +47,7 @@ pub struct PipeWireBackendImp {
     // stream ids that we've changed target.object on
     touched: RefCell<HashSet<u32>>,
     default_name: RefCell<Option<String>>,
+    default_source_name: RefCell<Option<String>>,
 
     // gate sinks-ready vs sinks-changed
     installed: Cell<bool>,
@@ -74,6 +75,7 @@ impl ObjectImpl for PipeWireBackendImp {
                 Signal::builder("streams-changed").build(),
                 Signal::builder("aux-streams-changed").build(),
                 Signal::builder("default-changed").build(),
+                Signal::builder("default-source-changed").build(),
                 Signal::builder("owned-changed").build(),
                 Signal::builder("surround-ready").build(),
                 Signal::builder("surround-removed").build(),
@@ -199,6 +201,11 @@ impl PipeWireBackend {
                 let name = raw.and_then(|v| crate::util::parse_default_name(&v));
                 imp.default_name.replace(name);
                 self.emit_by_name::<()>("default-changed", &[]);
+            }
+            Event::DefaultSource(raw) => {
+                let name = raw.and_then(|v| crate::util::parse_default_name(&v));
+                imp.default_source_name.replace(name);
+                self.emit_by_name::<()>("default-source-changed", &[]);
             }
         }
     }
@@ -425,6 +432,26 @@ impl PipeWireBackend {
         self.is_default(pw_config::MAIN_SINK)
     }
 
+    pub fn set_default_source(&self, name: &str) {
+        if let Some(pw) = self.imp().pw.borrow().as_ref() {
+            pw.send(Request::SetDefaultSource(name.to_owned()));
+        }
+    }
+
+    pub fn set_mic_default(&self) {
+        self.set_default_source(pw_config::MIC_SOURCE);
+    }
+
+    /// node.name of the system default source
+    pub fn default_source_name(&self) -> Option<String> {
+        self.imp().default_source_name.borrow().clone()
+    }
+
+    pub fn mic_is_default(&self) -> Option<bool> {
+        self.default_source_name()
+            .map(|current| current == pw_config::MIC_SOURCE)
+    }
+
     pub fn connect_sinks_ready<F: Fn(&Self) + 'static>(&self, f: F) {
         self.connect_local("sinks-ready", false, move |args| {
             let be = args[0].get::<PipeWireBackend>().unwrap();
@@ -467,6 +494,14 @@ impl PipeWireBackend {
 
     pub fn connect_default_changed<F: Fn(&Self) + 'static>(&self, f: F) {
         self.connect_local("default-changed", false, move |args| {
+            let be = args[0].get::<PipeWireBackend>().unwrap();
+            f(&be);
+            None
+        });
+    }
+
+    pub fn connect_default_source_changed<F: Fn(&Self) + 'static>(&self, f: F) {
+        self.connect_local("default-source-changed", false, move |args| {
             let be = args[0].get::<PipeWireBackend>().unwrap();
             f(&be);
             None
