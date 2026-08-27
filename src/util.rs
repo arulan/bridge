@@ -21,6 +21,7 @@ use gtk4::{self as gtk};
 use crate::audio::backend::PipeWireBackend;
 use crate::audio::hw_device::HwDevice;
 use crate::audio::routing::RuleTarget;
+use crate::config::SinkDef;
 
 pub struct RouteTarget {
     pub label: String,
@@ -88,6 +89,25 @@ pub fn hw_device_model(devices: &[HwDevice]) -> gio::ListStore {
         store.append(&glib::BoxedAnyObject::new(device.clone()));
     }
     store
+}
+
+/// A stand-in row in the dropdown for a configured device that is disconnected
+pub fn disconnected_device(def: &SinkDef) -> HwDevice {
+    let label = if def.display_name.is_empty() {
+        "Disconnected".to_owned()
+    } else {
+        format!("Disconnected — {}", def.display_name)
+    };
+    HwDevice {
+        node_id: 0,
+        name: def.hw_name.clone(),
+        display_name: label,
+        device_api: String::new(),
+        device_bus: String::new(),
+        profile_name: String::new(),
+        channels: def.channels,
+        position: def.position.clone(),
+    }
 }
 
 pub fn selected_hw_device(dropdown: &gtk::DropDown) -> Option<HwDevice> {

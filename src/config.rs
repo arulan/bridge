@@ -133,6 +133,18 @@ pub fn load_mic() -> SinkDef {
     load_sink(&settings().child("mic"))
 }
 
+pub fn store_mic(def: &SinkDef) {
+    store_sink(&settings().child("mic"), def);
+}
+
+pub fn clear_mic() {
+    let c = settings().child("mic");
+    c.reset("channels");
+    c.reset("position");
+    c.reset("hw-name");
+    c.reset("display-name");
+}
+
 pub fn surround_enabled() -> bool {
     !settings().child("surround").string("hrir-path").is_empty()
 }

@@ -29,7 +29,7 @@ use crate::background;
 use crate::config;
 use crate::dialogs::preferences;
 use crate::dialogs::quick_switch;
-use crate::dialogs::setup::SetupDialog;
+use crate::dialogs::setup::{MicPreselect, SetupDialog};
 use crate::dialogs::surround::SurroundDialog;
 use crate::shortcuts::{self, ShortcutsPortal};
 use crate::util;
@@ -230,13 +230,37 @@ impl BridgeApplicationImp {
 
         let win = self.window.borrow().clone();
         let hw_sinks = be.hw_sinks();
+        let hw_sources = be.hw_sources();
         let cfg = config::load();
         let (aux_id, main_id) = {
             let find_id = |name: &str| hw_sinks.iter().find(|s| s.name == name).map(|s| s.node_id);
             (find_id(&cfg.aux.hw_name), find_id(&cfg.main.hw_name))
         };
 
-        let dialog = SetupDialog::new(hw_sinks, aux_id, main_id);
+        // an already configured mic has priority
+        // shows disconnect state if removed
+        let mic_preselect = {
+            let find_id = |name: &str| {
+                hw_sources
+                    .iter()
+                    .find(|s| s.name == name)
+                    .map(|s| s.node_id)
+            };
+            let stored = config::load_mic();
+            if stored.hw_name.is_empty() {
+                match be.default_source_name().as_deref().and_then(find_id) {
+                    Some(id) => MicPreselect::Device(id),
+                    None => MicPreselect::None,
+                }
+            } else {
+                match find_id(&stored.hw_name) {
+                    Some(id) => MicPreselect::Device(id),
+                    None => MicPreselect::Disconnected(stored),
+                }
+            }
+        };
+
+        let dialog = SetupDialog::new(hw_sinks, hw_sources, aux_id, main_id, mic_preselect);
 
         let win_c = win.clone();
         let be_c = be.clone();
@@ -257,6 +281,29 @@ impl BridgeApplicationImp {
                              PipeWire configuration, so they won't come back after you log out.\n\n{e}"
                         ),
                     );
+                }
+
+                match d.mic_def() {
+                    Some(mic) => {
+                        config::store_mic(&mic);
+                        if let Err(e) = pw_config::write_mic_config(&mic) {
+                            eprintln!("setup: failed to write mic config: {e}");
+                            show_error_alert(
+                                win_c.as_ref(),
+                                "Error Writing Microphone Configuration",
+                                &format!(
+                                    "Bridge - Mic will work for this session, but Bridge couldn't write \
+                                     the PipeWire configuration, so it won't be persisted.\n\n{e}"
+                                ),
+                            );
+                        }
+                    }
+
+                    None if d.mic_offered() => {
+                        config::clear_mic();
+                        pw_config::remove_mic_config();
+                    }
+                    None => {}
                 }
 
                 be_c.recreate_temp_sinks();
@@ -389,9 +436,10 @@ impl BridgeApplicationImp {
         let dialog = adw::AlertDialog::new(
             Some("Remove PipeWire Configuration?"),
             Some(
-                "This removes the configuration files Bridge created, including any Virtual \
-                 Surround setup, and returns Bridge to first-run setup. Your imported HRIR files \
-                 are left in place.\n\nThe changes take effect after your next login.",
+                "This removes the configuration files Bridge created, including any virtual \
+                 surround and microphone setup, and returns Bridge to first-run setup. Your \
+                 imported HRIR files are left in place.\n\nThe changes take effect after your \
+                 next login.",
             ),
         );
         dialog.add_response("cancel", "Cancel");
@@ -413,6 +461,8 @@ impl BridgeApplicationImp {
                     config::clear_sinks();
                     config::clear_surround();
                     pw_config::remove_surround_config();
+                    config::clear_mic();
+                    pw_config::remove_mic_config();
                     if let Some(w) = &win {
                         w.refresh_surround();
                     }
@@ -644,9 +694,18 @@ fn collect_diagnostic_info() -> String {
             "(not present)".to_owned()
         }
     };
+    let mic_conf = {
+        let p = pw_config::mic_config_file();
+        if p.exists() {
+            read_file(&p)
+        } else {
+            "(not present)".to_owned()
+        }
+    };
 
     let sinks = config::load();
     let surround = config::load_surround();
+    let mic = config::load_mic();
 
     let vol = crate::volume::VolumeDisplay::load();
     let s = settings();
@@ -684,9 +743,13 @@ fn collect_diagnostic_info() -> String {
          --- Bridge Surround config ---\n\
          {surround_conf}\n\
          \n\
+         --- Bridge Mic config ---\n\
+         {mic_conf}\n\
+         \n\
          --- Config summary ---\n\
          Aux:  {aux}\n\
          Main: {main}\n\
+         Mic:  {mic}\n\
          Surround: hrir=\"{hrir}\" hw=\"{s_hw}\" name=\"{s_name}\" active={s_active}\n\
          Prefs: default-follows-main={follows_main} keep-routing-open={open_routing} volume-display={vol} run-in-background={bg} run-on-startup={startup}\n\
          Window: {w}x{h} maximized={max}",
@@ -694,6 +757,7 @@ fn collect_diagnostic_info() -> String {
         pw_path = pw_config::config_file().display(),
         aux = sink_line(&sinks.aux),
         main = sink_line(&sinks.main),
+        mic = sink_line(&mic),
         hrir = surround.hrir_path,
         s_hw = surround.hw_name,
         s_name = surround.display_name,

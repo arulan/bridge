@@ -57,6 +57,11 @@ pub fn surround_config_file() -> PathBuf {
     config_dir().join("10-bridge-surround.conf")
 }
 
+// Mic writes to its own file
+pub fn mic_config_file() -> PathBuf {
+    config_dir().join("10-bridge-mic.conf")
+}
+
 pub fn hrir_dir() -> PathBuf {
     glib::home_dir().join(".config/pipewire/hrir")
 }
@@ -358,4 +363,44 @@ fn mic_loopback_body(def: &SinkDef, temp: bool) -> String {
 
 pub fn mic_module_args(def: &SinkDef) -> String {
     format!("{{\n{}\n}}", mic_loopback_body(def, true))
+}
+
+/// The virtual mic
+pub fn build_mic_pw_config(def: &SinkDef) -> String {
+    let body = mic_loopback_body(def, false);
+    format!(
+        r#"context.modules = [
+  {{
+    name = libpipewire-module-loopback
+    args = {{
+{body}
+    }}
+  }}
+]
+"#
+    )
+}
+
+pub fn mic_preview_files(def: &SinkDef) -> Vec<(String, String)> {
+    vec![(
+        mic_config_file().to_string_lossy().into_owned(),
+        build_mic_pw_config(def),
+    )]
+}
+
+pub fn write_mic_config(def: &SinkDef) -> std::io::Result<()> {
+    let file = mic_config_file();
+    if let Some(dir) = file.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&file, build_mic_pw_config(def))
+}
+
+pub fn remove_mic_config() {
+    let file = mic_config_file();
+    if let Err(e) = std::fs::remove_file(&file)
+        && e.kind() != std::io::ErrorKind::NotFound
+    {
+        eprintln!("pw_config: failed to remove {}: {e}", file.display());
+    }
 }

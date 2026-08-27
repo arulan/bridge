@@ -23,15 +23,26 @@ use gtk4::{self as gtk};
 
 use crate::audio::hw_device::HwDevice;
 use crate::audio::pw_config;
-use crate::config::{Side, SinkConfig};
+use crate::config::{Side, SinkConfig, SinkDef};
 use crate::util::{
-    hw_device_factory, hw_device_model, make_device_row, make_file_row, selected_hw_device,
+    disconnected_device, hw_device_factory, hw_device_model, make_device_row, make_file_row,
+    selected_hw_device,
 };
+
+pub enum MicPreselect {
+    /// node_id
+    Device(u32),
+    /// Configured, but disconnected
+    Disconnected(SinkDef),
+    /// Nothing configured
+    None,
+}
 
 #[derive(Default)]
 pub struct SetupDialogImp {
     aux_dropdown: RefCell<Option<gtk::DropDown>>,
     main_dropdown: RefCell<Option<gtk::DropDown>>,
+    mic_dropdown: RefCell<Option<gtk::DropDown>>,
     files_container: RefCell<Option<gtk::Box>>,
     responded: Cell<bool>,
 }
@@ -74,15 +85,23 @@ glib::wrapper! {
 impl SetupDialog {
     pub fn new(
         hw_sinks: Vec<HwDevice>,
+        hw_sources: Vec<HwDevice>,
         aux_default_id: Option<u32>,
         main_default_id: Option<u32>,
+        mic_preselect: MicPreselect,
     ) -> Self {
         let obj: Self = glib::Object::builder()
             .property("title", "Set Up Bridge")
             .property("content-width", 520i32)
             .build();
 
-        obj.build_ui(&hw_sinks, aux_default_id, main_default_id);
+        obj.build_ui(
+            &hw_sinks,
+            &hw_sources,
+            aux_default_id,
+            main_default_id,
+            mic_preselect,
+        );
         obj
     }
 
@@ -92,6 +111,19 @@ impl SetupDialog {
             aux: self.selected_sink(Side::Aux).into(),
             main: self.selected_sink(Side::Main).into(),
         }
+    }
+
+    /// The selected mic input, or None for the opt-out option
+    pub fn mic_def(&self) -> Option<SinkDef> {
+        let dropdown = self.imp().mic_dropdown.borrow();
+        let device = dropdown.as_ref().and_then(selected_hw_device)?;
+        // Only the opt-out selection has no node.name
+        (!device.name.is_empty()).then(|| device.into())
+    }
+
+    /// False when mic_def is False due to no source devices being available
+    pub fn mic_offered(&self) -> bool {
+        self.imp().mic_dropdown.borrow().is_some()
     }
 
     fn selected_sink(&self, side: Side) -> HwDevice {
@@ -128,19 +160,25 @@ impl SetupDialog {
         while let Some(child) = container.first_child() {
             container.remove(&child);
         }
-        if imp.aux_dropdown.borrow().is_none() {
-            return;
+        if imp.aux_dropdown.borrow().is_some() {
+            for (path, content) in pw_config::preview_files(&self.sink_config()) {
+                container.append(&make_file_row(&path, &content));
+            }
         }
-        for (path, content) in pw_config::preview_files(&self.sink_config()) {
-            container.append(&make_file_row(&path, &content));
+        if let Some(def) = self.mic_def() {
+            for (path, content) in pw_config::mic_preview_files(&def) {
+                container.append(&make_file_row(&path, &content));
+            }
         }
     }
 
     fn build_ui(
         &self,
         hw_sinks: &[HwDevice],
+        hw_sources: &[HwDevice],
         aux_default_id: Option<u32>,
         main_default_id: Option<u32>,
+        mic_preselect: MicPreselect,
     ) {
         let imp = self.imp();
 
@@ -246,6 +284,38 @@ impl SetupDialog {
         }
 
         body.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
+
+        let mic_heading = gtk::Label::new(Some("Microphone (optional)"));
+        mic_heading.set_xalign(0.0);
+        mic_heading.add_css_class("heading");
+        body.append(&mic_heading);
+
+        let mic_desc = gtk::Label::new(Some(
+            "Bridge can create a virtual microphone, \
+             fed by the input device you pick",
+        ));
+        mic_desc.set_wrap(true);
+        mic_desc.set_xalign(0.0);
+        mic_desc.add_css_class("dim-label");
+        body.append(&mic_desc);
+
+        let disconnected = matches!(mic_preselect, MicPreselect::Disconnected(_));
+        if hw_sources.is_empty() && !disconnected {
+            let none = gtk::Label::new(Some("No microphone found"));
+            none.set_xalign(0.0);
+            none.add_css_class("dim-label");
+            body.append(&none);
+        } else {
+            let mic_dd = mic_dropdown(hw_sources, &mic_preselect);
+            body.append(&make_device_row("Input device", &mic_dd));
+
+            let obj_c = self.clone();
+            mic_dd.connect_selected_notify(move |_| obj_c.on_device_changed());
+
+            *imp.mic_dropdown.borrow_mut() = Some(mic_dd);
+        }
+
+        body.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
         let files_heading = gtk::Label::new(Some("Configuration preview"));
         files_heading.set_xalign(0.0);
         files_heading.add_css_class("heading");
@@ -264,4 +334,40 @@ impl SetupDialog {
         toolbar.set_content(Some(&outer_scroll));
         self.set_child(Some(&toolbar));
     }
+}
+
+fn mic_dropdown(hw_sources: &[HwDevice], preselect: &MicPreselect) -> gtk::DropDown {
+    let model = hw_device_model(hw_sources);
+    let skip = HwDevice {
+        node_id: 0,
+        name: String::new(),
+        display_name: "Don't set up a microphone".to_owned(),
+        device_api: String::new(),
+        device_bus: String::new(),
+        profile_name: String::new(),
+        channels: 0,
+        position: String::new(),
+    };
+    model.insert(0, &glib::BoxedAnyObject::new(skip));
+
+    let idx = match preselect {
+        MicPreselect::Device(id) => hw_sources
+            .iter()
+            .position(|s| s.node_id == *id)
+            .map(|i| i as u32 + 1)
+            .unwrap_or(0),
+        MicPreselect::Disconnected(def) => {
+            model.insert(1, &glib::BoxedAnyObject::new(disconnected_device(def)));
+            1
+        }
+        MicPreselect::None => 0,
+    };
+
+    let dropdown = gtk::DropDown::builder()
+        .model(&model)
+        .selected(idx)
+        .hexpand(true)
+        .build();
+    dropdown.set_factory(Some(&hw_device_factory()));
+    dropdown
 }

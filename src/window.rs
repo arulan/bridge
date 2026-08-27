@@ -34,7 +34,8 @@ use crate::audio::{mixer, pw_config};
 use crate::config::{self, Side};
 use crate::shortcuts::ShortcutsPortal;
 use crate::util::{
-    drive_stream_meters, hw_device_factory, hw_device_model, selected_hw_device, stream_count,
+    disconnected_device, drive_stream_meters, hw_device_factory, hw_device_model,
+    selected_hw_device, stream_count,
 };
 use crate::volume::VolumeDisplay;
 
@@ -611,22 +612,7 @@ impl BridgeWindow {
 
         let model = hw_device_model(sinks);
         if disconnected {
-            let label = if def.display_name.is_empty() {
-                "Disconnected".to_owned()
-            } else {
-                format!("Disconnected — {}", def.display_name)
-            };
-            let placeholder = HwDevice {
-                node_id: 0,
-                name: def.hw_name.clone(),
-                display_name: label,
-                device_api: String::new(),
-                device_bus: String::new(),
-                profile_name: String::new(),
-                channels: def.channels,
-                position: def.position.clone(),
-            };
-            model.insert(0, &glib::BoxedAnyObject::new(placeholder));
+            model.insert(0, &glib::BoxedAnyObject::new(disconnected_device(def)));
         }
         dropdown.set_model(Some(&model));
 
