@@ -31,6 +31,11 @@ button.compact-icon-button { -gtk-icon-size: 14px; }
 /* Per-side activity meter under the hw dropdown */
 levelbar.level-meter { min-height: 6px; }
 
+/* Mic transmit state */
+.mic-state { font-weight: 700; }
+.mic-state.live { color: @error_color; }
+.mic-state.idle { opacity: 0.5; }
+
 /* A (Aux/Main) card banner to display warnings,
   errors, information for a specific side */
 .inline-banner {

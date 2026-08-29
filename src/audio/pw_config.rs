@@ -25,7 +25,11 @@ pub const MAIN_SINK: &str = "bridge_main";
 pub const AUX_PB: &str = "bridge_aux_pb";
 pub const MAIN_PB: &str = "bridge_main_pb";
 
+pub const AUX_DESC: &str = "Bridge - Aux";
+pub const MAIN_DESC: &str = "Bridge - Main";
+
 pub const SURROUND_SINK: &str = "bridge_surround";
+pub const SURROUND_DESC: &str = "Bridge - Virtual Surround";
 // Fixed for Surround
 pub const SURROUND_POSITION: &str = "FL,FR,FC,LFE,RL,RR,SL,SR";
 pub const SURROUND_CHANNELS: u32 = 8;
@@ -105,8 +109,8 @@ pub fn build_pw_config(cfg: &SinkConfig) -> String {
 
 fn side_spec(side: Side) -> (&'static str, &'static str, &'static str) {
     match side {
-        Side::Aux => (AUX_SINK, AUX_PB, "Bridge - Aux"),
-        Side::Main => (MAIN_SINK, MAIN_PB, "Bridge - Main"),
+        Side::Aux => (AUX_SINK, AUX_PB, AUX_DESC),
+        Side::Main => (MAIN_SINK, MAIN_PB, MAIN_DESC),
     }
 }
 

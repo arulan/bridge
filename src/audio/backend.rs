@@ -52,6 +52,9 @@ pub struct PipeWireBackendImp {
     // gate sinks-ready vs sinks-changed
     installed: Cell<bool>,
 
+    // gets set when the mic node disappears or won't load
+    mic_unavailable: Cell<bool>,
+
     using_temp: Cell<bool>,
 
     level_meters: RefCell<Option<LevelMeters>>,
@@ -81,6 +84,7 @@ impl ObjectImpl for PipeWireBackendImp {
                 Signal::builder("surround-removed").build(),
                 Signal::builder("mic-ready").build(),
                 Signal::builder("mic-removed").build(),
+                Signal::builder("mic-failed").build(),
             ]
         })
     }
@@ -161,7 +165,10 @@ impl PipeWireBackend {
                 imp.owned.borrow_mut().insert(role, id);
                 match role {
                     Role::Surround => self.emit_by_name::<()>("surround-ready", &[]),
-                    Role::Mic => self.emit_by_name::<()>("mic-ready", &[]),
+                    Role::Mic => {
+                        imp.mic_unavailable.set(false);
+                        self.emit_by_name::<()>("mic-ready", &[]);
+                    }
                     _ => self.emit_by_name::<()>("owned-changed", &[]),
                 }
             }
@@ -169,9 +176,18 @@ impl PipeWireBackend {
                 let dropped = imp.owned.borrow_mut().remove(&role).is_some();
                 match role {
                     Role::Surround => self.emit_by_name::<()>("surround-removed", &[]),
-                    Role::Mic => self.emit_by_name::<()>("mic-removed", &[]),
+                    Role::Mic => {
+                        imp.mic_unavailable.set(true);
+                        self.emit_by_name::<()>("mic-removed", &[]);
+                    }
                     _ if dropped => self.emit_by_name::<()>("owned-changed", &[]),
                     _ => {}
+                }
+            }
+            Event::ModuleFailed { role } => {
+                if role == Role::Mic {
+                    imp.mic_unavailable.set(true);
+                    self.emit_by_name::<()>("mic-failed", &[]);
                 }
             }
             Event::StreamAdded { info, peak } => {
@@ -248,6 +264,10 @@ impl PipeWireBackend {
         self.imp().owned.borrow().contains_key(&role)
     }
 
+    pub fn mic_unavailable(&self) -> bool {
+        self.imp().mic_unavailable.get()
+    }
+
     /// True while sink is a session-only loopback we loaded, rather than a
     /// persistent one from the conf
     pub fn using_temp_sinks(&self) -> bool {
@@ -307,6 +327,7 @@ impl PipeWireBackend {
     pub fn recreate_temp_sinks(&self) {
         let configs = self.temp_module_configs();
         self.set_using_temp(&configs);
+        self.imp().mic_unavailable.set(false);
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
             pw.send(Request::RecreateTempSinks(configs));
         }
@@ -442,6 +463,12 @@ impl PipeWireBackend {
         self.set_default_source(pw_config::MIC_SOURCE);
     }
 
+    pub fn set_mic_meter(&self, enabled: bool) {
+        if let Some(pw) = self.imp().pw.borrow().as_ref() {
+            pw.send(Request::MicMeter { enabled });
+        }
+    }
+
     /// node.name of the system default source
     pub fn default_source_name(&self) -> Option<String> {
         self.imp().default_source_name.borrow().clone()
@@ -542,6 +569,14 @@ impl PipeWireBackend {
 
     pub fn connect_mic_removed<F: Fn(&Self) + 'static>(&self, f: F) {
         self.connect_local("mic-removed", false, move |args| {
+            let be = args[0].get::<PipeWireBackend>().unwrap();
+            f(&be);
+            None
+        });
+    }
+
+    pub fn connect_mic_failed<F: Fn(&Self) + 'static>(&self, f: F) {
+        self.connect_local("mic-failed", false, move |args| {
             let be = args[0].get::<PipeWireBackend>().unwrap();
             f(&be);
             None

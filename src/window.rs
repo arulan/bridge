@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
+mod mic_tile;
 mod quick_switch;
 mod routing_tile;
 mod stream_list;
@@ -99,7 +100,11 @@ pub struct BridgeWindowImp {
     #[template_child]
     pub main_default_tag: TemplateChild<gtk::Label>,
     #[template_child]
+    pub aux_subtitle_label: TemplateChild<gtk::Label>,
+    #[template_child]
     pub main_subtitle_label: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub mic_subtitle_label: TemplateChild<gtk::Label>,
     #[template_child]
     pub main_mode_toggle: TemplateChild<adw::ToggleGroup>,
     #[template_child]
@@ -116,6 +121,32 @@ pub struct BridgeWindowImp {
     pub aux_disconnect_banner: TemplateChild<gtk::Box>,
     #[template_child]
     pub main_disconnect_banner: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub mic_tile: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub mic_level_bar: TemplateChild<gtk::LevelBar>,
+    #[template_child]
+    pub mic_mode_toggle: TemplateChild<adw::ToggleGroup>,
+    #[template_child]
+    pub mic_state_label: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub mic_hw_dropdown: TemplateChild<gtk::DropDown>,
+    #[template_child]
+    pub mic_status_row: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub mic_channels_label: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub mic_default_tag: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub mic_setup_banner: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub mic_error_banner: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub mic_error_label: TemplateChild<gtk::Label>,
+    #[template_child]
+    pub mic_default_banner: TemplateChild<gtk::Box>,
+    #[template_child]
+    pub mic_default_button: TemplateChild<gtk::Button>,
     #[template_child]
     pub routing_header_list: TemplateChild<gtk::ListBox>,
     #[template_child]
@@ -141,6 +172,8 @@ pub struct BridgeWindowImp {
     suppress_selected: Cell<bool>,
     aux_disconnected: Cell<bool>,
     main_disconnected: Cell<bool>,
+    mic_disconnected: Cell<bool>,
+    mic_muted: Cell<bool>,
 
     // Virtual Surround is a mode that changes the virtual sink driving the Main card
     surround_active: Cell<bool>,
@@ -214,6 +247,10 @@ impl BridgeWindow {
 
         *imp.backend.borrow_mut() = Some(backend.clone());
 
+        // release mic when not on screen
+        self.connect_map(|w| w.set_mic_meter_enabled(true));
+        self.connect_unmap(|w| w.set_mic_meter_enabled(false));
+
         self.set_routing_expanded(config::keep_routing_open());
         self.refresh_surround();
         self.start_activity_ticker();
@@ -256,8 +293,15 @@ impl BridgeWindow {
         imp.mix_scale.add_css_class("mix-crossfader");
         self.render_fill(imp.mix_scale.value());
 
+        imp.aux_subtitle_label.set_label(pw_config::AUX_DESC);
+        imp.mic_subtitle_label.set_label(pw_config::MIC_DESC);
+
         // meter stays uniform color
-        for bar in [imp.aux_level_bar.get(), imp.main_level_bar.get()] {
+        for bar in [
+            imp.aux_level_bar.get(),
+            imp.main_level_bar.get(),
+            imp.mic_level_bar.get(),
+        ] {
             bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_LOW));
             bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_HIGH));
             bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_FULL));
@@ -271,6 +315,7 @@ impl BridgeWindow {
 
         imp.aux_hw_dropdown.set_factory(Some(&hw_device_factory()));
         imp.main_hw_dropdown.set_factory(Some(&hw_device_factory()));
+        imp.mic_hw_dropdown.set_factory(Some(&hw_device_factory()));
 
         imp.aux_hw_dropdown.connect_selected_notify(glib::clone!(
             #[weak(rename_to = w)]
@@ -426,6 +471,31 @@ impl BridgeWindow {
             self,
             move |_| w.quick_switch_execute()
         ));
+
+        imp.mic_hw_dropdown.connect_selected_notify(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.on_mic_selected()
+        ));
+
+        imp.mic_mode_toggle.connect_active_name_notify(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |tg| {
+                let muted = tg.active_name().as_deref() == Some("muted");
+                w.on_mic_mode_toggled(muted);
+            }
+        ));
+
+        imp.mic_default_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| {
+                if let Some(backend) = w.imp().backend.borrow().clone() {
+                    backend.set_mic_default();
+                }
+            }
+        ));
     }
 
     fn wire_backend_signals(&self, backend: &PipeWireBackend) {
@@ -442,6 +512,36 @@ impl BridgeWindow {
             move |_| w.on_surround_removed()
         ));
 
+        backend.connect_mic_ready(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.on_mic_ready()
+        ));
+
+        backend.connect_mic_removed(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.on_mic_removed()
+        ));
+
+        backend.connect_mic_failed(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.on_mic_failed()
+        ));
+
+        backend.connect_sources_changed(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.refresh_mic_tile()
+        ));
+
+        backend.connect_default_source_changed(glib::clone!(
+            #[weak(rename_to = w)]
+            self,
+            move |_| w.refresh_mic_default_banner()
+        ));
+
         backend.connect_sinks_ready(glib::clone!(
             #[weak(rename_to = w)]
             self,
@@ -449,6 +549,7 @@ impl BridgeWindow {
                 w.populate_dropdowns();
                 w.refresh_routing_tile();
                 w.refresh_aux_stream_button();
+                w.refresh_mic_tile();
             }
         ));
 
@@ -546,6 +647,14 @@ impl BridgeWindow {
             };
             bar.set_value(val);
         }
+
+        let mic_val = if imp.mic_muted.get() {
+            0.0
+        } else {
+            let peak = backend.peak(Role::Mic) as f64;
+            (peak * SMOOTHING + imp.mic_level_bar.value() * (1.0 - SMOOTHING)).clamp(0.0, 1.0)
+        };
+        imp.mic_level_bar.set_value(mic_val);
 
         if !imp.stream_meters_paused.get() {
             drive_stream_meters(&backend, &imp.routing_row_meters.borrow());
@@ -989,18 +1098,7 @@ impl BridgeWindow {
         row.set_visible(true);
 
         let text = selected_hw_device(dropdown)
-            .map(|s| {
-                let mut text =
-                    crate::audio::hw_device::channel_layout_label(s.channels, &s.position);
-                if let Some(conn) = s.connection_label() {
-                    if text.is_empty() {
-                        text = conn.to_owned();
-                    } else {
-                        text = format!("{text} · {conn}");
-                    }
-                }
-                text
-            })
+            .map(|s| s.status_label())
             .unwrap_or_default();
         label.set_text(&text);
     }

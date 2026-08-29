@@ -27,7 +27,7 @@ use adw::subclass::prelude::*;
 
 use super::BridgeWindow;
 use crate::audio::backend::PipeWireBackend;
-use crate::audio::pw_config::{MAIN_SINK, SURROUND_SINK};
+use crate::audio::pw_config::{MAIN_DESC, MAIN_SINK, SURROUND_DESC, SURROUND_SINK};
 use crate::audio::role::Role;
 use crate::config;
 
@@ -198,9 +198,9 @@ impl BridgeWindow {
         }));
 
         imp.main_subtitle_label.set_label(if want_surround {
-            "Bridge - Virtual Surround"
+            SURROUND_DESC
         } else {
-            "Bridge - Main"
+            MAIN_DESC
         });
 
         // rebuilds the Main dropdown for the mode

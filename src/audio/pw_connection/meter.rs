@@ -49,49 +49,33 @@ type MeterPair<'c> = (
     pw::stream::StreamListener<Arc<AtomicU32>>,
 );
 
+fn meter_props(node_name: &str, stream_name: &str, monitor: bool) -> pw::properties::PropertiesBox {
+    let mut props = properties! {
+        *pw::keys::MEDIA_TYPE     => "Audio",
+        *pw::keys::MEDIA_CATEGORY => "Capture",
+        *pw::keys::MEDIA_ROLE     => "Filter",
+        *pw::keys::TARGET_OBJECT  => node_name,
+        *pw::keys::NODE_NAME      => stream_name,
+        *pw::keys::NODE_LATENCY   => LATENCY,
+        *pw::keys::AUDIO_CHANNELS => "1",
+    };
+    // A source is captured from directly; only a sink needs its monitor tapped
+    if monitor {
+        // Important for WP to link to a sink's monitor
+        props.insert("stream.capture.sink", "true");
+    }
+    props
+}
+
 pub(super) fn open_sink_meter<'c>(
     core: &'c pw::core::Core,
     sink_name: &str,
     atomic: Arc<AtomicU32>,
     state: &Rc<RefCell<State>>,
 ) -> Result<MeterPair<'c>, pw::Error> {
-    open_named_meter(core, sink_name, atomic, state, true)
-}
-
-/// Meters virtual source
-pub(super) fn open_source_meter<'c>(
-    core: &'c pw::core::Core,
-    source_name: &str,
-    atomic: Arc<AtomicU32>,
-    state: &Rc<RefCell<State>>,
-) -> Result<MeterPair<'c>, pw::Error> {
-    open_named_meter(core, source_name, atomic, state, false)
-}
-
-fn open_named_meter<'c>(
-    core: &'c pw::core::Core,
-    node_name: &str,
-    atomic: Arc<AtomicU32>,
-    state: &Rc<RefCell<State>>,
-    monitor: bool,
-) -> Result<MeterPair<'c>, pw::Error> {
-    let stream_name = format!("bridge-meter-{node_name}");
-    let mut props = properties! {
-        *pw::keys::MEDIA_TYPE     => "Audio",
-        *pw::keys::MEDIA_CATEGORY => "Capture",
-        *pw::keys::MEDIA_ROLE     => "Filter",
-        *pw::keys::TARGET_OBJECT  => node_name,
-        *pw::keys::NODE_NAME      => stream_name.as_str(),
-        *pw::keys::NODE_LATENCY   => LATENCY,
-        *pw::keys::AUDIO_CHANNELS => "1",
-    };
-    if monitor {
-        // Important for WP to link to a sink's monitor
-        props.insert("stream.capture.sink", "true");
-    } else {
-        // to avoid WP from falling back to default source before we've set one
-        props.insert("node.dont-fallback", "true");
-    }
+    let stream_name = format!("bridge-meter-{sink_name}");
+    let props = meter_props(sink_name, &stream_name, true);
+    let node_name = sink_name;
 
     let stream = pw::stream::StreamBox::new(core, &stream_name, props)?;
 
@@ -123,6 +107,28 @@ fn open_named_meter<'c>(
     connect_mono(&stream)?;
 
     Ok((stream, listener))
+}
+
+pub(super) fn open_mic_meter(
+    core: &pw::core::CoreRc,
+    source_name: &str,
+    atomic: Arc<AtomicU32>,
+) -> Result<StreamMeter, pw::Error> {
+    let stream_name = format!("bridge-meter-{source_name}");
+    let props = meter_props(source_name, &stream_name, false);
+
+    let stream = pw::stream::StreamRc::new(core.clone(), &stream_name, props)?;
+    let listener = stream
+        .add_local_listener_with_user_data(atomic)
+        .process(read_peak)
+        .register()?;
+
+    connect_mono(&stream)?;
+
+    Ok(StreamMeter {
+        _listener: listener,
+        _stream: stream,
+    })
 }
 
 pub(super) fn open_stream_meter(

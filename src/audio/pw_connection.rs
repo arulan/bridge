@@ -56,6 +56,7 @@ pub enum Request {
     RetargetStream { id: u32, target: Option<String> },
     SetDefault(String),
     SetDefaultSource(String),
+    MicMeter { enabled: bool },
     // (role, module args) for each configured role
     // skipped for live sink/module roles
     CreateTempSinks(Vec<(Role, String)>),
@@ -75,6 +76,9 @@ pub enum Event {
         id: u32,
     },
     NodeRemoved {
+        role: Role,
+    },
+    ModuleFailed {
         role: Role,
     },
     StreamAdded {
@@ -152,6 +156,9 @@ struct State {
     aux_stream_ids: BTreeSet<u32>,
     // per-stream capture meters, keyed by the stream
     meters: HashMap<u32, meter::StreamMeter>,
+    mic_peak: Option<Arc<AtomicU32>>,
+    mic_meter: Option<meter::StreamMeter>,
+    mic_meter_wanted: bool,
 
     metadata: Option<(pw::metadata::Metadata, pw::metadata::MetadataListener)>,
     meta_cache: HashMap<String, String>,
@@ -172,6 +179,9 @@ impl State {
             links: HashMap::new(),
             aux_stream_ids: BTreeSet::new(),
             meters: HashMap::new(),
+            mic_peak: None,
+            mic_meter: None,
+            mic_meter_wanted: false,
             metadata: None,
             meta_cache: HashMap::new(),
             modules: HashMap::new(),
@@ -262,19 +272,20 @@ fn pw_main(
         let core = core.clone();
         let context = context.clone();
         let state = state.clone();
-        move |req| handle_request(req, &core, &context, &state)
+        let evt_tx = evt_tx.clone();
+        move |req| handle_request(req, &core, &context, &state, &evt_tx)
     });
 
     // capture meters run on this thread so they can be pinned in metadata
     // autoconnects when their target sinks appear
     let mut meters = Vec::with_capacity(peaks.len());
     for (role, atomic) in peaks {
+        if role == Role::Mic {
+            state.borrow_mut().mic_peak = Some(atomic);
+            continue;
+        }
         let node = pw_config::node_name(role);
-        let opened = match role {
-            Role::Mic => meter::open_source_meter(&core, node, atomic, &state),
-            _ => meter::open_sink_meter(&core, node, atomic, &state),
-        };
-        match opened {
+        match meter::open_sink_meter(&core, node, atomic, &state) {
             Ok(pair) => meters.push(pair),
             Err(e) => eprintln!("pw_connection: meter stream for {node} failed: {e}"),
         }
@@ -293,6 +304,7 @@ fn handle_request(
     core: &pw::core::CoreRc,
     context: &pw::context::ContextRc,
     state: &Rc<RefCell<State>>,
+    evt_tx: &async_channel::Sender<Event>,
 ) {
     match req {
         Request::SetVolume { role, volume } => {
@@ -338,12 +350,26 @@ fn handle_request(
                 set_configured_default(meta, "default.configured.audio.source", &name);
             }
         }
+        Request::MicMeter { enabled } => {
+            {
+                let mut st = state.borrow_mut();
+                st.mic_meter_wanted = enabled;
+                if !enabled {
+                    // lets the mic be released
+                    st.mic_meter = None;
+                }
+            }
+            let present = state.borrow().owned.contains_key(&Role::Mic);
+            if present {
+                open_mic_meter(core, state);
+            }
+        }
         Request::CreateTempSinks(configs) => {
-            load_temp_sinks(context, state, configs);
+            load_temp_sinks(context, state, evt_tx, configs);
         }
         Request::RecreateTempSinks(configs) => {
             state.borrow_mut().modules.clear();
-            load_temp_sinks(context, state, configs);
+            load_temp_sinks(context, state, evt_tx, configs);
         }
         Request::Shutdown => {
             // Return our owned sinks to 1.0 volume and unmuted,
@@ -365,6 +391,7 @@ fn handle_request(
 fn load_temp_sinks(
     context: &pw::context::ContextRc,
     state: &Rc<RefCell<State>>,
+    evt_tx: &async_channel::Sender<Event>,
     configs: Vec<(Role, String)>,
 ) {
     for (role, args) in configs {
@@ -378,7 +405,10 @@ fn load_temp_sinks(
             Some(m) => {
                 state.borrow_mut().modules.insert(role, m);
             }
-            None => eprintln!("pw_connection: failed to load temp loopback for {role:?}"),
+            None => {
+                eprintln!("pw_connection: failed to load temp loopback for {role:?}");
+                let _ = evt_tx.try_send(Event::ModuleFailed { role });
+            }
         }
     }
 }
@@ -553,6 +583,11 @@ fn classify_node(
             .borrow_mut()
             .owned
             .insert(role, OwnedNode { id, channels });
+
+        if role == Role::Mic {
+            open_mic_meter(core, state);
+        }
+
         let _ = evt_tx.try_send(Event::NodeReady { role, id });
         refresh_aux_streams(evt_tx, state);
         return;
@@ -603,6 +638,10 @@ fn handle_global_remove(
 
         if let Some(role) = role_for_owned(&st.owned, id) {
             st.owned.remove(&role);
+            // with target gone, nothing to capture
+            if role == Role::Mic {
+                st.mic_meter = None;
+            }
             let _ = evt_tx.try_send(Event::NodeRemoved { role });
             refresh = role == Role::Aux;
         } else if let Some(role) = role_for_pb(&st.owned_pb, id) {
@@ -648,6 +687,26 @@ fn stream_info_from_props(id: u32, props: &spa::utils::dict::DictRef) -> Option<
         binary,
         media_name: dict_prop(props, "media.name"),
     })
+}
+
+fn open_mic_meter(core: &pw::core::CoreRc, state: &Rc<RefCell<State>>) {
+    let atomic = {
+        let st = state.borrow();
+
+        if !st.mic_meter_wanted || st.mic_meter.is_some() {
+            return;
+        }
+        let Some(atomic) = st.mic_peak.clone() else {
+            return;
+        };
+        atomic
+    };
+    match meter::open_mic_meter(core, pw_config::MIC_SOURCE, atomic) {
+        Ok(m) => {
+            state.borrow_mut().mic_meter = Some(m);
+        }
+        Err(e) => eprintln!("pw_connection: meter stream for the mic failed: {e}"),
+    }
 }
 
 fn set_configured_default(meta: &pw::metadata::Metadata, key: &str, name: &str) {
