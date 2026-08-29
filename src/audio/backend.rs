@@ -275,29 +275,32 @@ impl PipeWireBackend {
     }
 
     // The mic is configured separately from the outputs
-    fn temp_module_configs(&self) -> Vec<(Role, String)> {
-        let owned = self.imp().owned.borrow();
+    // rebuilds with all roles
+    fn all_module_configs(&self) -> Vec<(Role, String)> {
         let mut configs = Vec::new();
 
         if config::is_configured() {
             let cfg = config::load();
-            configs.extend(
-                [Side::Aux, Side::Main]
-                    .into_iter()
-                    .filter(|side| !owned.contains_key(&Role::from(*side)))
-                    .map(|side| {
-                        (
-                            Role::from(side),
-                            pw_config::loopback_module_args(side, cfg.side(side)),
-                        )
-                    }),
-            );
+            configs.extend([Side::Aux, Side::Main].into_iter().map(|side| {
+                (
+                    Role::from(side),
+                    pw_config::loopback_module_args(side, cfg.side(side)),
+                )
+            }));
         }
 
-        if config::mic_configured() && !owned.contains_key(&Role::Mic) {
+        if config::mic_configured() {
             configs.push((Role::Mic, pw_config::mic_module_args(&config::load_mic())));
         }
 
+        configs
+    }
+
+    // Just the roles
+    fn temp_module_configs(&self) -> Vec<(Role, String)> {
+        let owned = self.imp().owned.borrow();
+        let mut configs = self.all_module_configs();
+        configs.retain(|(role, _)| !owned.contains_key(role));
         configs
     }
 
@@ -325,11 +328,10 @@ impl PipeWireBackend {
     /// Clear our loopbacks and recreate them for the current config
     /// Used when running Set Up again
     pub fn recreate_temp_sinks(&self) {
-        let configs = self.temp_module_configs();
-        self.set_using_temp(&configs);
+        self.set_using_temp(&self.temp_module_configs());
         self.imp().mic_unavailable.set(false);
         if let Some(pw) = self.imp().pw.borrow().as_ref() {
-            pw.send(Request::RecreateTempSinks(configs));
+            pw.send(Request::RecreateTempSinks(self.all_module_configs()));
         }
     }
 

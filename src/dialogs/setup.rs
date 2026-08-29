@@ -23,7 +23,7 @@ use gtk4::{self as gtk};
 
 use crate::audio::hw_device::HwDevice;
 use crate::audio::pw_config;
-use crate::config::{Side, SinkConfig, SinkDef};
+use crate::config::{self, Side, SinkConfig, SinkDef};
 use crate::util::{
     disconnected_device, hw_device_factory, hw_device_model, make_device_row, make_file_row,
     selected_hw_device,
@@ -118,7 +118,14 @@ impl SetupDialog {
         let dropdown = self.imp().mic_dropdown.borrow();
         let device = dropdown.as_ref().and_then(selected_hw_device)?;
         // Only the opt-out selection has no node.name
-        (!device.name.is_empty()).then(|| device.into())
+        if device.name.is_empty() {
+            return None;
+        }
+        // node_id 0 is the disconnected placeholder
+        if device.node_id == 0 {
+            return Some(config::load_mic());
+        }
+        Some(device.into())
     }
 
     /// False when mic_def is False due to no source devices being available

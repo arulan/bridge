@@ -309,6 +309,7 @@ impl BridgeApplicationImp {
                 be_c.recreate_temp_sinks();
                 if let Some(w) = &win_c {
                     w.populate_dropdowns();
+                    w.refresh_mic_tile();
                     w.present();
                 }
                 if first_run {

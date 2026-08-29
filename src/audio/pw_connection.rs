@@ -365,11 +365,18 @@ fn handle_request(
             }
         }
         Request::CreateTempSinks(configs) => {
-            load_temp_sinks(context, state, evt_tx, configs);
+            load_temp_sinks(context, state, evt_tx, configs, &HashSet::new());
         }
         Request::RecreateTempSinks(configs) => {
-            state.borrow_mut().modules.clear();
-            load_temp_sinks(context, state, evt_tx, configs);
+            let rebuild: HashSet<Role> = state.borrow().modules.keys().copied().collect();
+            {
+                let mut st = state.borrow_mut();
+                if rebuild.contains(&Role::Mic) {
+                    st.mic_meter = None;
+                }
+                st.modules.clear();
+            }
+            load_temp_sinks(context, state, evt_tx, configs, &rebuild);
         }
         Request::Shutdown => {
             // Return our owned sinks to 1.0 volume and unmuted,
@@ -393,11 +400,12 @@ fn load_temp_sinks(
     state: &Rc<RefCell<State>>,
     evt_tx: &async_channel::Sender<Event>,
     configs: Vec<(Role, String)>,
+    rebuild: &HashSet<Role>,
 ) {
     for (role, args) in configs {
         {
             let st = state.borrow();
-            if st.owned.contains_key(&role) || st.modules.contains_key(&role) {
+            if skip_load(&st, role, rebuild) {
                 continue;
             }
         }
@@ -411,6 +419,12 @@ fn load_temp_sinks(
             }
         }
     }
+}
+
+fn skip_load(st: &State, role: Role, rebuild: &HashSet<Role>) -> bool {
+    let live = st.owned.contains_key(&role);
+    let loaded = st.modules.contains_key(&role);
+    loaded || (live && !rebuild.contains(&role))
 }
 
 fn handle_global(

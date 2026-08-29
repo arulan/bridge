@@ -28,7 +28,7 @@ use crate::config;
 use crate::util::{disconnected_device, hw_device_model, selected_hw_device};
 
 impl BridgeWindow {
-    pub(super) fn refresh_mic_tile(&self) {
+    pub fn refresh_mic_tile(&self) {
         let imp = self.imp();
         let Some(backend) = imp.backend.borrow().clone() else {
             return;
