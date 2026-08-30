@@ -39,6 +39,20 @@ pub fn calculate_multipliers(v: f64) -> (f64, f64) {
     (aux, main)
 }
 
+pub fn trim_to_multiplier(t: f64) -> f64 {
+    position_to_multiplier(1.0 - t)
+}
+
+pub fn multiplier_to_trim(mul: f64) -> f64 {
+    if mul >= 1.0 {
+        return 1.0;
+    }
+    if mul <= 0.0 {
+        return 0.0;
+    }
+    1.0 - 20.0 * mul.log10() / FLOOR_DB
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

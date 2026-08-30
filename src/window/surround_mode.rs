@@ -205,6 +205,7 @@ impl BridgeWindow {
 
         // rebuilds the Main dropdown for the mode
         self.populate_dropdowns();
+        self.refresh_device_page();
     }
 
     fn force_toggle_to(&self, want_surround: bool) {

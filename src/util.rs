@@ -19,7 +19,7 @@ use gtk::prelude::*;
 use gtk4::{self as gtk};
 
 use crate::audio::backend::PipeWireBackend;
-use crate::audio::hw_device::HwDevice;
+use crate::audio::hw_device::{HwDevice, disconnected_label};
 use crate::audio::routing::RuleTarget;
 use crate::config::SinkDef;
 
@@ -48,6 +48,14 @@ pub fn route_targets(hw_sinks: &[HwDevice]) -> Vec<RouteTarget> {
     out
 }
 
+// Drops the LOW/HIGH/FULL offsets to keep the fill the same
+pub fn style_level_meter(bar: &gtk::LevelBar) {
+    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_LOW));
+    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_HIGH));
+    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_FULL));
+    bar.add_css_class("level-meter");
+}
+
 pub fn row_level_meter() -> gtk::LevelBar {
     let bar = gtk::LevelBar::builder()
         .min_value(0.0)
@@ -55,10 +63,7 @@ pub fn row_level_meter() -> gtk::LevelBar {
         .width_request(60)
         .valign(gtk::Align::Center)
         .build();
-    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_LOW));
-    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_HIGH));
-    bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_FULL));
-    bar.add_css_class("level-meter");
+    style_level_meter(&bar);
     bar
 }
 
@@ -93,15 +98,10 @@ pub fn hw_device_model(devices: &[HwDevice]) -> gio::ListStore {
 
 /// A stand-in row in the dropdown for a configured device that is disconnected
 pub fn disconnected_device(def: &SinkDef) -> HwDevice {
-    let label = if def.display_name.is_empty() {
-        "Disconnected".to_owned()
-    } else {
-        format!("Disconnected — {}", def.display_name)
-    };
     HwDevice {
         node_id: 0,
         name: def.hw_name.clone(),
-        display_name: label,
+        display_name: disconnected_label(&def.display_name),
         device_api: String::new(),
         device_bus: String::new(),
         profile_name: String::new(),

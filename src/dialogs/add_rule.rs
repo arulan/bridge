@@ -216,7 +216,7 @@ impl Ui {
         let subtitle = if switch.is_active() {
             field_summary(values)
         } else {
-            format!("Off — matches any {field}")
+            format!("Off (matches any {field})")
         };
         row.set_subtitle(&subtitle);
     }

@@ -136,6 +136,14 @@ pub fn channel_layout_label(channels: u32, position: &str) -> String {
         }
     }
 }
+pub fn disconnected_label(display_name: &str) -> String {
+    if display_name.is_empty() {
+        "Disconnected".to_owned()
+    } else {
+        format!("{display_name} (disconnected)")
+    }
+}
+
 pub fn strip_device_serial(description: &str) -> String {
     let Some(open) = description.find('(') else {
         return description.to_owned();

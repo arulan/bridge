@@ -91,9 +91,11 @@ impl BridgeWindow {
 
         imp.mic_mode_toggle.set_sensitive(live);
         imp.mic_hw_dropdown.set_sensitive(live);
+        imp.mic_detail_button.set_sensitive(live);
 
         self.refresh_mic_state();
         self.refresh_mic_default_banner();
+        self.refresh_device_page();
     }
 
     fn refresh_mic_state(&self) {
@@ -127,6 +129,7 @@ impl BridgeWindow {
         imp.mic_default_banner.set_visible(false);
         imp.mic_default_tag.set_visible(false);
         imp.mic_level_bar.set_value(0.0);
+        imp.mic_detail_button.set_sensitive(false);
     }
 
     fn refresh_mic_dropdown(&self, sources: &[HwDevice], def: &config::SinkDef, present: bool) {
@@ -218,6 +221,8 @@ impl BridgeWindow {
         if let Some(backend) = imp.backend.borrow().clone() {
             backend.set_mute(Role::Mic, muted);
         }
+        
+        self.apply_mic_trim();
         self.refresh_mic_tile();
     }
 

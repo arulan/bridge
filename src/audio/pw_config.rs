@@ -38,6 +38,15 @@ pub const MIC_SOURCE: &str = "bridge_mic";
 pub const MIC_CAPTURE: &str = "bridge_mic_hw";
 pub const MIC_DESC: &str = "Bridge - Mic";
 
+pub fn description(role: Role) -> &'static str {
+    match role {
+        Role::Aux => AUX_DESC,
+        Role::Main => MAIN_DESC,
+        Role::Surround => SURROUND_DESC,
+        Role::Mic => MIC_DESC,
+    }
+}
+
 pub fn node_name(role: Role) -> &'static str {
     match role {
         Role::Aux => AUX_SINK,

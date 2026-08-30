@@ -15,26 +15,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Bridge. If not, see <https://www.gnu.org/licenses/>.
 
-mod application;
-mod audio;
-mod background;
-mod config;
-mod dialogs;
-mod pages;
-mod shortcuts;
-mod util;
-mod volume;
-mod window;
-
-use adw::prelude::*;
-use application::{BridgeApplication, RESOURCES_FILE, register_actions};
-
-fn main() -> glib::ExitCode {
-    let path = RESOURCES_FILE.expect("RESOURCES_FILE not set; build with meson");
-    let resources = gio::Resource::load(path).expect("failed to load resources");
-    gio::resources_register(&resources);
-
-    let app = BridgeApplication::new();
-    register_actions(&app);
-    app.run()
-}
+pub mod device;

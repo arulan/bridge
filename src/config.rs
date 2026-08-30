@@ -19,6 +19,7 @@ use gio::prelude::*;
 
 use crate::application::settings;
 use crate::audio::hw_device::{HwDevice, strip_device_serial};
+use crate::audio::role::Role;
 use crate::audio::routing::RoutingRule;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -112,6 +113,30 @@ fn store_sink(s: &gio::Settings, def: &SinkDef) {
     let _ = s.set_string("display-name", &def.display_name);
 }
 
+pub fn load_def(role: Role) -> SinkDef {
+    match role {
+        Role::Surround => {
+            let sc = load_surround();
+            SinkDef {
+                channels: 2,
+                position: "FL,FR".to_owned(),
+                hw_name: sc.hw_name,
+                display_name: sc.display_name,
+            }
+        }
+        _ => load_sink(&settings().child(role.as_wire())),
+    }
+}
+
+/// Attenuation level for a bus
+pub fn trim(role: Role) -> f64 {
+    settings().child(role.as_wire()).double("trim")
+}
+
+pub fn set_trim(role: Role, mul: f64) {
+    let _ = settings().child(role.as_wire()).set_double("trim", mul);
+}
+
 // Clears the Aux/Main output settings; next launch falls back to first-run setup
 pub fn clear_sinks() {
     let s = settings();
@@ -121,6 +146,7 @@ pub fn clear_sinks() {
         c.reset("position");
         c.reset("hw-name");
         c.reset("display-name");
+        c.reset("trim");
     }
 }
 
@@ -143,6 +169,7 @@ pub fn clear_mic() {
     c.reset("position");
     c.reset("hw-name");
     c.reset("display-name");
+    c.reset("trim");
 }
 
 pub fn surround_enabled() -> bool {
@@ -172,6 +199,7 @@ pub fn clear_surround() {
     s.reset("hw-name");
     s.reset("display-name");
     s.reset("active");
+    s.reset("trim");
 }
 
 pub fn surround_active() -> bool {
