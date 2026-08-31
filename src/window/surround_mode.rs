@@ -57,7 +57,7 @@ impl BridgeWindow {
         }
     }
 
-    /// Show Direct/Surround toggle or Configure button
+    /// Show the Direct/Surround toggle
     pub fn refresh_surround(&self) {
         let imp = self.imp();
         let Some(backend) = imp.backend.borrow().clone() else {
@@ -72,7 +72,6 @@ impl BridgeWindow {
         // shows disabled toggle button until sink is live
         let show_toggle = configured && hrir_ok;
 
-        imp.main_surround_setup_button.set_visible(!configured);
         imp.main_mode_toggle.set_visible(show_toggle);
         imp.main_mode_toggle.set_sensitive(present);
         imp.main_surround_error_banner

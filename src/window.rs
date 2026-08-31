@@ -73,15 +73,9 @@ pub struct BridgeWindowImp {
     #[template_child]
     pub main_level_bar: TemplateChild<gtk::LevelBar>,
     #[template_child]
-    pub aux_channels_label: TemplateChild<gtk::Label>,
-    #[template_child]
-    pub main_channels_label: TemplateChild<gtk::Label>,
-    #[template_child]
-    pub aux_status_row: TemplateChild<gtk::Box>,
-    #[template_child]
-    pub main_status_row: TemplateChild<gtk::Box>,
-    #[template_child]
     pub mix_scale: TemplateChild<gtk::Scale>,
+    #[template_child]
+    pub mix_readout_label: TemplateChild<gtk::Label>,
     #[template_child]
     pub aux_volume_box: TemplateChild<gtk::Box>,
     #[template_child]
@@ -99,8 +93,6 @@ pub struct BridgeWindowImp {
     #[template_child]
     pub main_default_button: TemplateChild<gtk::Button>,
     #[template_child]
-    pub main_default_tag: TemplateChild<gtk::Label>,
-    #[template_child]
     pub aux_subtitle_label: TemplateChild<gtk::Label>,
     #[template_child]
     pub main_subtitle_label: TemplateChild<gtk::Label>,
@@ -108,8 +100,6 @@ pub struct BridgeWindowImp {
     pub mic_subtitle_label: TemplateChild<gtk::Label>,
     #[template_child]
     pub main_mode_toggle: TemplateChild<adw::ToggleGroup>,
-    #[template_child]
-    pub main_surround_setup_button: TemplateChild<gtk::Button>,
     #[template_child]
     pub main_surround_restart_banner: TemplateChild<gtk::Box>,
     #[template_child]
@@ -133,11 +123,11 @@ pub struct BridgeWindowImp {
     #[template_child]
     pub mic_hw_dropdown: TemplateChild<gtk::DropDown>,
     #[template_child]
-    pub mic_status_row: TemplateChild<gtk::Box>,
+    pub mic_main_row: TemplateChild<gtk::Box>,
     #[template_child]
-    pub mic_channels_label: TemplateChild<gtk::Label>,
+    pub mic_action_button: TemplateChild<gtk::Button>,
     #[template_child]
-    pub mic_default_tag: TemplateChild<gtk::Label>,
+    pub mic_action_label: TemplateChild<gtk::Label>,
     #[template_child]
     pub mic_setup_banner: TemplateChild<gtk::Box>,
     #[template_child]
@@ -149,17 +139,9 @@ pub struct BridgeWindowImp {
     #[template_child]
     pub mic_default_button: TemplateChild<gtk::Button>,
     #[template_child]
-    pub routing_header_list: TemplateChild<gtk::ListBox>,
-    #[template_child]
-    pub routing_toggle: TemplateChild<gtk::ListBoxRow>,
-    #[template_child]
     pub routing_add_button: TemplateChild<gtk::Button>,
     #[template_child]
     pub routing_badge: TemplateChild<gtk::Label>,
-    #[template_child]
-    pub routing_chevron: TemplateChild<gtk::Image>,
-    #[template_child]
-    pub routing_revealer: TemplateChild<gtk::Revealer>,
     #[template_child]
     pub routing_body: TemplateChild<gtk::Box>,
     #[template_child]
@@ -267,7 +249,6 @@ impl BridgeWindow {
         self.connect_map(|w| w.set_mic_meter_enabled(true));
         self.connect_unmap(|w| w.set_mic_meter_enabled(false));
 
-        self.set_routing_expanded(config::keep_routing_open());
         self.refresh_surround();
         self.start_activity_ticker();
     }
@@ -328,7 +309,9 @@ impl BridgeWindow {
 
         imp.aux_hw_dropdown.set_factory(Some(&hw_device_factory()));
         imp.main_hw_dropdown.set_factory(Some(&hw_device_factory()));
-        imp.mic_hw_dropdown.set_factory(Some(&hw_device_factory()));
+        imp.mic_hw_dropdown.set_factory(Some(&mic_device_factory()));
+        imp.mic_hw_dropdown
+            .set_list_factory(Some(&hw_device_factory()));
 
         imp.aux_hw_dropdown.connect_selected_notify(glib::clone!(
             #[weak(rename_to = w)]
@@ -465,14 +448,6 @@ impl BridgeWindow {
                 }
             ));
 
-        imp.main_surround_setup_button.connect_clicked(glib::clone!(
-            #[weak(rename_to = w)]
-            self,
-            move |_| {
-                let _ = gtk::prelude::WidgetExt::activate_action(&w, "app.surround", None);
-            }
-        ));
-
         imp.main_surround_restart_dismiss
             .connect_clicked(glib::clone!(
                 #[weak(rename_to = w)]
@@ -482,12 +457,6 @@ impl BridgeWindow {
                     w.imp().main_surround_restart_banner.set_visible(false);
                 }
             ));
-
-        imp.routing_header_list.connect_row_activated(glib::clone!(
-            #[weak(rename_to = w)]
-            self,
-            move |_, _| w.toggle_routing_expanded()
-        ));
 
         imp.routing_add_button.connect_clicked(glib::clone!(
             #[weak(rename_to = w)]
@@ -507,13 +476,10 @@ impl BridgeWindow {
             move |_| w.on_mic_selected()
         ));
 
-        imp.mic_mode_toggle.connect_active_name_notify(glib::clone!(
+        imp.mic_action_button.connect_clicked(glib::clone!(
             #[weak(rename_to = w)]
             self,
-            move |tg| {
-                let muted = tg.active_name().as_deref() == Some("muted");
-                w.on_mic_mode_toggled(muted);
-            }
+            move |_| w.on_mic_action_clicked()
         ));
 
         imp.mic_default_button.connect_clicked(glib::clone!(
@@ -736,9 +702,6 @@ impl BridgeWindow {
         self.refresh_side_dropdown(Side::Main, &sinks, &cfg);
         imp.suppress_selected.set(false);
 
-        self.refresh_channels_label(Side::Aux);
-        self.refresh_channels_label(Side::Main);
-
         self.sync_controls();
     }
 
@@ -893,7 +856,6 @@ impl BridgeWindow {
             self,
             move |_| w.reload_trims()
         ));
-
         imp.nav_view.push(&page);
     }
 
@@ -1106,6 +1068,16 @@ impl BridgeWindow {
                 }
             }
         }
+
+        self.update_mix_readout();
+    }
+
+    /// Caption above the crossfader; describes crossfade attenuation
+    fn update_mix_readout(&self) {
+        let imp = self.imp();
+        let (aux, main) = mixer::calculate_multipliers(imp.mix_scale.value());
+        let text = mix_readout_text(aux, main, imp.volume_display.get());
+        imp.mix_readout_label.set_text(&text);
     }
 
     fn refresh_default_banner(&self) {
@@ -1114,18 +1086,16 @@ impl BridgeWindow {
             return;
         };
 
-        // disables Main's default banner/tag when hw is disconnected
+        // disables Main's default banner when hw is disconnected
         if imp.main_disconnected.get() {
             imp.main_default_banner.set_visible(false);
-            imp.main_default_tag.set_visible(false);
             return;
         }
 
         let is_default = backend.is_default(self.active_main_sink());
-        // only when the active virtual output isn't default; the tag confirms when it is
+        // only when the active virtual output isn't default
         imp.main_default_banner
             .set_visible(is_default == Some(false));
-        imp.main_default_tag.set_visible(is_default == Some(true));
     }
 
     fn on_hw_selected(&self, side: Side) {
@@ -1175,7 +1145,6 @@ impl BridgeWindow {
             return;
         }
 
-        self.refresh_channels_label(side);
         self.update_qs_toggle();
         self.refresh_device_page();
     }
@@ -1193,39 +1162,8 @@ impl BridgeWindow {
         imp.suppress_selected.set(false);
         self.sync_controls();
 
-        self.refresh_channels_label(side);
         self.update_qs_toggle();
         self.refresh_device_page();
-    }
-
-    fn refresh_channels_label(&self, side: Side) {
-        let imp = self.imp();
-        let (dropdown, label, row, disc) = match side {
-            Side::Aux => (
-                &*imp.aux_hw_dropdown,
-                &*imp.aux_channels_label,
-                &*imp.aux_status_row,
-                imp.aux_disconnected.get(),
-            ),
-            Side::Main => (
-                &*imp.main_hw_dropdown,
-                &*imp.main_channels_label,
-                &*imp.main_status_row,
-                imp.main_disconnected.get(),
-            ),
-        };
-
-        // remove the row when the hw is disconnected; no status to display
-        if disc {
-            row.set_visible(false);
-            return;
-        }
-        row.set_visible(true);
-
-        let text = selected_hw_device(dropdown)
-            .map(|s| s.status_label())
-            .unwrap_or_default();
-        label.set_text(&text);
     }
 
     // Aux card stream-count button
@@ -1264,6 +1202,52 @@ impl BridgeWindow {
             .map(|b| b.aux_streams())
             .unwrap_or_default();
         stream_list::fill_streams(&list, &streams);
+    }
+}
+
+/// Device rows for the Mic dropdown
+fn mic_device_factory() -> gtk::SignalListItemFactory {
+    let factory = gtk::SignalListItemFactory::new();
+
+    factory.connect_setup(|_, obj| {
+        let item = obj.downcast_ref::<gtk::ListItem>().unwrap();
+        let label = gtk::Label::builder()
+            .ellipsize(gtk::pango::EllipsizeMode::End)
+            .max_width_chars(14)
+            .xalign(0.0)
+            .build();
+        item.set_child(Some(&label));
+    });
+
+    factory.connect_bind(|_, obj| {
+        let item = obj.downcast_ref::<gtk::ListItem>().unwrap();
+        let label = item.child().unwrap().downcast::<gtk::Label>().unwrap();
+        if let Some(boxed) = item.item().and_downcast::<glib::BoxedAnyObject>() {
+            label.set_label(&boxed.borrow::<HwDevice>().display_name);
+        }
+    });
+    factory
+}
+
+/// Readout for caption above crossfader; describes attenuation applied
+fn mix_readout_text(aux: f64, main: f64, mode: VolumeDisplay) -> String {
+    let attenuated = if aux < 1.0 {
+        ("Aux", aux)
+    } else if main < 1.0 {
+        ("Main", main)
+    } else {
+        return "Balanced".to_owned();
+    };
+
+    let (side, mul) = attenuated;
+    if mul <= 0.0 {
+        return format!("{side} Silent");
+    }
+
+    let (value, unit) = mode.format_parts(mul);
+    match mode {
+        VolumeDisplay::Percentage => format!("{side} at {value}{unit}"),
+        VolumeDisplay::Decibel => format!("{side} {value} {unit}"),
     }
 }
 

@@ -21,7 +21,7 @@ use adw::prelude::*;
 use adw::subclass::prelude::*;
 
 use super::BridgeWindow;
-use crate::audio::hw_device::{HwDevice, channel_layout_label};
+use crate::audio::hw_device::HwDevice;
 use crate::audio::pw_config;
 use crate::audio::role::Role;
 use crate::config;
@@ -64,20 +64,11 @@ impl BridgeWindow {
 
         let def = config::load_mic();
         let sources = backend.hw_sources();
-        let device = sources.iter().find(|s| s.name == def.hw_name);
-        let present = device.is_some();
+        let present = sources.iter().any(|s| s.name == def.hw_name);
         imp.mic_disconnected.set(!present);
 
-        imp.mic_hw_dropdown.set_visible(true);
-        imp.mic_status_row.set_visible(true);
-        imp.mic_mode_toggle.set_visible(true);
+        imp.mic_main_row.set_visible(true);
         imp.mic_setup_banner.set_visible(false);
-
-        let status = match device {
-            Some(d) => d.status_label(),
-            None => channel_layout_label(def.channels, &def.position),
-        };
-        imp.mic_channels_label.set_label(&status);
 
         let live = backend.present(Role::Mic);
         let unavailable = backend.mic_unavailable();
@@ -85,11 +76,12 @@ impl BridgeWindow {
         if unavailable {
             imp.mic_error_label.set_label("Bridge - Mic is unavailable");
         } else if !present {
-            imp.mic_error_label.set_label("Microphone disconnected");
+            imp.mic_error_label.set_label("Input device disconnected");
         }
         imp.mic_error_banner.set_visible(unavailable || !present);
 
         imp.mic_mode_toggle.set_sensitive(live);
+        imp.mic_action_button.set_sensitive(live);
         imp.mic_hw_dropdown.set_sensitive(live);
         imp.mic_detail_button.set_sensitive(live);
 
@@ -104,30 +96,38 @@ impl BridgeWindow {
             return;
         };
 
-        let label = &imp.mic_state_label;
-        label.set_visible(backend.present(Role::Mic));
+        let muted = imp.mic_muted.get();
 
-        if imp.mic_muted.get() {
-            label.set_label("Muted");
-            label.remove_css_class("live");
-            label.add_css_class("idle");
+        let state = &imp.mic_state_label;
+        state.set_visible(backend.present(Role::Mic));
+        if muted {
+            state.set_label("Muted");
+            state.remove_css_class("live");
+            state.add_css_class("idle");
         } else {
-            label.set_label("Live");
-            label.remove_css_class("idle");
-            label.add_css_class("live");
+            state.set_label("Live");
+            state.remove_css_class("idle");
+            state.add_css_class("live");
+        }
+
+        let button = &imp.mic_action_button;
+        if muted {
+            imp.mic_action_label.set_label("Unmute");
+            button.remove_css_class("mute");
+            button.add_css_class("unmute");
+        } else {
+            imp.mic_action_label.set_label("Mute");
+            button.remove_css_class("unmute");
+            button.add_css_class("mute");
         }
     }
 
     fn show_mic_setup_prompt(&self) {
         let imp = self.imp();
         imp.mic_setup_banner.set_visible(true);
-        imp.mic_hw_dropdown.set_visible(false);
-        imp.mic_status_row.set_visible(false);
-        imp.mic_mode_toggle.set_visible(false);
-        imp.mic_state_label.set_visible(false);
+        imp.mic_main_row.set_visible(false);
         imp.mic_error_banner.set_visible(false);
         imp.mic_default_banner.set_visible(false);
-        imp.mic_default_tag.set_visible(false);
         imp.mic_level_bar.set_value(0.0);
         imp.mic_detail_button.set_sensitive(false);
     }
@@ -161,9 +161,6 @@ impl BridgeWindow {
         };
 
         let is_default = backend.mic_is_default();
-        imp.mic_default_tag
-            .set_visible(is_default == Some(true) && config::mic_configured());
-
         let offer =
             is_default == Some(false) && config::mic_configured() && backend.present(Role::Mic);
         imp.mic_default_banner.set_visible(offer);
@@ -206,8 +203,9 @@ impl BridgeWindow {
         self.refresh_mic_status();
     }
 
-    pub(super) fn on_mic_mode_toggled(&self, muted: bool) {
+    pub(super) fn on_mic_action_clicked(&self) {
         let imp = self.imp();
+        let muted = !imp.mic_muted.get();
         imp.mic_muted.set(muted);
         if let Some(backend) = imp.backend.borrow().clone() {
             backend.set_mute(Role::Mic, muted);
@@ -221,7 +219,7 @@ impl BridgeWindow {
         if let Some(backend) = imp.backend.borrow().clone() {
             backend.set_mute(Role::Mic, muted);
         }
-        
+
         self.apply_mic_trim();
         self.refresh_mic_tile();
     }

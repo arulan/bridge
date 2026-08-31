@@ -30,7 +30,7 @@ use crate::config;
 use crate::util::style_level_meter;
 use crate::volume::VolumeDisplay;
 
-// The detail/config page for a card
+// The detail/config page for a device card
 #[derive(CompositeTemplate, Default)]
 #[template(resource = "/io/github/arulan/Bridge/ui/device-page.ui")]
 pub struct DevicePageImp {
@@ -61,7 +61,6 @@ pub struct DevicePageImp {
     #[template_child]
     pub connection_value: TemplateChild<gtk::Label>,
 
-    // the card that pushes the page
     role: OnceCell<Role>,
     surround: Cell<bool>,
     suppress_trim: Cell<bool>,

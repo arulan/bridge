@@ -41,24 +41,6 @@ struct RowBuild<'a> {
 }
 
 impl BridgeWindow {
-    pub(super) fn toggle_routing_expanded(&self) {
-        let expanded = !self.imp().routing_revealer.reveals_child();
-        self.set_routing_expanded(expanded);
-    }
-
-    pub(super) fn set_routing_expanded(&self, expanded: bool) {
-        let imp = self.imp();
-        imp.routing_revealer.set_reveal_child(expanded);
-        let icon = if expanded {
-            "pan-down-symbolic"
-        } else {
-            "pan-end-symbolic"
-        };
-        imp.routing_chevron.set_icon_name(Some(icon));
-        imp.routing_toggle
-            .update_state(&[gtk::accessible::State::Expanded(Some(expanded))]);
-    }
-
     pub(super) fn refresh_routing_tile(&self) {
         let imp = self.imp();
         let Some(backend) = imp.backend.borrow().clone() else {

@@ -129,607 +129,563 @@
                             <property name="margin-start">16</property>
                             <property name="margin-end">16</property>
                             <child>
-                              <object class="GtkBox">
-                                <property name="orientation">horizontal</property>
-                                <property name="spacing">16</property>
-                                <property name="homogeneous">True</property>
-                                <property name="valign">start</property>
-                                <child>
-                                  <object class="GtkBox" id="aux_card">
-                                    <style><class name="card"/></style>
-                                    <property name="orientation">vertical</property>
-                                    <child>
-                                      <object class="GtkBox">
-                                        <property name="orientation">vertical</property>
-                                        <property name="spacing">12</property>
-                                        <property name="margin-top">16</property>
-                                        <property name="margin-bottom">16</property>
-                                        <property name="margin-start">16</property>
-                                        <property name="margin-end">16</property>
-                                        <!-- Heading row: title over sink-name subtitle + corner volume -->
-                                        <child>
-                                          <object class="GtkBox">
-                                            <property name="orientation">horizontal</property>
-                                            <property name="spacing">6</property>
-                                            <child>
-                                              <object class="GtkButton" id="aux_detail_button">
-                                                <property name="halign">start</property>
-                                                <property name="valign">center</property>
-                                                <property name="tooltip-text">Aux output details</property>
-                                                <style><class name="flat"/><class name="card-title-button"/></style>
-                                                <accessibility>
-                                                  <property name="label">Aux output details</property>
-                                                </accessibility>
-                                                <property name="child">
-                                                  <object class="GtkBox">
-                                                    <property name="orientation">horizontal</property>
-                                                    <property name="spacing">6</property>
-                                                    <child>
-                                                      <object class="GtkBox">
-                                                        <property name="orientation">vertical</property>
-                                                        <property name="valign">center</property>
-                                                        <child>
-                                                          <object class="GtkLabel">
-                                                            <style><class name="heading"/></style>
-                                                            <property name="label">Aux</property>
-                                                            <property name="xalign">0</property>
-                                                          </object>
-                                                        </child>
-                                                        <child>
-                                                          <object class="GtkLabel" id="aux_subtitle_label">
-                                                            <property name="label">Bridge - Aux</property>
-                                                            <property name="xalign">0</property>
-                                                            <property name="ellipsize">end</property>
-                                                            <style><class name="caption"/></style>
-                                                            <style><class name="dim-label"/></style>
-                                                          </object>
-                                                        </child>
-                                                      </object>
-                                                    </child>
-                                                    <child>
-                                                      <object class="GtkImage">
-                                                        <property name="icon-name">go-next-symbolic</property>
-                                                        <property name="valign">center</property>
-                                                        <property name="accessible-role">presentation</property>
-                                                        <style><class name="dim-label"/><class name="card-title-chevron"/></style>
-                                                      </object>
-                                                    </child>
-                                                  </object>
-                                                </property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkBox" id="aux_volume_box">
-                                                <property name="orientation">horizontal</property>
-                                                <property name="spacing">2</property>
-                                                <property name="valign">start</property>
-                                                <property name="halign">end</property>
-                                                <property name="hexpand">True</property>
-                                                <property name="baseline-position">bottom</property>
-                                                <style><class name="card-volume-box"/></style>
-                                                <child>
-                                                  <object class="GtkLabel" id="aux_volume_value">
-                                                    <property name="label">0.0</property>
-                                                    <property name="valign">baseline</property>
-                                                    <style><class name="card-volume"/></style>
-                                                    <style><class name="numeric"/></style>
-                                                  </object>
-                                                </child>
-                                                <child>
-                                                  <object class="GtkLabel" id="aux_volume_unit">
-                                                    <property name="label">dB</property>
-                                                    <property name="valign">baseline</property>
-                                                    <style><class name="card-volume-unit"/></style>
-                                                  </object>
-                                                </child>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                        <!-- Action row: stream count + test tone + mute -->
-                                        <child>
-                                          <object class="GtkBox">
-                                            <property name="orientation">horizontal</property>
-                                            <property name="spacing">6</property>
-                                            <child>
-                                              <object class="GtkMenuButton" id="aux_streams_button">
-                                                <property name="sensitive">False</property>
-                                                <property name="valign">center</property>
-                                                <property name="always-show-arrow">False</property>
-                                                <style><class name="compact-button"/><class name="flat"/></style>
-                                                <property name="child">
-                                                  <object class="GtkBox">
-                                                    <property name="orientation">horizontal</property>
-                                                    <property name="spacing">6</property>
-                                                    <child>
-                                                      <object class="GtkImage">
-                                                        <property name="icon-name">bridge-list-symbolic</property>
-                                                      </object>
-                                                    </child>
-                                                    <child>
-                                                      <object class="GtkLabel" id="aux_streams_label">
-                                                        <property name="label">No streams</property>
-                                                      </object>
-                                                    </child>
-                                                  </object>
-                                                </property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkBox">
-                                                <property name="hexpand">True</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkButton" id="aux_test_tone_button">
-                                                <property name="tooltip-text">Play a test tone through this output</property>
-                                                <property name="valign">center</property>
-                                                <style><class name="flat"/><class name="compact-icon-button"/></style>
-                                                <child>
-                                                  <object class="GtkImage">
-                                                    <property name="icon-name">bridge-sound-symbolic</property>
-                                                  </object>
-                                                </child>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkToggleButton" id="aux_mute_button">
-                                                <property name="tooltip-text">Mute this output</property>
-                                                <property name="valign">center</property>
-                                                <style><class name="flat"/><class name="compact-icon-button"/></style>
-                                                <child>
-                                                  <object class="GtkImage" id="aux_mute_image">
-                                                    <property name="icon-name">bridge-speaker-3-symbolic</property>
-                                                  </object>
-                                                </child>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkDropDown" id="aux_hw_dropdown">
-                                            <property name="hexpand">True</property>
-                                          </object>
-                                        </child>
-                                        <!-- Status row: channel layout + device type -->
-                                        <child>
-                                          <object class="GtkBox" id="aux_status_row">
-                                            <property name="orientation">horizontal</property>
-                                            <property name="spacing">6</property>
-                                            <child>
-                                              <object class="GtkImage">
-                                                <property name="icon-name">bridge-speaker-symbolic</property>
-                                                <property name="valign">center</property>
-                                                <property name="pixel-size">12</property>
-                                                <style><class name="dim-label"/></style>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkLabel" id="aux_channels_label">
-                                                <property name="xalign">0</property>
-                                                <property name="valign">center</property>
-                                                <property name="ellipsize">end</property>
-                                                <style><class name="caption"/></style>
-                                                <style><class name="dim-label"/></style>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkLevelBar" id="aux_level_bar">
-                                            <property name="hexpand">True</property>
-                                            <property name="mode">continuous</property>
-                                            <property name="min-value">0</property>
-                                            <property name="max-value">1</property>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkBox" id="aux_disconnect_banner">
-                                            <property name="orientation">horizontal</property>
-                                            <property name="spacing">8</property>
-                                            <property name="visible">False</property>
-                                            <style><class name="inline-banner"/><class name="error"/></style>
-                                            <child>
-                                              <object class="GtkImage">
-                                                <property name="icon-name">dialog-warning-symbolic</property>
-                                                <property name="valign">center</property>
-                                                <property name="pixel-size">10</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkLabel">
-                                                <property name="label">Output device disconnected</property>
-                                                <property name="hexpand">True</property>
-                                                <property name="xalign">0</property>
-                                                <property name="valign">center</property>
-                                                <property name="wrap">False</property>
-                                                <property name="ellipsize">end</property>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                  </object>
-                                </child>
-                                <child>
-                                  <object class="GtkBox" id="main_card">
-                                    <style><class name="card"/></style>
-                                    <property name="orientation">vertical</property>
-                                    <child>
-                                      <object class="GtkBox">
-                                        <property name="orientation">vertical</property>
-                                        <property name="spacing">12</property>
-                                        <property name="margin-top">16</property>
-                                        <property name="margin-bottom">16</property>
-                                        <property name="margin-start">16</property>
-                                        <property name="margin-end">16</property>
-                                        <!-- Heading row: title over sink-name subtitle + corner volume -->
-                                        <child>
-                                          <object class="GtkBox">
-                                            <property name="orientation">horizontal</property>
-                                            <property name="spacing">6</property>
-                                            <child>
-                                              <object class="GtkButton" id="main_detail_button">
-                                                <property name="halign">start</property>
-                                                <property name="valign">center</property>
-                                                <property name="tooltip-text">Main output details</property>
-                                                <style><class name="flat"/><class name="card-title-button"/></style>
-                                                <accessibility>
-                                                  <property name="label">Main output details</property>
-                                                </accessibility>
-                                                <property name="child">
-                                                  <object class="GtkBox">
-                                                    <property name="orientation">horizontal</property>
-                                                    <property name="spacing">6</property>
-                                                    <child>
-                                                      <object class="GtkBox">
-                                                        <property name="orientation">vertical</property>
-                                                        <property name="valign">center</property>
-                                                        <child>
-                                                          <object class="GtkLabel">
-                                                            <style><class name="heading"/></style>
-                                                            <property name="label">Main</property>
-                                                            <property name="xalign">0</property>
-                                                          </object>
-                                                        </child>
-                                                        <child>
-                                                          <object class="GtkLabel" id="main_subtitle_label">
-                                                            <property name="label">Bridge - Main</property>
-                                                            <property name="xalign">0</property>
-                                                            <property name="ellipsize">end</property>
-                                                            <style><class name="caption"/></style>
-                                                            <style><class name="dim-label"/></style>
-                                                          </object>
-                                                        </child>
-                                                      </object>
-                                                    </child>
-                                                    <child>
-                                                      <object class="GtkImage">
-                                                        <property name="icon-name">go-next-symbolic</property>
-                                                        <property name="valign">center</property>
-                                                        <property name="accessible-role">presentation</property>
-                                                        <style><class name="dim-label"/><class name="card-title-chevron"/></style>
-                                                      </object>
-                                                    </child>
-                                                  </object>
-                                                </property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkBox" id="main_volume_box">
-                                                <property name="orientation">horizontal</property>
-                                                <property name="spacing">2</property>
-                                                <property name="valign">start</property>
-                                                <property name="halign">end</property>
-                                                <property name="hexpand">True</property>
-                                                <property name="baseline-position">bottom</property>
-                                                <style><class name="card-volume-box"/></style>
-                                                <child>
-                                                  <object class="GtkLabel" id="main_volume_value">
-                                                    <property name="label">0.0</property>
-                                                    <property name="valign">baseline</property>
-                                                    <style><class name="card-volume"/></style>
-                                                    <style><class name="numeric"/></style>
-                                                  </object>
-                                                </child>
-                                                <child>
-                                                  <object class="GtkLabel" id="main_volume_unit">
-                                                    <property name="label">dB</property>
-                                                    <property name="valign">baseline</property>
-                                                    <style><class name="card-volume-unit"/></style>
-                                                  </object>
-                                                </child>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                        <!-- Action row: mode toggle / surround setup + test tone + mute -->
-                                        <child>
-                                          <object class="GtkBox">
-                                            <property name="orientation">horizontal</property>
-                                            <property name="spacing">6</property>
-                                            <child>
-                                              <object class="AdwToggleGroup" id="main_mode_toggle">
-                                                <property name="visible">False</property>
-                                                <property name="valign">center</property>
-                                                <style><class name="compact-toggle"/></style>
-                                                <child>
-                                                  <object class="AdwToggle">
-                                                    <property name="name">direct</property>
-                                                    <property name="label">Direct</property>
-                                                    <property name="icon-name">bridge-stereo-jack-symbolic</property>
-                                                    <property name="tooltip">Direct audio playback</property>
-                                                  </object>
-                                                </child>
-                                                <child>
-                                                  <object class="AdwToggle">
-                                                    <property name="name">surround</property>
-                                                    <property name="label">Surround</property>
-                                                    <property name="icon-name">bridge-headphones-symbolic</property>
-                                                    <property name="tooltip">Virtual Surround playback</property>
-                                                  </object>
-                                                </child>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkButton" id="main_surround_setup_button">
-                                                <property name="visible">False</property>
-                                                <property name="valign">center</property>
-                                                <property name="tooltip-text">Configure Virtual Surround</property>
-                                                <style><class name="flat"/><class name="compact-button"/></style>
-                                                <child>
-                                                  <object class="GtkBox">
-                                                    <property name="orientation">horizontal</property>
-                                                    <property name="spacing">6</property>
-                                                    <child>
-                                                      <object class="GtkImage">
-                                                        <property name="icon-name">bridge-headphones-symbolic</property>
-                                                      </object>
-                                                    </child>
-                                                    <child>
-                                                      <object class="GtkLabel">
-                                                        <property name="label">Virtual Surround…</property>
-                                                      </object>
-                                                    </child>
-                                                  </object>
-                                                </child>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkBox">
-                                                <property name="hexpand">True</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkButton" id="main_test_tone_button">
-                                                <property name="tooltip-text">Play a test tone through this output</property>
-                                                <property name="valign">center</property>
-                                                <style><class name="flat"/><class name="compact-icon-button"/></style>
-                                                <child>
-                                                  <object class="GtkImage">
-                                                    <property name="icon-name">bridge-sound-symbolic</property>
-                                                  </object>
-                                                </child>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkToggleButton" id="main_mute_button">
-                                                <property name="tooltip-text">Mute this output</property>
-                                                <property name="valign">center</property>
-                                                <style><class name="flat"/><class name="compact-icon-button"/></style>
-                                                <child>
-                                                  <object class="GtkImage" id="main_mute_image">
-                                                    <property name="icon-name">bridge-speaker-3-symbolic</property>
-                                                  </object>
-                                                </child>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkDropDown" id="main_hw_dropdown">
-                                            <property name="hexpand">True</property>
-                                          </object>
-                                        </child>
-                                        <!-- Status row: channel layout + device type + default? -->
-                                        <child>
-                                          <object class="GtkBox" id="main_status_row">
-                                            <property name="orientation">horizontal</property>
-                                            <property name="spacing">6</property>
-                                            <child>
-                                              <object class="GtkImage">
-                                                <property name="icon-name">bridge-speaker-symbolic</property>
-                                                <property name="valign">center</property>
-                                                <property name="pixel-size">12</property>
-                                                <style><class name="dim-label"/></style>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkLabel" id="main_channels_label">
-                                                <property name="xalign">0</property>
-                                                <property name="valign">center</property>
-                                                <property name="ellipsize">end</property>
-                                                <style><class name="caption"/></style>
-                                                <style><class name="dim-label"/></style>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkLabel" id="main_default_tag">
-                                                <property name="visible">False</property>
-                                                <property name="label">· System Default</property>
-                                                <property name="xalign">0</property>
-                                                <property name="valign">center</property>
-                                                <property name="ellipsize">end</property>
-                                                <style><class name="caption"/></style>
-                                                <style><class name="dim-label"/></style>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkLevelBar" id="main_level_bar">
-                                            <property name="hexpand">True</property>
-                                            <property name="mode">continuous</property>
-                                            <property name="min-value">0</property>
-                                            <property name="max-value">1</property>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkBox" id="main_disconnect_banner">
-                                            <property name="orientation">horizontal</property>
-                                            <property name="spacing">8</property>
-                                            <property name="visible">False</property>
-                                            <style><class name="inline-banner"/><class name="error"/></style>
-                                            <child>
-                                              <object class="GtkImage">
-                                                <property name="icon-name">dialog-warning-symbolic</property>
-                                                <property name="valign">center</property>
-                                                <property name="pixel-size">10</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkLabel">
-                                                <property name="label">Output device disconnected</property>
-                                                <property name="hexpand">True</property>
-                                                <property name="xalign">0</property>
-                                                <property name="valign">center</property>
-                                                <property name="wrap">False</property>
-                                                <property name="ellipsize">end</property>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkBox" id="main_default_banner">
-                                            <property name="orientation">horizontal</property>
-                                            <property name="spacing">8</property>
-                                            <property name="visible">False</property>
-                                            <style><class name="inline-banner"/></style>
-                                            <child>
-                                              <object class="GtkImage">
-                                                <property name="icon-name">dialog-warning-symbolic</property>
-                                                <property name="valign">center</property>
-                                                <property name="pixel-size">10</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkLabel">
-                                                <property name="label">Recommended as system default</property>
-                                                <property name="hexpand">True</property>
-                                                <property name="xalign">0</property>
-                                                <property name="valign">center</property>
-                                                <property name="wrap">False</property>
-                                                <property name="ellipsize">end</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkButton" id="main_default_button">
-                                                <property name="label">Set as default</property>
-                                                <property name="valign">center</property>
-                                                <style><class name="inline-banner-action"/></style>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkBox" id="main_surround_restart_banner">
-                                            <property name="orientation">horizontal</property>
-                                            <property name="spacing">8</property>
-                                            <property name="visible">False</property>
-                                            <style><class name="inline-banner"/><class name="info"/></style>
-                                            <child>
-                                              <object class="GtkImage">
-                                                <property name="icon-name">emblem-synchronizing-symbolic</property>
-                                                <property name="valign">center</property>
-                                                <property name="pixel-size">10</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkLabel" id="main_surround_restart_label">
-                                                <property name="label">Virtual Surround is inactive until your next login</property>
-                                                <property name="hexpand">True</property>
-                                                <property name="xalign">0</property>
-                                                <property name="valign">center</property>
-                                                <property name="wrap">False</property>
-                                                <property name="ellipsize">end</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkButton" id="main_surround_restart_dismiss">
-                                                <property name="icon-name">window-close-symbolic</property>
-                                                <property name="valign">center</property>
-                                                <property name="has-frame">False</property>
-                                                <property name="tooltip-text">Dismiss</property>
-                                                <accessibility>
-                                                  <property name="label">Dismiss</property>
-                                                </accessibility>
-                                                <style><class name="inline-banner-dismiss"/><class name="flat"/></style>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkBox" id="main_surround_error_banner">
-                                            <property name="orientation">horizontal</property>
-                                            <property name="spacing">8</property>
-                                            <property name="visible">False</property>
-                                            <style><class name="inline-banner"/><class name="error"/></style>
-                                            <child>
-                                              <object class="GtkImage">
-                                                <property name="icon-name">dialog-warning-symbolic</property>
-                                                <property name="valign">center</property>
-                                                <property name="pixel-size">10</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkLabel">
-                                                <property name="label">Virtual Surround HRIR file not found</property>
-                                                <property name="hexpand">True</property>
-                                                <property name="xalign">0</property>
-                                                <property name="valign">center</property>
-                                                <property name="wrap">False</property>
-                                                <property name="ellipsize">end</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkButton">
-                                                <property name="label">Configure…</property>
-                                                <property name="valign">center</property>
-                                                <property name="action-name">app.surround</property>
-                                                <style><class name="inline-banner-action"/></style>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                  </object>
-                                </child>
-                              </object>
-                            </child>
-                            <child>
+                              <!-- Aux, Main and the crossfader are one group -->
                               <object class="GtkBox">
                                 <property name="orientation">vertical</property>
-                                <property name="spacing">0</property>
+                                <property name="spacing">8</property>
+                                <property name="margin-bottom">6</property>
                                 <child>
-                                  <object class="GtkScale" id="mix_scale">
+                                  <object class="GtkBox">
                                     <property name="orientation">horizontal</property>
-                                    <property name="draw-value">False</property>
-                                    <property name="hexpand">True</property>
-                                    <property name="sensitive">False</property>
-                                    <property name="adjustment">
-                                      <object class="GtkAdjustment">
-                                        <property name="lower">-1.0</property>
-                                        <property name="upper">1.0</property>
-                                        <property name="value">0.0</property>
-                                        <property name="step-increment">0.1</property>
-                                        <property name="page-increment">0.25</property>
+                                    <property name="spacing">16</property>
+                                    <property name="homogeneous">True</property>
+                                    <property name="valign">start</property>
+                                    <child>
+                                      <object class="GtkBox" id="aux_card">
+                                        <style><class name="card"/></style>
+                                        <property name="orientation">vertical</property>
+                                        <child>
+                                          <object class="GtkBox">
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">12</property>
+                                            <property name="margin-top">16</property>
+                                            <property name="margin-bottom">16</property>
+                                            <property name="margin-start">16</property>
+                                            <property name="margin-end">16</property>
+                                            <!-- Heading row: title over sink-name subtitle + corner volume -->
+                                            <child>
+                                              <object class="GtkBox">
+                                                <property name="orientation">horizontal</property>
+                                                <property name="spacing">6</property>
+                                                <child>
+                                                  <object class="GtkButton" id="aux_detail_button">
+                                                    <property name="halign">start</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="tooltip-text">Aux output details</property>
+                                                    <style><class name="flat"/><class name="card-title-button"/></style>
+                                                    <accessibility>
+                                                      <property name="label">Aux output details</property>
+                                                    </accessibility>
+                                                    <property name="child">
+                                                      <object class="GtkBox">
+                                                        <property name="orientation">horizontal</property>
+                                                        <property name="spacing">6</property>
+                                                        <child>
+                                                          <object class="GtkBox">
+                                                            <property name="orientation">vertical</property>
+                                                            <property name="valign">center</property>
+                                                            <child>
+                                                              <object class="GtkLabel">
+                                                                <style><class name="heading"/></style>
+                                                                <property name="label">Aux</property>
+                                                                <property name="xalign">0</property>
+                                                              </object>
+                                                            </child>
+                                                            <child>
+                                                              <object class="GtkLabel" id="aux_subtitle_label">
+                                                                <property name="label">Bridge - Aux</property>
+                                                                <property name="xalign">0</property>
+                                                                <property name="ellipsize">end</property>
+                                                                <style><class name="caption"/></style>
+                                                                <style><class name="dim-label"/></style>
+                                                              </object>
+                                                            </child>
+                                                          </object>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkImage">
+                                                            <property name="icon-name">go-next-symbolic</property>
+                                                            <property name="valign">center</property>
+                                                            <property name="accessible-role">presentation</property>
+                                                            <style><class name="dim-label"/><class name="card-title-chevron"/></style>
+                                                          </object>
+                                                        </child>
+                                                      </object>
+                                                    </property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkBox" id="aux_volume_box">
+                                                    <property name="orientation">horizontal</property>
+                                                    <property name="spacing">2</property>
+                                                    <property name="valign">start</property>
+                                                    <property name="halign">end</property>
+                                                    <property name="hexpand">True</property>
+                                                    <property name="baseline-position">bottom</property>
+                                                    <style><class name="card-volume-box"/></style>
+                                                    <child>
+                                                      <object class="GtkLabel" id="aux_volume_value">
+                                                        <property name="label">0.0</property>
+                                                        <property name="valign">baseline</property>
+                                                        <style><class name="card-volume"/></style>
+                                                        <style><class name="numeric"/></style>
+                                                      </object>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkLabel" id="aux_volume_unit">
+                                                        <property name="label">dB</property>
+                                                        <property name="valign">baseline</property>
+                                                        <style><class name="card-volume-unit"/></style>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <!-- Action row: stream count + test tone + mute -->
+                                            <child>
+                                              <object class="GtkBox">
+                                                <property name="orientation">horizontal</property>
+                                                <property name="spacing">6</property>
+                                                <child>
+                                                  <object class="GtkMenuButton" id="aux_streams_button">
+                                                    <property name="sensitive">False</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="always-show-arrow">False</property>
+                                                    <style><class name="compact-button"/><class name="flat"/></style>
+                                                    <property name="child">
+                                                      <object class="GtkBox">
+                                                        <property name="orientation">horizontal</property>
+                                                        <property name="spacing">6</property>
+                                                        <child>
+                                                          <object class="GtkImage">
+                                                            <property name="icon-name">bridge-list-symbolic</property>
+                                                          </object>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkLabel" id="aux_streams_label">
+                                                            <property name="label">No streams</property>
+                                                          </object>
+                                                        </child>
+                                                      </object>
+                                                    </property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkBox">
+                                                    <property name="hexpand">True</property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkButton" id="aux_test_tone_button">
+                                                    <property name="tooltip-text">Play a test tone through this output</property>
+                                                    <property name="valign">center</property>
+                                                    <style><class name="flat"/><class name="compact-icon-button"/></style>
+                                                    <child>
+                                                      <object class="GtkImage">
+                                                        <property name="icon-name">bridge-sound-symbolic</property>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkToggleButton" id="aux_mute_button">
+                                                    <property name="tooltip-text">Mute this output</property>
+                                                    <property name="valign">center</property>
+                                                    <style><class name="flat"/><class name="compact-icon-button"/></style>
+                                                    <child>
+                                                      <object class="GtkImage" id="aux_mute_image">
+                                                        <property name="icon-name">bridge-speaker-3-symbolic</property>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkDropDown" id="aux_hw_dropdown">
+                                                <property name="hexpand">True</property>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkLevelBar" id="aux_level_bar">
+                                                <property name="hexpand">True</property>
+                                                <property name="mode">continuous</property>
+                                                <property name="min-value">0</property>
+                                                <property name="max-value">1</property>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkBox" id="aux_disconnect_banner">
+                                                <property name="orientation">horizontal</property>
+                                                <property name="spacing">8</property>
+                                                <property name="visible">False</property>
+                                                <style><class name="inline-banner"/><class name="error"/></style>
+                                                <child>
+                                                  <object class="GtkImage">
+                                                    <property name="icon-name">dialog-warning-symbolic</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="pixel-size">10</property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkLabel">
+                                                    <property name="label">Output device disconnected</property>
+                                                    <property name="hexpand">True</property>
+                                                    <property name="xalign">0</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="wrap">False</property>
+                                                    <property name="ellipsize">end</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </child>
                                       </object>
-                                    </property>
-                                    <marks>
-                                      <mark value="0" position="bottom"/>
-                                    </marks>
+                                    </child>
+                                    <child>
+                                      <object class="GtkBox" id="main_card">
+                                        <style><class name="card"/></style>
+                                        <property name="orientation">vertical</property>
+                                        <child>
+                                          <object class="GtkBox">
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">12</property>
+                                            <property name="margin-top">16</property>
+                                            <property name="margin-bottom">16</property>
+                                            <property name="margin-start">16</property>
+                                            <property name="margin-end">16</property>
+                                            <!-- Heading row: title over sink-name subtitle + corner volume -->
+                                            <child>
+                                              <object class="GtkBox">
+                                                <property name="orientation">horizontal</property>
+                                                <property name="spacing">6</property>
+                                                <child>
+                                                  <object class="GtkButton" id="main_detail_button">
+                                                    <property name="halign">start</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="tooltip-text">Main output details</property>
+                                                    <style><class name="flat"/><class name="card-title-button"/></style>
+                                                    <accessibility>
+                                                      <property name="label">Main output details</property>
+                                                    </accessibility>
+                                                    <property name="child">
+                                                      <object class="GtkBox">
+                                                        <property name="orientation">horizontal</property>
+                                                        <property name="spacing">6</property>
+                                                        <child>
+                                                          <object class="GtkBox">
+                                                            <property name="orientation">vertical</property>
+                                                            <property name="valign">center</property>
+                                                            <child>
+                                                              <object class="GtkLabel">
+                                                                <style><class name="heading"/></style>
+                                                                <property name="label">Main</property>
+                                                                <property name="xalign">0</property>
+                                                              </object>
+                                                            </child>
+                                                            <child>
+                                                              <object class="GtkLabel" id="main_subtitle_label">
+                                                                <property name="label">Bridge - Main</property>
+                                                                <property name="xalign">0</property>
+                                                                <property name="ellipsize">end</property>
+                                                                <style><class name="caption"/></style>
+                                                                <style><class name="dim-label"/></style>
+                                                              </object>
+                                                            </child>
+                                                          </object>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkImage">
+                                                            <property name="icon-name">go-next-symbolic</property>
+                                                            <property name="valign">center</property>
+                                                            <property name="accessible-role">presentation</property>
+                                                            <style><class name="dim-label"/><class name="card-title-chevron"/></style>
+                                                          </object>
+                                                        </child>
+                                                      </object>
+                                                    </property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkBox" id="main_volume_box">
+                                                    <property name="orientation">horizontal</property>
+                                                    <property name="spacing">2</property>
+                                                    <property name="valign">start</property>
+                                                    <property name="halign">end</property>
+                                                    <property name="hexpand">True</property>
+                                                    <property name="baseline-position">bottom</property>
+                                                    <style><class name="card-volume-box"/></style>
+                                                    <child>
+                                                      <object class="GtkLabel" id="main_volume_value">
+                                                        <property name="label">0.0</property>
+                                                        <property name="valign">baseline</property>
+                                                        <style><class name="card-volume"/></style>
+                                                        <style><class name="numeric"/></style>
+                                                      </object>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkLabel" id="main_volume_unit">
+                                                        <property name="label">dB</property>
+                                                        <property name="valign">baseline</property>
+                                                        <style><class name="card-volume-unit"/></style>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <!-- Action row: mode toggle + test tone + mute -->
+                                            <child>
+                                              <object class="GtkBox">
+                                                <property name="orientation">horizontal</property>
+                                                <property name="spacing">6</property>
+                                                <child>
+                                                  <object class="AdwToggleGroup" id="main_mode_toggle">
+                                                    <property name="visible">False</property>
+                                                    <property name="valign">center</property>
+                                                    <style><class name="compact-toggle"/></style>
+                                                    <child>
+                                                      <object class="AdwToggle">
+                                                        <property name="name">direct</property>
+                                                        <property name="label">Direct</property>
+                                                        <property name="icon-name">bridge-stereo-jack-symbolic</property>
+                                                        <property name="tooltip">Direct audio playback</property>
+                                                      </object>
+                                                    </child>
+                                                    <child>
+                                                      <object class="AdwToggle">
+                                                        <property name="name">surround</property>
+                                                        <property name="label">Surround</property>
+                                                        <property name="icon-name">bridge-headphones-symbolic</property>
+                                                        <property name="tooltip">Virtual Surround playback</property>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkBox">
+                                                    <property name="hexpand">True</property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkButton" id="main_test_tone_button">
+                                                    <property name="tooltip-text">Play a test tone through this output</property>
+                                                    <property name="valign">center</property>
+                                                    <style><class name="flat"/><class name="compact-icon-button"/></style>
+                                                    <child>
+                                                      <object class="GtkImage">
+                                                        <property name="icon-name">bridge-sound-symbolic</property>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkToggleButton" id="main_mute_button">
+                                                    <property name="tooltip-text">Mute this output</property>
+                                                    <property name="valign">center</property>
+                                                    <style><class name="flat"/><class name="compact-icon-button"/></style>
+                                                    <child>
+                                                      <object class="GtkImage" id="main_mute_image">
+                                                        <property name="icon-name">bridge-speaker-3-symbolic</property>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkDropDown" id="main_hw_dropdown">
+                                                <property name="hexpand">True</property>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkLevelBar" id="main_level_bar">
+                                                <property name="hexpand">True</property>
+                                                <property name="mode">continuous</property>
+                                                <property name="min-value">0</property>
+                                                <property name="max-value">1</property>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkBox" id="main_disconnect_banner">
+                                                <property name="orientation">horizontal</property>
+                                                <property name="spacing">8</property>
+                                                <property name="visible">False</property>
+                                                <style><class name="inline-banner"/><class name="error"/></style>
+                                                <child>
+                                                  <object class="GtkImage">
+                                                    <property name="icon-name">dialog-warning-symbolic</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="pixel-size">10</property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkLabel">
+                                                    <property name="label">Output device disconnected</property>
+                                                    <property name="hexpand">True</property>
+                                                    <property name="xalign">0</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="wrap">False</property>
+                                                    <property name="ellipsize">end</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkBox" id="main_default_banner">
+                                                <property name="orientation">horizontal</property>
+                                                <property name="spacing">8</property>
+                                                <property name="visible">False</property>
+                                                <style><class name="inline-banner"/></style>
+                                                <child>
+                                                  <object class="GtkImage">
+                                                    <property name="icon-name">dialog-warning-symbolic</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="pixel-size">10</property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkLabel">
+                                                    <property name="label">Recommended as system default</property>
+                                                    <property name="hexpand">True</property>
+                                                    <property name="xalign">0</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="wrap">False</property>
+                                                    <property name="ellipsize">end</property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkButton" id="main_default_button">
+                                                    <property name="label">Set as default</property>
+                                                    <property name="valign">center</property>
+                                                    <style><class name="inline-banner-action"/></style>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkBox" id="main_surround_restart_banner">
+                                                <property name="orientation">horizontal</property>
+                                                <property name="spacing">8</property>
+                                                <property name="visible">False</property>
+                                                <style><class name="inline-banner"/><class name="info"/></style>
+                                                <child>
+                                                  <object class="GtkImage">
+                                                    <property name="icon-name">emblem-synchronizing-symbolic</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="pixel-size">10</property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkLabel" id="main_surround_restart_label">
+                                                    <property name="label">Virtual Surround is inactive until your next login</property>
+                                                    <property name="hexpand">True</property>
+                                                    <property name="xalign">0</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="wrap">False</property>
+                                                    <property name="ellipsize">end</property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkButton" id="main_surround_restart_dismiss">
+                                                    <property name="icon-name">window-close-symbolic</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="has-frame">False</property>
+                                                    <property name="tooltip-text">Dismiss</property>
+                                                    <accessibility>
+                                                      <property name="label">Dismiss</property>
+                                                    </accessibility>
+                                                    <style><class name="inline-banner-dismiss"/><class name="flat"/></style>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkBox" id="main_surround_error_banner">
+                                                <property name="orientation">horizontal</property>
+                                                <property name="spacing">8</property>
+                                                <property name="visible">False</property>
+                                                <style><class name="inline-banner"/><class name="error"/></style>
+                                                <child>
+                                                  <object class="GtkImage">
+                                                    <property name="icon-name">dialog-warning-symbolic</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="pixel-size">10</property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkLabel">
+                                                    <property name="label">Virtual Surround HRIR file not found</property>
+                                                    <property name="hexpand">True</property>
+                                                    <property name="xalign">0</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="wrap">False</property>
+                                                    <property name="ellipsize">end</property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkButton">
+                                                    <property name="label">Configure…</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="action-name">app.surround</property>
+                                                    <style><class name="inline-banner-action"/></style>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">0</property>
+                                    <child>
+                                      <object class="GtkBox">
+                                        <property name="orientation">horizontal</property>
+                                        <property name="spacing">6</property>
+                                        <property name="margin-top">8</property>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="label">Aux</property>
+                                            <property name="xalign">0</property>
+                                            <property name="hexpand">True</property>
+                                            <style><class name="caption"/><class name="dim-label"/></style>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel" id="mix_readout_label">
+                                            <property name="label">Balanced</property>
+                                            <property name="halign">center</property>
+                                            <style><class name="caption"/><class name="dim-label"/></style>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="label">Main</property>
+                                            <property name="xalign">1</property>
+                                            <property name="hexpand">True</property>
+                                            <style><class name="caption"/><class name="dim-label"/></style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkScale" id="mix_scale">
+                                        <style><class name="crossfader"/></style>
+                                        <property name="orientation">horizontal</property>
+                                        <property name="draw-value">False</property>
+                                        <property name="hexpand">True</property>
+                                        <property name="sensitive">False</property>
+                                        <property name="adjustment">
+                                          <object class="GtkAdjustment">
+                                            <property name="lower">-1.0</property>
+                                            <property name="upper">1.0</property>
+                                            <property name="value">0.0</property>
+                                            <property name="step-increment">0.1</property>
+                                            <property name="page-increment">0.25</property>
+                                          </object>
+                                        </property>
+                                        <marks>
+                                          <mark value="0" position="bottom"/>
+                                        </marks>
+                                      </object>
+                                    </child>
                                   </object>
                                 </child>
                               </object>
@@ -747,160 +703,159 @@
                                     <property name="margin-bottom">16</property>
                                     <property name="margin-start">16</property>
                                     <property name="margin-end">16</property>
-                                    <!-- Heading row -->
                                     <child>
-                                      <object class="GtkBox">
+                                      <object class="GtkBox" id="mic_main_row">
                                         <property name="orientation">horizontal</property>
-                                        <property name="spacing">6</property>
+                                        <property name="spacing">16</property>
                                         <child>
-                                          <object class="GtkButton" id="mic_detail_button">
-                                            <property name="halign">start</property>
-                                            <property name="valign">center</property>
+                                          <object class="GtkBox">
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">12</property>
                                             <property name="hexpand">True</property>
-                                            <property name="tooltip-text">Mic input details</property>
-                                            <style><class name="flat"/><class name="card-title-button"/></style>
-                                            <accessibility>
-                                              <property name="label">Mic input details</property>
-                                            </accessibility>
-                                            <property name="child">
+                                            <!-- Heading row -->
+                                            <child>
                                               <object class="GtkBox">
                                                 <property name="orientation">horizontal</property>
                                                 <property name="spacing">6</property>
                                                 <child>
-                                                  <object class="GtkBox">
-                                                    <property name="orientation">vertical</property>
+                                                  <object class="GtkButton" id="mic_detail_button">
+                                                    <property name="halign">start</property>
                                                     <property name="valign">center</property>
+                                                    <property name="tooltip-text">Mic input details</property>
+                                                    <style><class name="flat"/><class name="card-title-button"/></style>
+                                                    <accessibility>
+                                                      <property name="label">Mic input details</property>
+                                                    </accessibility>
+                                                    <property name="child">
+                                                      <object class="GtkBox">
+                                                        <property name="orientation">horizontal</property>
+                                                        <property name="spacing">6</property>
+                                                        <child>
+                                                          <object class="GtkBox">
+                                                            <property name="orientation">vertical</property>
+                                                            <property name="valign">center</property>
+                                                            <child>
+                                                              <object class="GtkLabel">
+                                                                <style><class name="heading"/></style>
+                                                                <property name="label">Mic</property>
+                                                                <property name="xalign">0</property>
+                                                              </object>
+                                                            </child>
+                                                            <child>
+                                                              <object class="GtkLabel" id="mic_subtitle_label">
+                                                                <property name="label">Bridge - Mic</property>
+                                                                <property name="xalign">0</property>
+                                                                <property name="ellipsize">end</property>
+                                                                <style><class name="caption"/></style>
+                                                                <style><class name="dim-label"/></style>
+                                                              </object>
+                                                            </child>
+                                                          </object>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkImage">
+                                                            <property name="icon-name">go-next-symbolic</property>
+                                                            <property name="valign">center</property>
+                                                            <property name="accessible-role">presentation</property>
+                                                            <style><class name="dim-label"/><class name="card-title-chevron"/></style>
+                                                          </object>
+                                                        </child>
+                                                      </object>
+                                                    </property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkDropDown" id="mic_hw_dropdown">
+                                                    <property name="valign">center</property>
+                                                    <property name="halign">start</property>
+                                                    <property name="margin-start">6</property>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkLabel" id="mic_state_label">
+                                                    <property name="label">Live</property>
+                                                    <property name="valign">center</property>
+                                                    <property name="hexpand">True</property>
+                                                    <property name="halign">end</property>
+                                                    <style><class name="mic-state"/><class name="live"/></style>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkLevelBar" id="mic_level_bar">
+                                                <property name="hexpand">True</property>
+                                                <property name="mode">continuous</property>
+                                                <property name="min-value">0</property>
+                                                <property name="max-value">1</property>
+                                              </object>
+                                            </child>
+                                            <!-- Mode row -->
+                                            <child>
+                                              <object class="GtkBox">
+                                                <property name="orientation">horizontal</property>
+                                                <property name="spacing">8</property>
+                                                <property name="valign">end</property>
+                                                <property name="vexpand">True</property>
+                                                <child>
+                                                  <object class="AdwToggleGroup" id="mic_mode_toggle">
+                                                    <property name="valign">center</property>
+                                                    <style><class name="compact-toggle"/></style>
                                                     <child>
-                                                      <object class="GtkLabel">
-                                                        <style><class name="heading"/></style>
-                                                        <property name="label">Mic</property>
-                                                        <property name="xalign">0</property>
+                                                      <object class="AdwToggle">
+                                                        <property name="name">open</property>
+                                                        <property name="label">Open</property>
+                                                        <property name="tooltip">Microphone stays open</property>
                                                       </object>
                                                     </child>
                                                     <child>
-                                                      <object class="GtkLabel" id="mic_subtitle_label">
-                                                        <property name="label">Bridge - Mic</property>
-                                                        <property name="xalign">0</property>
-                                                        <property name="ellipsize">end</property>
-                                                        <style><class name="caption"/></style>
-                                                        <style><class name="dim-label"/></style>
+                                                      <object class="AdwToggle">
+                                                        <property name="name">push-to-talk</property>
+                                                        <property name="label">Push to talk</property>
+                                                        <property name="enabled">False</property>
+                                                        <property name="tooltip">Push to talk is not available yet</property>
                                                       </object>
                                                     </child>
                                                   </object>
                                                 </child>
                                                 <child>
-                                                  <object class="GtkImage">
-                                                    <property name="icon-name">go-next-symbolic</property>
+                                                  <object class="GtkLabel" id="mic_mode_caption">
+                                                    <property name="label">Stays open unless muted</property>
+                                                    <property name="xalign">0</property>
                                                     <property name="valign">center</property>
-                                                    <property name="accessible-role">presentation</property>
-                                                    <style><class name="dim-label"/><class name="card-title-chevron"/></style>
+                                                    <property name="hexpand">True</property>
+                                                    <property name="wrap">True</property>
+                                                    <property name="max-width-chars">18</property>
+                                                    <style><class name="caption"/></style>
+                                                    <style><class name="dim-label"/></style>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkButton" id="mic_action_button">
+                                            <property name="valign">fill</property>
+                                            <property name="vexpand">True</property>
+                                            <property name="width-request">116</property>
+                                            <style><class name="mic-action"/><class name="mute"/></style>
+                                            <property name="child">
+                                              <object class="GtkBox">
+                                                <property name="orientation">vertical</property>
+                                                <property name="valign">center</property>
+                                                <property name="halign">center</property>
+                                                <property name="spacing">2</property>
+                                                <child>
+                                                  <object class="GtkLabel" id="mic_action_label">
+                                                    <property name="label">Mute</property>
+                                                    <style><class name="heading"/></style>
                                                   </object>
                                                 </child>
                                               </object>
                                             </property>
                                           </object>
                                         </child>
-                                        <child>
-                                          <object class="GtkLabel" id="mic_state_label">
-                                            <property name="label">Muted</property>
-                                            <property name="valign">start</property>
-                                            <property name="halign">end</property>
-                                            <style><class name="mic-state"/></style>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                    <!-- Action row -->
-                                    <child>
-                                      <object class="GtkBox">
-                                        <property name="orientation">horizontal</property>
-                                        <property name="spacing">6</property>
-                                        <child>
-                                          <object class="AdwToggleGroup" id="mic_mode_toggle">
-                                            <property name="valign">center</property>
-                                            <style><class name="compact-toggle"/></style>
-                                            <child>
-                                              <object class="AdwToggle">
-                                                <property name="name">open</property>
-                                                <property name="label">Open</property>
-                                                <property name="icon-name">audio-input-microphone-symbolic</property>
-                                                <property name="tooltip">Microphone stays open</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="AdwToggle">
-                                                <property name="name">muted</property>
-                                                <property name="label">Muted</property>
-                                                <property name="icon-name">microphone-sensitivity-muted-symbolic</property>
-                                                <property name="tooltip">Microphone is muted</property>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkBox">
-                                            <property name="hexpand">True</property>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkBox">
-                                        <property name="orientation">horizontal</property>
-                                        <property name="spacing">16</property>
-                                        <property name="homogeneous">True</property>
-                                        <child>
-                                          <object class="GtkDropDown" id="mic_hw_dropdown">
-                                            <property name="hexpand">True</property>
-                                            <property name="margin-end">16</property>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkBox"></object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                    <!-- Status row -->
-                                    <child>
-                                      <object class="GtkBox" id="mic_status_row">
-                                        <property name="orientation">horizontal</property>
-                                        <property name="spacing">6</property>
-                                        <child>
-                                          <object class="GtkImage">
-                                            <property name="icon-name">audio-input-microphone-symbolic</property>
-                                            <property name="valign">center</property>
-                                            <property name="pixel-size">12</property>
-                                            <style><class name="dim-label"/></style>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkLabel" id="mic_channels_label">
-                                            <property name="xalign">0</property>
-                                            <property name="valign">center</property>
-                                            <property name="ellipsize">end</property>
-                                            <style><class name="caption"/></style>
-                                            <style><class name="dim-label"/></style>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkLabel" id="mic_default_tag">
-                                            <property name="visible">False</property>
-                                            <property name="label">· System Default</property>
-                                            <property name="xalign">0</property>
-                                            <property name="valign">center</property>
-                                            <property name="ellipsize">end</property>
-                                            <style><class name="caption"/></style>
-                                            <style><class name="dim-label"/></style>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkLevelBar" id="mic_level_bar">
-                                        <property name="hexpand">True</property>
-                                        <property name="mode">continuous</property>
-                                        <property name="min-value">0</property>
-                                        <property name="max-value">1</property>
                                       </object>
                                     </child>
                                     <child>
@@ -997,84 +952,48 @@
                                 </child>
                               </object>
                             </child>
-                            <!-- Routing tile -->
                             <child>
                               <object class="GtkBox" id="routing_tile">
-                                <style><class name="card"/></style>
                                 <property name="orientation">vertical</property>
+                                <property name="spacing">8</property>
                                 <child>
-                                  <object class="GtkListBox" id="routing_header_list">
-                                    <property name="selection-mode">none</property>
-                                    <style><class name="routing-header-list"/></style>
+                                  <object class="GtkBox">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">12</property>
                                     <child>
-                                      <object class="GtkListBoxRow" id="routing_toggle">
-                                        <property name="activatable">True</property>
-                                        <accessibility>
-                                          <property name="label">Routing</property>
-                                          <state name="expanded">False</state>
-                                        </accessibility>
-                                        <child>
-                                          <object class="GtkBox">
-                                            <property name="orientation">horizontal</property>
-                                            <property name="spacing">12</property>
-                                            <property name="margin-top">10</property>
-                                            <property name="margin-bottom">10</property>
-                                            <property name="margin-start">16</property>
-                                            <property name="margin-end">16</property>
-                                            <child>
-                                              <object class="GtkLabel">
-                                                <property name="label">Routing</property>
-                                                <property name="valign">center</property>
-                                                <property name="xalign">0</property>
-                                                <style><class name="heading"/></style>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkLabel" id="routing_badge">
-                                                <property name="label">0</property>
-                                                <property name="valign">center</property>
-                                                <property name="visible">False</property>
-                                                <style><class name="routing-badge"/></style>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkBox">
-                                                <property name="hexpand">True</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkButton" id="routing_add_button">
-                                                <property name="label">Add Rule</property>
-                                                <property name="tooltip-text">Add routing rule</property>
-                                                <property name="valign">center</property>
-                                                <property name="sensitive">False</property>
-                                              </object>
-                                            </child>
-                                            <child>
-                                              <object class="GtkImage" id="routing_chevron">
-                                                <property name="icon-name">pan-end-symbolic</property>
-                                                <property name="valign">center</property>
-                                                <property name="accessible-role">presentation</property>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
+                                      <object class="GtkLabel">
+                                        <property name="label">Routing</property>
+                                        <property name="valign">center</property>
+                                        <property name="xalign">0</property>
+                                        <style><class name="heading"/></style>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel" id="routing_badge">
+                                        <property name="label">0</property>
+                                        <property name="valign">center</property>
+                                        <property name="visible">False</property>
+                                        <style><class name="routing-badge"/></style>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkBox">
+                                        <property name="hexpand">True</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkButton" id="routing_add_button">
+                                        <property name="label">Add Rule</property>
+                                        <property name="tooltip-text">Add routing rule</property>
+                                        <property name="valign">center</property>
+                                        <property name="sensitive">False</property>
                                       </object>
                                     </child>
                                   </object>
                                 </child>
                                 <child>
-                                  <object class="GtkRevealer" id="routing_revealer">
-                                    <property name="reveal-child">False</property>
-                                    <property name="transition-type">slide-down</property>
-                                    <child>
-                                      <object class="GtkBox" id="routing_body">
-                                        <property name="orientation">vertical</property>
-                                        <property name="margin-start">16</property>
-                                        <property name="margin-end">16</property>
-                                        <property name="margin-bottom">12</property>
-                                      </object>
-                                    </child>
+                                  <object class="GtkBox" id="routing_body">
+                                    <property name="orientation">vertical</property>
                                   </object>
                                 </child>
                               </object>

@@ -36,13 +36,35 @@ button.compact-icon-button { -gtk-icon-size: 14px; }
 /* Muted */
 .muted .card-volume { font-size: 1.0em; font-weight: 700; opacity: 0.5;}
 
-/* Per-side activity meter under the hw dropdown */
-levelbar.level-meter { min-height: 6px; }
+scale.crossfader > trough > slider {
+  min-width: 24px;
+  min-height: 24px;
+  margin: -6px;
+}
 
 /* Mic transmit state */
 .mic-state { font-weight: 700; }
 .mic-state.live { color: @error_color; }
 .mic-state.idle { opacity: 0.5; }
+
+/* The mic action button: Mute/Unmute*/
+.mic-action {
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+.mic-action.mute {
+  background-color: alpha(@error_bg_color, 0.15);
+  color: @error_color;
+}
+.mic-action.unmute {
+  background-color: alpha(@accent_bg_color, 0.15);
+  color: @accent_color;
+}
+
+.mic-action.mute:hover    { background-color: alpha(@error_bg_color, 0.25); }
+.mic-action.mute:active   { background-color: alpha(@error_bg_color, 0.35); }
+.mic-action.unmute:hover  { background-color: alpha(@accent_bg_color, 0.25); }
+.mic-action.unmute:active { background-color: alpha(@accent_bg_color, 0.35); }
 
 /* A (Aux/Main) card banner to display warnings,
   errors, information for a specific side */
@@ -114,9 +136,6 @@ levelbar.level-meter { min-height: 6px; }
 }
 .qs-badge-a { background-color: @accent_bg_color; color: @accent_fg_color; }
 .qs-badge-b { background-color: @card_shade_color; color: @card_fg_color; }
-
-.routing-header-list { background: none; }
-.routing-header-list > row { border-radius: 12px; }
 
 .routing-badge {
   background-color: @accent_bg_color;

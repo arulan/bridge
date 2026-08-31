@@ -86,11 +86,6 @@
       <summary>Last window maximized state</summary>
     </key>
 
-    <key name="keep-routing-open" type="b">
-      <default>true</default>
-      <summary>Expand the Routing tile on launch</summary>
-    </key>
-
     <key name="run-in-background" type="b">
       <default>false</default>
       <summary>Keep the app open after the window is closed</summary>

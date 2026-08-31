@@ -112,15 +112,6 @@ impl HwDevice {
             None
         }
     }
-
-    pub fn status_label(&self) -> String {
-        let layout = channel_layout_label(self.channels, &self.position);
-        match (layout.is_empty(), self.connection_label()) {
-            (_, None) => layout,
-            (true, Some(conn)) => conn.to_owned(),
-            (false, Some(conn)) => format!("{layout} · {conn}"),
-        }
-    }
 }
 
 /// Label for channel layout: "Mono", "Stereo", or the surround

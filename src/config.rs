@@ -218,14 +218,6 @@ pub fn set_default_follows_main(follows: bool) {
     let _ = settings().set_boolean("default-follows-main", follows);
 }
 
-pub fn keep_routing_open() -> bool {
-    settings().boolean("keep-routing-open")
-}
-
-pub fn set_keep_routing_open(open: bool) {
-    let _ = settings().set_boolean("keep-routing-open", open);
-}
-
 pub fn run_in_background() -> bool {
     settings().boolean("run-in-background")
 }

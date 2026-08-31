@@ -756,7 +756,7 @@ fn collect_diagnostic_info() -> String {
          Main: {main}\n\
          Mic:  {mic}\n\
          Surround: hrir=\"{hrir}\" hw=\"{s_hw}\" name=\"{s_name}\" active={s_active}\n\
-         Prefs: default-follows-main={follows_main} keep-routing-open={open_routing} volume-display={vol} run-in-background={bg} run-on-startup={startup}\n\
+         Prefs: default-follows-main={follows_main} volume-display={vol} run-in-background={bg} run-on-startup={startup}\n\
          Window: {w}x{h} maximized={max}",
         ver = env!("CARGO_PKG_VERSION"),
         pw_path = pw_config::config_file().display(),
@@ -768,7 +768,6 @@ fn collect_diagnostic_info() -> String {
         s_name = surround.display_name,
         s_active = config::surround_active(),
         follows_main = config::default_follows_main(),
-        open_routing = config::keep_routing_open(),
         bg = config::run_in_background(),
         startup = config::run_on_startup(),
         vol = vol.as_key(),
